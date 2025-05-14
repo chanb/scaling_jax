@@ -1,0 +1,50 @@
+{
+    "logging_config": {
+        "save_path": "/home/bryanpu1/projects/sandbox/scaling_jax/results/xland_ad",
+        "experiment_name": "debug",
+        "log_interval": 50,
+        "checkpoint_interval": 5000
+    },
+    "model_config": {
+        "architecture": "InContextGPT",
+        "model_kwargs": {
+            "output_dim": 6,
+            "num_blocks": 8,
+            "num_heads": 8,
+            "embed_dim": 64,
+            "widening_factor": 8,
+            "encode_strategy": "xland",
+            "predictor_strategy": "action_token_linear"
+        }
+    },
+    "optimizer_config": {
+        "optimizer": "adam",
+        "lr": {
+            "scheduler": "constant_schedule",
+            "scheduler_kwargs": {
+                "value": 3e-4
+            }
+        },
+        "opt_kwargs": {},
+        "max_grad_norm": false,
+        "mask_names": []
+    },
+    "learner": "ICRL",
+    "dataset_name": "xland_ad",
+    "dataset_kwargs": {
+        "data_path": null,
+        "seq_len": 1024
+    },
+    "shuffle_buffer_size": 100,
+    "num_workers": 4,
+    "batch_size": 6,
+    "gamma": 0.9,
+    "objective": "mle",
+    "num_epochs": 1000000,
+    "num_updates_per_epoch": 1,
+    "seeds": {
+        "seed": 0,
+        "learner_seed": 42,
+        "data_seed": 42
+    }
+}

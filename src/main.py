@@ -1,82 +1,87 @@
+"""
+This script is the entrypoint for any experiment.
+XXX: Try not to modify this.
+"""
+
+import inspect
 import os
+import sys
 
-os.environ['XLA_FLAGS'] = "--xla_force_host_platform_device_count=8"
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir)
 
+from datetime import datetime
+from pprint import pprint
 
-from flax import nnx
-from jax.experimental.mesh_utils import create_device_mesh
-from jax.sharding import Mesh, PartitionSpec as P, NamedSharding
+import json
+import os
+import timeit
+import uuid
 
-import jax
-import jax.numpy as jnp
-import optax
-
-
-# Create mesh
-num_devices = len(jax.devices())
-data_mesh = Mesh(
-    create_device_mesh((num_devices,)),
-    ('data',),
-)
+from src.constants import *
+from src.train import train
+from src.utils import flatten_dict, parse_dict, set_seed
 
 
-class MLP(nnx.Module):
-    def __init__(self, din, dmid, dout, rngs: nnx.Rngs):
-        self.w1 = nnx.Param(
-            nnx.initializers.lecun_normal()(rngs.params(), (din, dmid)),
+"""
+This function constructs the model, optimizer, and learner and executes training.
+"""
+
+
+def main(config_path: str):
+    """
+    Orchestrates the experiment.
+
+    :param config_path: the experiment configuration file path
+    :type config_path: str
+
+    """
+    tic = timeit.default_timer()
+
+    assert os.path.isfile(config_path), f"{config_path} is not a file"
+    with open(config_path, "r") as f:
+        config_dict = json.load(f)
+        hyperparameter_str = "|param|value|\n|-|-|\n%s" % (
+            "\n".join(
+                [
+                    f"|{key}|{value}|"
+                    for key, value in dict(flatten_dict(config_dict)).items()
+                ]
+            )
         )
+        config = parse_dict(config_dict)
 
-        self.b1 = nnx.Param(
-            jnp.zeros((dmid,)),
+    pprint(config)
+
+    set_seed(config.seeds.seed)
+    save_path = None
+    if config.logging_config.save_path:
+        optional_prefix = ""
+        if config.logging_config.experiment_name:
+            optional_prefix += f"{config.logging_config.experiment_name}-"
+        time_tag = datetime.strftime(datetime.now(), "%m-%d-%y_%H_%M_%S")
+        run_id = str(uuid.uuid4())
+        save_path = os.path.join(
+            config.logging_config.save_path, f"{optional_prefix}{time_tag}-{run_id}"
         )
+        os.makedirs(save_path, exist_ok=True)
+        with open(os.path.join(save_path, "config.json"), "w+") as f:
+            json.dump(config_dict, f)
 
-        self.w2 = nnx.Param(
-            nnx.initializers.lecun_normal()(rngs.params(), (dmid, dout)),
-        )
-
-    def __call__(self, x: jax.Array):
-        return nnx.relu(x @ self.w1 + self.b1) @ self.w2
-
-
-in_dim = 2
-out_dim = 1
-
-@nnx.jit
-def create_sharded_model():
-    model = MLP(in_dim, 64, out_dim, rngs=nnx.Rngs(0)) # Unsharded at this moment.
-    state = nnx.state(model)                   # The model's state, a pure pytree.
-    pspecs = nnx.get_partition_spec(state)     # Strip out the annotations from state.
-    sharded_state = jax.lax.with_sharding_constraint(state, pspecs)
-    nnx.update(model, sharded_state)           # The model is sharded now!
-    return model
-
-with data_mesh:
-    sharded_model = create_sharded_model()
+    train(config, hyperparameter_str, save_path)
+    toc = timeit.default_timer()
+    print(f"Experiment Time: {toc - tic}s")
 
 
-optimizer = nnx.Optimizer(sharded_model, optax.adam(1e-3))
+if __name__ == "__main__":
+    import argparse
 
-@nnx.jit
-def train_step(model, optimizer, x, y):
-    def loss_fn(model: MLP):
-        y_pred = model(x)
-        return jnp.mean((y_pred - y) ** 2)
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config_path", type=str, help="Training configuration", required=True
+    )
+    args = parser.parse_args()
 
-    loss, grads = nnx.value_and_grad(loss_fn)(model)
-    optimizer.update(grads)
-
-    return loss
-
-data_sharding = NamedSharding(data_mesh, P('data'))
-
-num_samples = 8
-seq_len = 2
-input = jax.device_put(jax.random.normal(jax.random.key(1), (num_samples, seq_len, in_dim)), data_sharding)
-label = jax.device_put(jax.random.normal(jax.random.key(2), (num_samples, seq_len, out_dim)), data_sharding)
-
-jax.debug.visualize_array_sharding(input)
-jax.debug.visualize_array_sharding(label)
-
-for i in range(5):
-    loss = train_step(sharded_model, optimizer, input, label)
-    print(loss)    # Model (over-)fitting to the labels quickly.
+    config_path = args.config_path
+    main(config_path)
