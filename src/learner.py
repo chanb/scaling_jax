@@ -230,19 +230,21 @@ class ICRL:
             auxes.append(aux)
 
         auxes = jax.tree_util.tree_map(lambda *args: np.mean(args), *auxes)
+
+        params = nnx.state(self.model, nnx.Param)
         log = {
             f"losses/{CONST_AGG_LOSS}": auxes[CONST_AGG_LOSS].item(),
             f"losses/{CONST_ACCURACY}": auxes[CONST_ACCURACY].item(),
             f"time/{CONST_SAMPLE_TIME}": total_sample_time,
             f"time/{CONST_UPDATE_TIME}": total_update_time,
             f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
-            f"{CONST_PARAM_NORM}/model": l2_norm(self._model_dict[CONST_MODEL]).item(),
+            f"{CONST_PARAM_NORM}/model": l2_norm(params).item(),
         }
 
-        if isinstance(self._model_dict[CONST_OPT_STATE], dict):
-            for model_name, optimizer in self._model_dict[CONST_OPT_STATE]:
+        if isinstance(self._model_dict[CONST_OPTIMIZER], dict):
+            for model_name, optimizer in self._model_dict[CONST_OPTIMIZER]:
                 gather_learning_rate(aux, model_name, optimizer)
         else:
-            gather_learning_rate(aux, CONST_MODEL, self._model_dict[CONST_OPTIMIZER])
+            gather_learning_rate(aux, CONST_MODEL, self.model_dict[CONST_OPTIMIZER])
 
         return log

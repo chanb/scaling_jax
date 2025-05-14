@@ -33,11 +33,11 @@
     "dataset_name": "xland_ad",
     "dataset_kwargs": {
         "data_path": null,
-        "seq_len": 1024
+        "seq_len": 256
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 6,
+    "batch_size": 24,
     "objective": "mle",
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
