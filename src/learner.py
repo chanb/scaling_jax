@@ -74,7 +74,7 @@ class ICRL:
 
         self._initialize_model_and_opt()
         self._initialize_losses()
-        self.train_step = self.make_train_step()
+        self.train_step = nnx.jit(self.make_train_step(), donate_argnums=(0, 1))
 
     def construct_mesh(self):
         self.num_devices = len(jax.devices())
@@ -110,34 +110,29 @@ class ICRL:
         """
         Construct the model and the optimizer.
         """
-
-        @nnx.jit
-        def create_sharded_model():
-            rngs = nnx.Rngs(self._config.seeds.learner_seed)
-            model_cls = getattr(models, self._config.model_config.architecture)
-            dependency_cls = models.build_cls(
-                self._dataset,
-                self._config.model_config,
-                rngs=rngs,
-            )
-            model = model_cls(
-                **vars(self._config.model_config.model_kwargs),
-                **dependency_cls,
-                rngs=rngs,
-            )
-            state = nnx.state(model)                   # The model's state, a pure pytree.
-            pspecs = nnx.get_partition_spec(state)     # Strip out the annotations from state.
-            sharded_state = jax.lax.with_sharding_constraint(state, pspecs)
-            nnx.update(model, sharded_state)           # The model is sharded now!
-            return model
-
-        with self.data_mesh:
-            self._model = create_sharded_model()
+        
+        rngs = nnx.Rngs(self._config.seeds.learner_seed)
+        model_cls = getattr(models, self._config.model_config.architecture)
+        dependency_cls = models.build_cls(
+            self._dataset,
+            self._config.model_config,
+            rngs=rngs,
+        )
+        self._model = model_cls(
+            **vars(self._config.model_config.model_kwargs),
+            **dependency_cls,
+            rngs=rngs,
+        )
 
         self._optimizer = nnx.Optimizer(
             self._model,
             get_optimizer(self._config.optimizer_config),
         )
+
+        model_sharding = NamedSharding(self.data_mesh, P())
+        state = nnx.state((self._model, self._optimizer))
+        state = jax.device_put(state, model_sharding)
+        nnx.update((self._model, self._optimizer), state)
 
         self._model_dict = {
             CONST_MODEL: self._model,
@@ -149,7 +144,6 @@ class ICRL:
             def cross_entropy(model, batch):
                 targets = batch["target"]
                 logits = model(batch)
-
                 loss = jnp.mean(
                     optax.softmax_cross_entropy_with_integer_labels(logits, targets)
                 )
@@ -161,7 +155,7 @@ class ICRL:
                     CONST_ACCURACY: acc,
                 }
 
-            self._loss = nnx.jit(cross_entropy)
+            self._loss = cross_entropy
         else:
             raise NotImplementedError
 
@@ -210,11 +204,6 @@ class ICRL:
             tic = timeit.default_timer()
             batch = next(self.ds)
             total_sample_time += timeit.default_timer() - tic
-
-            self._learner_key = jrandom.fold_in(
-                self._learner_key, epoch * self._num_updates_per_epoch + update_i
-            )
-            batch[CONST_RANDOM_KEY] = self._learner_key
 
             tic = timeit.default_timer()
             aux = self.train_step(

@@ -25,11 +25,11 @@ class XLandSARTSEncoder(nnx.Module):
     ):
         self.embed_dim = embed_dim
 
-        self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim, rngs=rngs)
-        self.color_emb = nnx.Embed(NUM_COLORS, embed_dim, rngs=rngs)
+        self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim // 2, rngs=rngs)
+        self.color_emb = nnx.Embed(NUM_COLORS, embed_dim // 2, rngs=rngs)
         self.observation_emb = CNN(
-            in_features=embed_dim * 2,
-            hidden_features=[32, 32],
+            in_features=embed_dim,
+            hidden_features=[32, 16],
             kernel_sizes=[1, 1],
             paddings=[CONST_SAME_PADDING, CONST_SAME_PADDING],
             activation=nnx.relu,
@@ -37,7 +37,7 @@ class XLandSARTSEncoder(nnx.Module):
             rngs=rngs,
         )
         self.observation_projector = nnx.Linear(
-            5 * 5 * 32,
+            5 * 5 * 16,
             embed_dim,
             rngs=rngs,
         )

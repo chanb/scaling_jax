@@ -53,12 +53,10 @@ class MLP(nnx.Module):
             nnx.Linear(all_layers[-1], out_dim, use_bias=use_bias, rngs=rngs)
         )
 
-        self.mlp = layers
+        self.mlp = nnx.Sequential(*layers)
 
     def __call__(self, x):
-        for layer in self.mlp:
-            x = layer(x)
-        return x
+        return self.mlp(x)
 
 
 class CNN(nnx.Module):
@@ -115,12 +113,10 @@ class CNN(nnx.Module):
             )
         )
 
-        self.conv = layers
+        self.conv = nnx.Sequential(*layers)
 
     def __call__(self, x):
-        for layer in self.conv:
-            x = layer(x)
-        return x
+        return self.conv(x)
 
 
 class ResNetV1Block(nnx.Module):
@@ -285,11 +281,10 @@ class ResNetV1BlockGroup(nnx.Module):
                     rngs=rngs,
                 )
             )
-        self.resnet_blocks = blocks
+        self.resnet_blocks = nnx.Sequential(*blocks)
 
     def __call__(self, x):
-        for block in self.resnet_blocks:
-            x = block(x)
+        x = self.resnet_blocks(x)
         return x
 
 
@@ -354,7 +349,7 @@ class ResNetV1(nnx.Module):
                 )
             )
 
-        self.resnet_groups = groups
+        self.resnet_groups = nnx.Sequential(*groups)
 
     def __call__(self, x):
         x = self.init_conv(x)
@@ -369,7 +364,6 @@ class ResNetV1(nnx.Module):
             padding=CONST_SAME_PADDING,
         )
 
-        for group in self.resnet_groups:
-            x = group(x)
+        x = self.resnet_groups(x)
 
         return jnp.mean(x, axis=(-3, -2))

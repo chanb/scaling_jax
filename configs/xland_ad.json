@@ -33,7 +33,7 @@
     "dataset_name": "xland_ad",
     "dataset_kwargs": {
         "data_path": "/home/bryanpu1/projects/aaai_2026/xland-minigrid-datasets/xland-trivial-20b.hdf5",
-        "seq_len": 256
+        "seq_len": 1024
     },
     "shuffle_buffer_size": 100,
     "num_workers": 8,

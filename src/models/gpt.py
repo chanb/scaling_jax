@@ -70,12 +70,11 @@ class GPT(nnx.Module):
                     use_causal_mask=use_causal_mask,
                 )
             )
-        self.gpt = layers
+        self.gpt = nnx.Sequential(*layers)
         self.ln = nnx.LayerNorm(embed_dim, rngs=rngs)
 
     def __call__(self, x):
-        for layer in self.gpt:
-            x = layer(x)
+        x = self.gpt(x)
         x = self.ln(x)
         return x
 
