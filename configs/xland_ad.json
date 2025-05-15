@@ -1,8 +1,8 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/sandbox/scaling_jax/results/xland_ad",
+        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/xland_ad",
         "experiment_name": "debug",
-        "log_interval": 1,
+        "log_interval": 50,
         "checkpoint_interval": 5000
     },
     "model_config": {
@@ -32,14 +32,14 @@
     "learner": "ICRL",
     "dataset_name": "xland_ad",
     "dataset_kwargs": {
-        "data_path": null,
+        "data_path": "/home/bryanpu1/projects/aaai_2026/xland-minigrid-datasets/xland-trivial-20b.hdf5",
         "seq_len": 256
     },
     "shuffle_buffer_size": 100,
-    "num_workers": 4,
-    "batch_size": 6,
+    "num_workers": 8,
+    "batch_size": 8,
     "objective": "mle",
-    "num_epochs": 10000,
+    "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
