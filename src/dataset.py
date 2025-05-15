@@ -16,7 +16,7 @@ import jax
 from src.datasets.ad_dataset import XMiniGridADataset
 
 
-def get_iter(data_loader):
+def get_iter(data_loader, data_sharding):
     loader = iter(data_loader)
     while True:
         try:
@@ -28,10 +28,10 @@ def get_iter(data_loader):
         for k, v in batch.items():
             if hasattr(v, "numpy"):
                 batch[k] = v.numpy()
-        yield batch
+        yield jax.device_put(batch, data_sharding)
 
 
-def get_data_loader(config: SimpleNamespace) -> Any:
+def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
     dataset_name = config.dataset_name
     dataset_kwargs = config.dataset_kwargs
 
@@ -57,7 +57,7 @@ def get_data_loader(config: SimpleNamespace) -> Any:
     else:
         raise NotImplementedError
 
-    loader = get_iter(loader)
+    loader = get_iter(loader, data_sharding)
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
 
     return loader, dataset

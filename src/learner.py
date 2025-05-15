@@ -69,6 +69,7 @@ class ICRL:
 
         self.ds, self._dataset = get_data_loader(
             config,
+            NamedSharding(self.data_mesh, P("data")),
         )
 
         self._initialize_model_and_opt()
@@ -160,7 +161,7 @@ class ICRL:
                     CONST_ACCURACY: acc,
                 }
 
-            self._loss = cross_entropy
+            self._loss = nnx.jit(cross_entropy)
         else:
             raise NotImplementedError
 
@@ -169,7 +170,6 @@ class ICRL:
         Makes the training step for model update.
         """
 
-        @nnx.jit
         def _train_step(
             model,
             optimizer,
@@ -206,11 +206,9 @@ class ICRL:
         total_sample_time = 0
         total_update_time = 0
 
-        data_sharding = NamedSharding(self.data_mesh, P("data"))
         for update_i in range(self._num_updates_per_epoch):
             tic = timeit.default_timer()
             batch = next(self.ds)
-            batch = jax.device_put(batch, data_sharding)
             total_sample_time += timeit.default_timer() - tic
 
             self._learner_key = jrandom.fold_in(
