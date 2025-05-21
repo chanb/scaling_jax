@@ -64,7 +64,6 @@ class XLandADEncoder(nnx.Module):
         obss = batch["state"]
         acts = batch["action"]
         rews = batch["reward"]
-        terminals = batch["done"].astype(int)
         (batch_size, seq_len) = obss.shape[:2]
 
         entities = self.entity_emb(

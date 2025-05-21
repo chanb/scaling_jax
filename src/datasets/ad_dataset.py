@@ -18,11 +18,11 @@ class XMiniGridADDataset(IterableDataset):
         self.data_path = data_path
         self.seed = seed
         self._rng = np.random.RandomState(seed)
-        self.task_ids = list(df.keys())
 
         with h5py.File(data_path, "r") as df:
             self.benchmark_id = df["0"].attrs["benchmark-id"]
             self.env_id = df["0"].attrs["env-id"]
+            self.task_ids = list(df.keys())
 
             self.num_tasks = len(list(df.keys()))
             self.hists_per_task = df["0/rewards"].shape[0]

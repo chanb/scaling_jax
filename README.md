@@ -18,7 +18,7 @@ curl -L -o xland-trivial-20b.hdf5 https://tinyurl.com/trivial-10k
 
 ## Example
 ```
-CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python src/main.py --config_path=configs/xland_ad.json
+CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.99 python src/main.py --config_path=configs/xland_ad.json
 ```
 
 
@@ -27,10 +27,10 @@ Setup
 ```
 module load StdEnv/2023
 module load python/3.10.13
-module load cuda/12.6
+module load cuda/12.2
 
 pip install --upgrade pip --no-index
-pip install jax --no-index
+pip install "jax[cuda12]" --no-index
 pip install optax flax --no-index
 pip install chex dill matplotlib tensorboard seaborn tqdm --no-index
 pip install gymnasium --no-index
@@ -42,11 +42,16 @@ pip install h5py --no-index
 pip install xminigrid~=0.8.0
 ```
 
-Datasets:
+### Running:
 ```
-# Local
-tar cf ~/scratch/datasets/xland_20b.tar <PATH>/<TO>/xland-trivial-20b.hdf5
+module load StdEnv/2023
+module load python/3.10.13
+module load cuda/12.2
 
-# Node
-tar xf ~/scratch/datasets/xland_20b.tar -C $SLURM_TMPDIR/data
+source ~/<PATH>/<TO>/<VENV>/bin/activate
+```
+
+### Interactive:
+```
+salloc --time=0:20:00 --mem=500GB --cpus-per-task=64 --gres=gpu:l40s:4 --account=aip-schuurma
 ```

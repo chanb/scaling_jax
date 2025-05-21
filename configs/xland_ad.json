@@ -13,7 +13,7 @@
             "num_heads": 8,
             "embed_dim": 64,
             "widening_factor": 8,
-            "encode_strategy": "xland",
+            "encode_strategy": "xland_ad",
             "predictor_strategy": "action_token_linear"
         }
     },
@@ -33,11 +33,11 @@
     "learner": "ICRL",
     "dataset_name": "xland_ad",
     "dataset_kwargs": {
-        "data_path": "/home/bryanpu1/projects/aaai_2026/xland-minigrid-datasets/xland-trivial-20b.hdf5",
-        "seq_len": 1024
+        "data_path": "/home/chanb/scratch/datasets/xland-trivial-20b.hdf5",
+        "seq_len": 4096
     },
     "shuffle_buffer_size": 100,
-    "num_workers": 8,
+    "num_workers": 2,
     "batch_size": 8,
     "objective": "mle",
     "num_epochs": 1000000,

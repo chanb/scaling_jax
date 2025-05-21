@@ -13,6 +13,7 @@ from typing import Any
 
 import jax
 import jax.numpy as jnp
+import numpy as np
 
 from src.datasets.ad_dataset import XMiniGridADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
@@ -35,7 +36,8 @@ def get_iter(data_loader, data_sharding, half_precision):
         for k, v in batch.items():
             if hasattr(v, "numpy"):
                 batch[k] = v.numpy()
-            batch[k] = batch[k].astype(dtype)
+            if not np.isdtype(batch[k].dtype, "integral"):
+                batch[k] = batch[k].astype(dtype)
         yield jax.device_put(batch, data_sharding)
 
 
@@ -47,8 +49,6 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
 
     if dataset_name.startswith("xland"):
         batch_size = config.batch_size
-        shuffle = True
-        drop_last = True
         if dataset_name == "xland_ad":
             dataset = XMiniGridADDataset(
                 dataset_kwargs.data_path,
@@ -66,8 +66,6 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
         loader = DataLoader(
             dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
-            drop_last=drop_last,
             num_workers=num_workers,
         )
 
