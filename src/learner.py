@@ -236,7 +236,6 @@ class ICRL:
         for update_i in range(self._num_updates_per_epoch):
             tic = timeit.default_timer()
             batch = next(self.ds)
-            batch = jax.device_put(batch, self.data_sharding)
             total_sample_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
