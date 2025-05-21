@@ -29,6 +29,9 @@ module load StdEnv/2023
 module load python/3.10.13
 module load cuda/12.2
 
+python -m venv <venv_name>
+source <venv_name>/bin/activate
+
 pip install --upgrade pip --no-index
 pip install "jax[cuda12]" --no-index
 pip install optax flax --no-index
@@ -56,4 +59,12 @@ XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python <PATH_TO_REPO>/src/main.py --config_p
 ### Interactive:
 ```
 salloc --time=0:20:00 --mem=500GB --cpus-per-task=64 --gres=gpu:l40s:4 --account=aip-schuurma
+```
+
+Tensorboard:
+```
+Compute node $: tensorboard --logdir=. --host 0.0.0.0 --load_fast false
+
+Local $: ssh -N -f -L localhost:6007:<node_name>:6006 <username>@vulcan.all
+iancecan.ca
 ```
