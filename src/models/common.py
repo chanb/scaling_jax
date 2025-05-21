@@ -40,18 +40,45 @@ class MLP(nnx.Module):
             all_layers[1:],
         )):
             layers.append(
-                nnx.Linear(hidden_in, hidden_out, use_bias=use_bias, rngs=rngs)
+                nnx.Linear(
+                    hidden_in,
+                    hidden_out,
+                    use_bias=use_bias,
+                    rngs=rngs,
+                    dtype=dtype,
+                    kernel_init=nnx.with_partitioning(
+                        nnx.initializers.xavier_normal(),
+                        ("tensor", "fsdp")
+                    ),
+                    bias_init=nnx.with_partitioning(
+                        nnx.initializers.normal(stddev=1.0),
+                        ("fsdp",)
+                    ),
+                )
             )
 
             if use_layer_norm:
-                layers.append(nnx.LayerNorm(hidden_out, rngs=rngs))
+                layers.append(nnx.LayerNorm(hidden_out, rngs=rngs, dtype=dtype,))
             if use_batch_norm:
-                layers.append(nnx.BatchNorm(hidden_out, rngs=rngs))
-            layers.append(nnx.Dropout(dropout_p, deterministic=dropout_p == 0.0, rngs=rngs))
+                layers.append(nnx.BatchNorm(hidden_out, rngs=rngs, dtype=dtype,))
+
+            layers.append(
+                nnx.Dropout(
+                    dropout_p,
+                    deterministic=dropout_p == 0.0,
+                    rngs=rngs,
+                )
+            )
             layers.append(activation)
 
         layers.append(
-            nnx.Linear(all_layers[-1], out_dim, use_bias=use_bias, rngs=rngs)
+            nnx.Linear(
+                all_layers[-1],
+                out_dim,
+                use_bias=use_bias,
+                rngs=rngs,
+                dtype=dtype,
+            )
         )
 
         self.mlp = nnx.Sequential(*layers)
@@ -92,11 +119,12 @@ class CNN(nnx.Module):
                     padding=padding,
                     use_bias=use_bias,
                     rngs=rngs,
+                    dtype=dtype,
                 )
             )
 
             if use_batch_norm:
-                layers.append(nnx.BatchNorm(hidden_out, rngs=rngs))
+                layers.append(nnx.BatchNorm(hidden_out, rngs=rngs, dtype=dtype,))
             layers.append(
                 nnx.Dropout(
                     dropout_p,
@@ -112,6 +140,7 @@ class CNN(nnx.Module):
                 hidden_features[-1],
                 use_bias=use_bias,
                 rngs=rngs,
+                dtype=dtype,
             )
         )
 
@@ -148,12 +177,14 @@ class ResNetV1Block(nnx.Module):
                 use_bias=False,
                 padding=CONST_SAME_PADDING,
                 rngs=rngs,
+                dtype=dtype,
             )
             if self.use_batch_norm:
                 self.projection_batchnorm = nnx.BatchNorm(
                     self.out_features,
                     momentum=0.9,
                     rngs=rngs,
+                    dtype=dtype,
                 )
 
         
@@ -175,6 +206,7 @@ class ResNetV1Block(nnx.Module):
             use_bias=False,
             padding=CONST_SAME_PADDING,
             rngs=rngs,
+            dtype=dtype,
         )
 
         if self.use_batch_norm:
@@ -182,6 +214,7 @@ class ResNetV1Block(nnx.Module):
                 conv_features,
                 momentum=0.9,
                 rngs=rngs,
+                dtype=dtype,
             )
 
         conv_1 = nnx.Conv(
@@ -192,6 +225,7 @@ class ResNetV1Block(nnx.Module):
             use_bias=False,
             padding=CONST_SAME_PADDING,
             rngs=rngs,
+            dtype=dtype,
         )
 
         if self.use_batch_norm:
@@ -199,6 +233,7 @@ class ResNetV1Block(nnx.Module):
                 conv_features,
                 momentum=0.9,
                 rngs=rngs,
+                dtype=dtype,
             )
 
         if self.use_batch_norm:
@@ -218,6 +253,7 @@ class ResNetV1Block(nnx.Module):
                 use_bias=False,
                 padding=CONST_SAME_PADDING,
                 rngs=rngs,
+                dtype=dtype,
             )
             if self.use_batch_norm:
                 batch_norm_2 = nnx.BatchNorm(
@@ -225,6 +261,7 @@ class ResNetV1Block(nnx.Module):
                     momentum=0.9,
                     scale_init=nnx.initializers.zeros_init(),
                     rngs=rngs,
+                    dtype=dtype,
                 )
                 layers.append((conv_2, batch_norm_2))
             else:
@@ -283,6 +320,7 @@ class ResNetV1BlockGroup(nnx.Module):
                     use_bottleneck,
                     use_batch_norm,
                     rngs=rngs,
+                    dtype=dtype,
                 )
             )
         self.resnet_blocks = nnx.Sequential(*blocks)
@@ -315,6 +353,7 @@ class ResNetV1(nnx.Module):
             use_bias=False,
             padding=CONST_SAME_PADDING,
             rngs=rngs,
+            dtype=dtype,
         )
 
         if self.use_batch_norm:
@@ -322,6 +361,7 @@ class ResNetV1(nnx.Module):
                 64,
                 momentum=0.9,
                 rngs=rngs,
+                dtype=dtype,
             )
 
         groups = []
@@ -351,6 +391,7 @@ class ResNetV1(nnx.Module):
                     use_bottleneck,
                     use_batch_norm,
                     rngs=rngs,
+                    dtype=dtype,
                 )
             )
 

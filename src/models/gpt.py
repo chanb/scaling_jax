@@ -27,12 +27,60 @@ class GPTBlock(nnx.Module):
         dtype=None,
     ):
         self.use_causal_mask = use_causal_mask
-        self.attention = nnx.MultiHeadAttention(num_heads, embed_dim, decode=False, rngs=rngs)
-        self.ln_1 = nnx.LayerNorm(embed_dim, rngs=rngs)
+        self.attention = nnx.MultiHeadAttention(
+            num_heads,
+            embed_dim,
+            decode=False,
+            rngs=rngs,
+            dtype=dtype,
+            kernel_init=nnx.with_partitioning(
+                nnx.initializers.xavier_normal(),
+                ("tensor", "fsdp")
+            ),
+            bias_init=nnx.with_partitioning(
+                nnx.initializers.normal(stddev=1.0),
+                ("fsdp",)
+            ),
+        )
+        self.ln_1 = nnx.LayerNorm(
+            embed_dim,
+            rngs=rngs,
+            dtype=dtype,
+        )
 
-        self.ln_2 = nnx.LayerNorm(embed_dim, rngs=rngs)
-        self.dense_1 = nnx.Linear(embed_dim, embed_dim * widening_factor, rngs=rngs)
-        self.dense_2 = nnx.Linear(embed_dim * widening_factor, embed_dim, rngs=rngs)
+        self.ln_2 = nnx.LayerNorm(
+            embed_dim,
+            rngs=rngs,
+            dtype=dtype,
+        )
+        self.dense_1 = nnx.Linear(
+            embed_dim,
+            embed_dim * widening_factor,
+            rngs=rngs,
+            dtype=dtype,
+            kernel_init=nnx.with_partitioning(
+                nnx.initializers.xavier_normal(),
+                ("tensor", "fsdp")
+            ),
+            bias_init=nnx.with_partitioning(
+                nnx.initializers.normal(stddev=1.0),
+                ("fsdp",)
+            ),
+        )
+        self.dense_2 = nnx.Linear(
+            embed_dim * widening_factor,
+            embed_dim,
+            rngs=rngs,
+            dtype=dtype,
+            kernel_init=nnx.with_partitioning(
+                nnx.initializers.xavier_normal(),
+                ("tensor", "fsdp")
+            ),
+            bias_init=nnx.with_partitioning(
+                nnx.initializers.normal(stddev=1.0),
+                ("fsdp",)
+            ),
+        )
 
     def __call__(self, x):
         mask = nnx.make_causal_mask(x[..., 0]) * self.use_causal_mask
@@ -70,10 +118,11 @@ class GPT(nnx.Module):
                     widening_factor,
                     rngs=rngs,
                     use_causal_mask=use_causal_mask,
+                    dtype=dtype,
                 )
             )
         self.gpt = nnx.Sequential(*layers)
-        self.ln = nnx.LayerNorm(embed_dim, rngs=rngs)
+        self.ln = nnx.LayerNorm(embed_dim, rngs=rngs, dtype=dtype,)
 
     def __call__(self, x):
         x = self.gpt(x)
@@ -99,7 +148,12 @@ class InContextGPT(nnx.Module):
 
         self.encoder = encoder_cls()
 
-        self.sink_token = nnx.Embed(1, embed_dim, rngs=rngs)
+        self.sink_token = nnx.Embed(
+            1,
+            embed_dim,
+            rngs=rngs,
+            dtype=dtype,
+        )
         self.gpt = GPT(
             num_blocks=num_blocks,
             num_heads=num_heads,
@@ -107,6 +161,7 @@ class InContextGPT(nnx.Module):
             widening_factor=widening_factor,
             rngs=rngs,
             use_causal_mask=True,
+            dtype=dtype,
         )
 
         self.predictor = predictor_cls()

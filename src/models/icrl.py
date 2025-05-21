@@ -109,8 +109,8 @@ class XLandDPTEncoder(nnx.Module):
     ):
         self.embed_dim = embed_dim
 
-        self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim // 2, rngs=rngs)
-        self.color_emb = nnx.Embed(NUM_COLORS, embed_dim // 2, rngs=rngs)
+        self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim // 2, rngs=rngs, dtype=dtype,)
+        self.color_emb = nnx.Embed(NUM_COLORS, embed_dim // 2, rngs=rngs, dtype=dtype,)
         self.observation_emb = CNN(
             in_features=embed_dim,
             hidden_features=[32, 16],
@@ -119,14 +119,16 @@ class XLandDPTEncoder(nnx.Module):
             activation=nnx.relu,
             use_batch_norm=False,
             rngs=rngs,
+            dtype=dtype,
         )
         self.observation_projector = nnx.Linear(
             5 * 5 * 16,
             embed_dim,
             rngs=rngs,
+            dtype=dtype,
         )
 
-        self.action_emb = nnx.Embed(NUM_ACTIONS, embed_dim, rngs=rngs)
+        self.action_emb = nnx.Embed(NUM_ACTIONS, embed_dim, rngs=rngs, dtype=dtype,)
 
         self.reward_emb = MLP(
             in_dim=1,
@@ -134,6 +136,7 @@ class XLandDPTEncoder(nnx.Module):
             hidden_layers=[],
             activation=identity,
             rngs=rngs,
+            dtype=dtype,
             use_layer_norm=False,
             use_batch_norm=False,
             use_bias=True,
@@ -205,7 +208,7 @@ class ActionTokenLinearPredictor(nnx.Module):
         rngs: nnx.Rngs,
         dtype=None,
     ):
-        self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs)
+        self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs, dtype=dtype,)
 
     def __call__(
         self,
@@ -225,7 +228,7 @@ class LastActionTokenLinearPredictor(nnx.Module):
         rngs: nnx.Rngs,
         dtype=None,
     ):
-        self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs)
+        self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs, dtype=dtype,)
 
     def __call__(
         self,

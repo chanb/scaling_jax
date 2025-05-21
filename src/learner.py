@@ -67,20 +67,40 @@ class ICRL:
         self._learner_key = jrandom.PRNGKey(config.seeds.learner_seed)
         self.construct_mesh()
 
+        self.data_sharding = NamedSharding(self.data_mesh, P("data"))
+
+        dtype = jnp.float32
+        if self._config.half_precision:
+            dtype = jnp.bfloat16
+
         self.ds, self._dataset = get_data_loader(
             config,
-            NamedSharding(self.data_mesh, P("data")),
+            self.data_sharding,
+            dtype,
         )
 
-        self._initialize_model_and_opt()
+        self._initialize_model_and_opt(dtype)
         self._initialize_losses()
         self.train_step = nnx.jit(self.make_train_step(), donate_argnums=(0, 1))
 
     def construct_mesh(self):
         self.num_devices = len(jax.devices())
+
+        mesh_keys = ("data", "fsdp", "tensor",)
+        mesh_vals = np.array(
+            [self._config.mesh[mesh_key] for mesh_key in mesh_keys]
+        )
+        unspecified_idx = np.where(mesh_vals)[0]
+        assert len(unspecified_idx) < 1
+
+        if len(unspecified_idx) == 1:
+            rest_prod = int(np.prod(mesh_vals) * -1)
+            assert self.num_devices % rest_prod == 0
+            mesh_vals[unspecified_idx] = self.num_devices // rest_prod
+
         self.data_mesh = Mesh(
-            create_device_mesh((self.num_devices,)),
-            ("data",),
+            create_device_mesh(mesh_vals),
+            mesh_keys,
         )
 
     def close(self):
@@ -106,15 +126,12 @@ class ICRL:
             CONST_OPTIMIZER: opt_state,
         }
 
-    def _initialize_model_and_opt(self):
+    def _initialize_model_and_opt(self, dtype):
         """
         Construct the model and the optimizer.
         """
         
         rngs = nnx.Rngs(self._config.seeds.learner_seed)
-        dtype = jnp.float32
-        if self._config.half_precision:
-            dtype = jnp.float16
 
         model_cls = getattr(
             models,
@@ -126,22 +143,28 @@ class ICRL:
             rngs=rngs,
             dtype=dtype,
         )
-        self._model = model_cls(
-            **vars(self._config.model_config.model_kwargs),
-            **dependency_cls,
-            rngs=rngs,
-            dtype=dtype,
-        )
 
-        self._optimizer = nnx.Optimizer(
-            self._model,
-            get_optimizer(self._config.optimizer_config),
-        )
+        @nnx.jit
+        def create_sharded_model():
+            model = model_cls(
+                **vars(self._config.model_config.model_kwargs),
+                **dependency_cls,
+                rngs=rngs,
+                dtype=dtype,
+            )
 
-        model_sharding = NamedSharding(self.data_mesh, P())
-        state = nnx.state((self._model, self._optimizer))
-        state = jax.device_put(state, model_sharding)
-        nnx.update((self._model, self._optimizer), state)
+            opt = nnx.Optimizer(
+                model,
+                get_optimizer(self._config.optimizer_config),
+            )
+            state = nnx.state((model, opt))
+            pspecs = nnx.get_partition_spec(state)
+            sharded_state = jax.lax.with_sharding_constraint(state, pspecs)
+            nnx.update((model, opt), sharded_state)
+            return model, opt
+
+        with self.data_mesh:
+            self._model, self._optimizer = create_sharded_model()
 
         self._model_dict = {
             CONST_MODEL: self._model,
@@ -212,6 +235,7 @@ class ICRL:
         for update_i in range(self._num_updates_per_epoch):
             tic = timeit.default_timer()
             batch = next(self.ds)
+            batch = jax.device_put(batch, self.data_sharding)
             total_sample_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()

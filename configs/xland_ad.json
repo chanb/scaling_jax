@@ -29,7 +29,12 @@
         "max_grad_norm": false,
         "mask_names": []
     },
-    "half_precision": false,
+    "half_precision": true,
+    "mesh": {
+        "data": 2,
+        "fsdp": -1,
+        "tensor": 1
+    },
     "learner": "ICRL",
     "dataset_name": "xland_ad",
     "dataset_kwargs": {

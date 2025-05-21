@@ -19,12 +19,7 @@ from src.datasets.ad_dataset import XMiniGridADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
 
 
-def get_iter(data_loader, data_sharding, half_precision):
-    if half_precision:
-        dtype = jnp.float16
-    else:
-        dtype = jnp.float32
-
+def get_iter(data_loader, data_sharding, dtype):
     loader = iter(data_loader)
     while True:
         try:
@@ -36,9 +31,9 @@ def get_iter(data_loader, data_sharding, half_precision):
         for k, v in batch.items():
             if hasattr(v, "numpy"):
                 batch[k] = v.numpy()
-            if not np.isdtype(batch[k].dtype, "integral"):
+            if np.issubdtype(batch[k].dtype, np.floating):
                 batch[k] = batch[k].astype(dtype)
-        yield jax.device_put(batch, data_sharding)
+        yield batch
 
 
 def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
