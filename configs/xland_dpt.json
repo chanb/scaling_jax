@@ -1,9 +1,9 @@
 {
     "logging_config": {
-        "save_path": "/tmp/results/xland_dpt",
+        "save_path": "/home/chanb/scratch/results/xland_dpt",
         "experiment_name": "debug",
         "log_interval": 50,
-        "checkpoint_interval": 10000
+        "checkpoint_interval": 1000
     },
     "model_config": {
         "architecture": "InContextGPT",
@@ -45,7 +45,7 @@
     "num_workers": 16,
     "batch_size": 16,
     "objective": "mle",
-    "num_epochs": 500000,
+    "num_epochs": 50000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,

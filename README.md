@@ -18,7 +18,7 @@ curl -L -o xland-trivial-20b.hdf5 https://tinyurl.com/trivial-10k
 
 ## Example
 ```
-CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.99 python src/main.py --config_path=configs/xland_ad.json
+CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python src/main.py --config_path=configs/xland_ad.json
 ```
 
 
@@ -50,7 +50,7 @@ module load cuda/12.2
 
 source <PATH_TO_VENV>/bin/activate
 
-XLA_PYTHON_CLIENT_MEM_FRACTION=0.99 python <PATH_TO_REPO>/src/main.py --config_path=<PATH_TO_REPO>/configs/xland_ad.json
+XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python <PATH_TO_REPO>/src/main.py --config_path=<PATH_TO_REPO>/configs/xland_ad.json
 ```
 
 ### Interactive:

@@ -33,7 +33,7 @@ def get_iter(data_loader, data_sharding, dtype):
                 batch[k] = v.numpy()
             if np.issubdtype(batch[k].dtype, np.floating):
                 batch[k] = batch[k].astype(dtype)
-        yield jax.device_put(batch, data_sharding)
+        yield batch
 
 
 def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
