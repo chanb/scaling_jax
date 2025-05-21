@@ -13,7 +13,8 @@ from typing import Any
 
 import jax
 
-from src.datasets.ad_dataset import XMiniGridADataset
+from src.datasets.ad_dataset import XMiniGridADDataset
+from src.datasets.dpt_dataset import XMiniGridDPTDataset
 
 
 def get_iter(data_loader, data_sharding):
@@ -36,15 +37,25 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
     dataset_kwargs = config.dataset_kwargs
 
     num_workers = getattr(config, "num_workers", 0)
-    if dataset_name == "xland_ad":
+
+    if dataset_name.startswith("xland"):
         batch_size = config.batch_size
         shuffle = True
         drop_last = True
-        dataset = XMiniGridADataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-        )
-
+        if dataset_name == "xland_ad":
+            dataset = XMiniGridADDataset(
+                dataset_kwargs.data_path,
+                dataset_kwargs.seq_len,
+                config.seeds.data_seed,
+            )
+        elif dataset_name == "xland_dpt":
+            dataset = XMiniGridDPTDataset(
+                dataset_kwargs.data_path,
+                dataset_kwargs.seq_len,
+                config.seeds.data_seed,
+            )
+        else:
+            raise NotImplementedError
         loader = DataLoader(
             dataset,
             batch_size=batch_size,
@@ -52,10 +63,6 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
             drop_last=drop_last,
             num_workers=num_workers,
         )
-    elif dataset_name == "xland_dpt":
-        pass
-    else:
-        raise NotImplementedError
 
     loader = get_iter(loader, data_sharding)
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
