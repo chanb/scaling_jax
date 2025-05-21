@@ -57,7 +57,7 @@ class XMiniGridADDataset(IterableDataset):
         return np.stack(np.divmod(obs, NUM_COLORS), axis=-1)
 
     def open_hdf5(self):
-        self.data_file = h5py.File(self.data_path, "r")
+        self.data_file = h5py.File(self.data_path, "r", driver="core", backing_store=False,)
 
     def __iter__(self):
         return iter(self.get_sequences())

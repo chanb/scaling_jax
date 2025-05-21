@@ -42,7 +42,7 @@
         "seq_len": 4096
     },
     "shuffle_buffer_size": 100,
-    "num_workers": 16,
+    "num_workers": 2,
     "batch_size": 16,
     "objective": "mle",
     "num_epochs": 50000,
