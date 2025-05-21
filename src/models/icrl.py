@@ -172,6 +172,8 @@ class XLandDPTEncoder(nnx.Module):
         obs_tokens = self.observation_emb(
             jnp.concatenate((entities, colors), axis=-1),
         )
+        obs_tokens = obs_tokens.reshape((batch_size, 2 * seq_len + 1, -1))
+        obs_tokens = self.observation_projector(obs_tokens)
 
         act_tokens = self.action_emb(
             acts,

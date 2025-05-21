@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/tmp/results/xland_ad",
+        "save_path": "/tmp/results/xland_dpt",
         "experiment_name": "debug",
         "log_interval": 50,
         "checkpoint_interval": 10000
@@ -13,8 +13,8 @@
             "num_heads": 4,
             "embed_dim": 64,
             "widening_factor": 4,
-            "encode_strategy": "xland_ad",
-            "predictor_strategy": "action_token_linear"
+            "encode_strategy": "xland_dpt",
+            "predictor_strategy": "last_action_token_linear"
         }
     },
     "optimizer_config": {
@@ -36,7 +36,7 @@
         "tensor": 1
     },
     "learner": "ICRL",
-    "dataset_name": "xland_ad",
+    "dataset_name": "xland_dpt",
     "dataset_kwargs": {
         "data_path": "/home/chanb/scratch/datasets/xland-trivial-20b.hdf5",
         "seq_len": 4096
