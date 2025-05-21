@@ -56,14 +56,7 @@ def train(
                 hyperparameter_str,
             )
             dill.dump(
-                learner.model,
-                open(
-                    os.path.join(save_path, "architecture.dill"),
-                    "wb",
-                ),
-            )
-            dill.dump(
-                learner.model_dict,
+                learner.state,
                 open(
                     os.path.join(save_path, "models", "{}.dill".format(pad_string(0))),
                     "wb",
@@ -90,7 +83,7 @@ def train(
             ):
 
                 dill.dump(
-                    learner.model_dict,
+                    learner.state,
                     open(
                         os.path.join(
                             save_path,
@@ -105,7 +98,7 @@ def train(
 
     if save_path:
         dill.dump(
-            learner.model_dict,
+            learner.state,
             open(
                 os.path.join(
                     save_path, "models", "{}.dill".format(pad_string(true_epoch))

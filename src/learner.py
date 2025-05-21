@@ -7,6 +7,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from flax import nnx
+from flax.training import train_state
 from jax.experimental.mesh_utils import create_device_mesh
 from jax.sharding import Mesh, PartitionSpec as P, NamedSharding
 from types import SimpleNamespace
@@ -53,6 +54,11 @@ def gather_learning_rate(
             ].item()
 
 
+class TrainState(train_state.TrainState):
+    graphdef: nnx.GraphDef
+    rest: Any
+
+
 class ICRL:
     """
     In-context Reinforcement Learning.
@@ -81,7 +87,7 @@ class ICRL:
 
         self._initialize_model_and_opt(dtype)
         self._initialize_losses()
-        self.train_step = nnx.jit(self.make_train_step(), donate_argnums=(0, 1))
+        self.train_step = nnx.jit(self.make_train_step())
 
     def construct_mesh(self):
         self.num_devices = len(jax.devices())
@@ -115,17 +121,11 @@ class ICRL:
         return self._model
 
     @property
-    def model_dict(self):
+    def state(self):
         """
         Model states
         """
-        _, state = nnx.split(self._model)
-        model_state = nnx.to_pure_dict(state)
-        opt_state = self._optimizer.opt_state
-        return {
-            CONST_MODEL: model_state,
-            CONST_OPTIMIZER: opt_state,
-        }
+        self._state
 
     def _initialize_model_and_opt(self, dtype):
         """
@@ -145,6 +145,11 @@ class ICRL:
             dtype=dtype,
         )
 
+        def _to_array(x):
+            if not isinstance(x, jax.Array):
+                x = jnp.asarray(x)
+            return x
+
         @nnx.jit
         def create_sharded_model():
             model = model_cls(
@@ -154,28 +159,34 @@ class ICRL:
                 dtype=dtype,
             )
 
-            opt = nnx.Optimizer(
-                model,
-                get_optimizer(self._config.optimizer_config),
+            opt = get_optimizer(self._config.optimizer_config)
+
+            graphdef, params, rest = nnx.split(model, nnx.Param, ...)
+
+            state = TrainState.create(
+                apply_fn=graphdef.apply,
+                params=params,
+                tx=opt,
+                graphdef=graphdef,
+                rest=rest,
             )
-            state = nnx.state((model, opt))
-            pspecs = nnx.get_partition_spec(state)
-            sharded_state = jax.lax.with_sharding_constraint(state, pspecs)
-            nnx.update((model, opt), sharded_state)
-            return model, opt
+            state = jax.tree.map(_to_array, state)
+            state_spec = nnx.get_partition_spec(state)
+            state = jax.lax.with_sharding_constraint(state, state_spec)
+            return state
 
         with self.data_mesh:
-            self._model, self._optimizer = create_sharded_model()
-
-        self._model_dict = {
-            CONST_MODEL: self._model,
-            CONST_OPTIMIZER: self._optimizer,
-        }
+            state = create_sharded_model()
+            state_sharding = nnx.get_named_sharding(state, self.data_mesh)
+            self._state = state
+            self._state_sharding = state_sharding
 
     def _initialize_losses(self):
         if self._config.objective == "mle":
-            def cross_entropy(model, batch):
+            def cross_entropy(params, rest, batch):
                 targets = batch["target"]
+                model = nnx.merge(self._state.graphdef, params, rest)
+                model.set_attributes(deterministic=False, decode=False)
                 logits = model(batch)
                 loss = jnp.mean(
                     optax.softmax_cross_entropy_with_integer_labels(logits, targets)
@@ -198,24 +209,24 @@ class ICRL:
         """
 
         def _train_step(
-            model,
-            optimizer,
+            state,
             batch,
             *args,
             **kwargs,
         ) -> Any:
-            (agg_loss, aux), grads = nnx.value_and_grad(self._loss, has_aux=True)(
-                model,
+            grad_fn = jax.value_and_grad(self._loss, has_aux=True)
+            (agg_loss, aux), grads = grad_fn(
+                state.params,
+                state.rest,
                 batch,
             )
+
             aux[CONST_AGG_LOSS] = agg_loss
             aux[CONST_GRAD_NORM] = {CONST_MODEL: l2_norm(grads)}
 
-            optimizer.update(
-                grads,
-            )
+            new_state = state.apply_gradients(grads=grads)
 
-            return aux
+            return new_state, aux
 
         return _train_step
 
@@ -240,9 +251,8 @@ class ICRL:
             total_sample_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
-            aux = self.train_step(
-                self._model_dict[CONST_MODEL],
-                self._model_dict[CONST_OPTIMIZER],
+            self._state, aux = self.train_step(
+                self._state,
                 batch,
             )
             total_update_time += timeit.default_timer() - tic
@@ -255,20 +265,18 @@ class ICRL:
             *auxes,
         )
 
-        params = nnx.state(self.model, nnx.Param)
         log = {
             f"losses/{CONST_AGG_LOSS}": auxes[CONST_AGG_LOSS].item(),
             f"losses/{CONST_ACCURACY}": auxes[CONST_ACCURACY].item(),
             f"time/{CONST_SAMPLE_TIME}": total_sample_time,
             f"time/{CONST_UPDATE_TIME}": total_update_time,
             f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
-            f"{CONST_PARAM_NORM}/model": l2_norm(params).item(),
+            f"{CONST_PARAM_NORM}/model": l2_norm(self._state.params).item(),
         }
 
-        if isinstance(self._model_dict[CONST_OPTIMIZER], dict):
-            for model_name, optimizer in self._model_dict[CONST_OPTIMIZER]:
+        if isinstance(self._state.opt_state, dict):
+            for model_name, optimizer in self._state.opt_state:
                 gather_learning_rate(aux, model_name, optimizer)
         else:
-            gather_learning_rate(aux, CONST_MODEL, self.model_dict[CONST_OPTIMIZER])
-
+            gather_learning_rate(aux, CONST_MODEL, self._state.opt_state)
         return log

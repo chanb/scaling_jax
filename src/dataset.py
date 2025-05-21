@@ -15,6 +15,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from src.datasets.mock_dataset import MockXMiniGridADDataset
 from src.datasets.ad_dataset import XMiniGridADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
 
@@ -42,7 +43,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
 
     num_workers = getattr(config, "num_workers", 0)
 
-    if dataset_name.startswith("xland"):
+    if "xland" in dataset_name:
         batch_size = config.batch_size
         if dataset_name == "xland_ad":
             dataset = XMiniGridADDataset(
@@ -52,6 +53,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             )
         elif dataset_name == "xland_dpt":
             dataset = XMiniGridDPTDataset(
+                dataset_kwargs.data_path,
+                dataset_kwargs.seq_len,
+                config.seeds.data_seed,
+            )
+        elif dataset_name == "mock_xland_ad":
+            dataset = MockXMiniGridADDataset(
                 dataset_kwargs.data_path,
                 dataset_kwargs.seq_len,
                 config.seeds.data_seed,
