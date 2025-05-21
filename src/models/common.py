@@ -30,6 +30,7 @@ class MLP(nnx.Module):
         use_batch_norm = False,
         use_layer_norm = False,
         dropout_p = 0.0,
+        dtype=None,
     ):
         all_layers = [in_dim] + hidden_layers
 
@@ -72,6 +73,7 @@ class CNN(nnx.Module):
         use_bias = True,
         use_batch_norm = False,
         dropout_p = 0.0,
+        dtype=None,
     ):
         all_layers = [in_features] + hidden_features[:-1]
 
@@ -130,6 +132,7 @@ class ResNetV1Block(nnx.Module):
         use_batch_norm,
         *,
         rngs,
+        dtype=None,
     ):
         self.out_features = out_features
         self.stride = stride
@@ -267,6 +270,7 @@ class ResNetV1BlockGroup(nnx.Module):
         use_batch_norm,
         *,
         rngs,
+        dtype=None,
     ):
         blocks = []
         for block_i in range(num_blocks):
@@ -300,6 +304,7 @@ class ResNetV1(nnx.Module):
         use_batch_norm,
         *,
         rngs,
+        dtype=None,
     ):
         self.use_batch_norm = use_batch_norm
         self.init_conv = nnx.Conv(

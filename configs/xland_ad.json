@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/xland_ad",
+        "save_path": "/tmp/results/xland_ad",
         "experiment_name": "debug",
         "log_interval": 50,
         "checkpoint_interval": 5000
@@ -29,6 +29,7 @@
         "max_grad_norm": false,
         "mask_names": []
     },
+    "half_precision": true,
     "learner": "ICRL",
     "dataset_name": "xland_ad",
     "dataset_kwargs": {

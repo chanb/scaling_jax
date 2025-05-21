@@ -24,6 +24,7 @@ class GPTBlock(nnx.Module):
         *,
         rngs,
         use_causal_mask=True,
+        dtype=None,
     ):
         self.use_causal_mask = use_causal_mask
         self.attention = nnx.MultiHeadAttention(num_heads, embed_dim, decode=False, rngs=rngs)
@@ -58,6 +59,7 @@ class GPT(nnx.Module):
         *,
         rngs,
         use_causal_mask=True,
+        dtype=None,
     ):
         layers = []
         for _ in range(num_blocks):
@@ -91,6 +93,7 @@ class InContextGPT(nnx.Module):
         encoder_cls: Callable,
         predictor_cls: Callable,
         rngs: nnx.Rngs,
+        dtype=None,
         **kwargs,
     ) -> None:
 

@@ -17,7 +17,7 @@ from src.models.icrl import (
     LastActionTokenLinearPredictor,
 )
 
-def build_cls(dataset, model_config, rngs):
+def build_cls(dataset, model_config, half_precision, rngs):
     dependency_cls = {}
 
     encode_strategy = getattr(

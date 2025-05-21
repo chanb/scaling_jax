@@ -112,10 +112,15 @@ class ICRL:
         """
         
         rngs = nnx.Rngs(self._config.seeds.learner_seed)
-        model_cls = getattr(models, self._config.model_config.architecture)
+        model_cls = getattr(
+            models,
+            self._config.model_config.architecture,
+            self._config.half_precision,
+        )
         dependency_cls = models.build_cls(
             self._dataset,
             self._config.model_config,
+            self._config.half_precision,
             rngs=rngs,
         )
         self._model = model_cls(

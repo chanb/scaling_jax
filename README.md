@@ -41,3 +41,12 @@ pip install h5py --no-index
 
 pip install xminigrid~=0.8.0
 ```
+
+Datasets:
+```
+# Local
+tar cf ~/scratch/datasets/xland_20b.tar <PATH>/<TO>/xland-trivial-20b.hdf5
+
+# Node
+tar xf ~/scratch/datasets/xland_20b.tar -C $SLURM_TMPDIR/data
+```

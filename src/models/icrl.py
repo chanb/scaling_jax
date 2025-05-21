@@ -22,6 +22,7 @@ class XLandADEncoder(nnx.Module):
         self,
         embed_dim: int,
         rngs: nnx.Rngs,
+        dtype=None,
     ):
         self.embed_dim = embed_dim
 
@@ -105,6 +106,7 @@ class XLandDPTEncoder(nnx.Module):
         self,
         embed_dim: int,
         rngs: nnx.Rngs,
+        dtype=None,
     ):
         self.embed_dim = embed_dim
 
@@ -197,7 +199,13 @@ class XLandDPTEncoder(nnx.Module):
 
 
 class ActionTokenLinearPredictor(nnx.Module):
-    def __init__(self, embed_dim: int, output_dim: int, rngs: nnx.Rngs):
+    def __init__(
+        self,
+        embed_dim: int,
+        output_dim: int,
+        rngs: nnx.Rngs,
+        dtype=None,
+    ):
         self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs)
 
     def __call__(
@@ -211,7 +219,13 @@ class ActionTokenLinearPredictor(nnx.Module):
 
 
 class LastActionTokenLinearPredictor(nnx.Module):
-    def __init__(self, embed_dim: int, output_dim: int, rngs: nnx.Rngs):
+    def __init__(
+        self,
+        embed_dim: int,
+        output_dim: int,
+        rngs: nnx.Rngs,
+        dtype=None,
+    ):
         self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs)
 
     def __call__(
@@ -221,4 +235,3 @@ class LastActionTokenLinearPredictor(nnx.Module):
         **kwargs,
     ):
         return self.predictor(embed)[:, -1]
-    
