@@ -88,16 +88,17 @@ class ICRL:
 
         mesh_keys = ("data", "fsdp", "tensor",)
         mesh_vals = np.array(
-            [self._config.mesh[mesh_key] for mesh_key in mesh_keys]
+            [getattr(self._config.mesh, mesh_key) for mesh_key in mesh_keys]
         )
-        unspecified_idx = np.where(mesh_vals)[0]
-        assert len(unspecified_idx) < 1
+        unspecified_idx = np.where(mesh_vals == -1)[0]
+        assert len(unspecified_idx) <= 1
 
         if len(unspecified_idx) == 1:
             rest_prod = int(np.prod(mesh_vals) * -1)
             assert self.num_devices % rest_prod == 0
             mesh_vals[unspecified_idx] = self.num_devices // rest_prod
 
+        print("Mesh shape: {}".format(mesh_vals))
         self.data_mesh = Mesh(
             create_device_mesh(mesh_vals),
             mesh_keys,
@@ -245,11 +246,14 @@ class ICRL:
                 batch,
             )
             total_update_time += timeit.default_timer() - tic
-            assert np.isfinite(aux[CONST_AGG_LOSS]), f"Loss became NaN\naux: {aux}"
+            assert np.isfinite(aux[CONST_AGG_LOSS].item()), f"Loss became NaN\naux: {aux}"
 
             auxes.append(aux)
 
-        auxes = jax.tree_util.tree_map(lambda *args: np.mean(args), *auxes)
+        auxes = jax.tree_util.tree_map(
+            lambda *args: np.mean([np.asarray(el) for el in args]),
+            *auxes,
+        )
 
         params = nnx.state(self.model, nnx.Param)
         log = {

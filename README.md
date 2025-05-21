@@ -48,7 +48,9 @@ module load StdEnv/2023
 module load python/3.10.13
 module load cuda/12.2
 
-source ~/<PATH>/<TO>/<VENV>/bin/activate
+source <PATH_TO_VENV>/bin/activate
+
+XLA_PYTHON_CLIENT_MEM_FRACTION=0.99 python <PATH_TO_REPO>/src/main.py --config_path=<PATH_TO_REPO>/configs/xland_ad.json
 ```
 
 ### Interactive:

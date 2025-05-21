@@ -36,7 +36,7 @@ def get_iter(data_loader, data_sharding, dtype):
         yield batch
 
 
-def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
+def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
     dataset_name = config.dataset_name
     dataset_kwargs = config.dataset_kwargs
 
@@ -64,7 +64,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
             num_workers=num_workers,
         )
 
-    loader = get_iter(loader, data_sharding, config.half_precision)
+    loader = get_iter(loader, data_sharding, dtype)
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
 
     return loader, dataset
