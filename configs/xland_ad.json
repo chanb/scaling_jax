@@ -29,7 +29,7 @@
         "max_grad_norm": false,
         "mask_names": []
     },
-    "half_precision": true,
+    "half_precision": false,
     "learner": "ICRL",
     "dataset_name": "xland_ad",
     "dataset_kwargs": {

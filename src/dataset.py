@@ -12,12 +12,18 @@ from types import SimpleNamespace
 from typing import Any
 
 import jax
+import jax.numpy as jnp
 
 from src.datasets.ad_dataset import XMiniGridADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
 
 
-def get_iter(data_loader, data_sharding):
+def get_iter(data_loader, data_sharding, half_precision):
+    if half_precision:
+        dtype = jnp.float16
+    else:
+        dtype = jnp.float32
+
     loader = iter(data_loader)
     while True:
         try:
@@ -29,6 +35,7 @@ def get_iter(data_loader, data_sharding):
         for k, v in batch.items():
             if hasattr(v, "numpy"):
                 batch[k] = v.numpy()
+            batch[k] = batch[k].astype(dtype)
         yield jax.device_put(batch, data_sharding)
 
 
@@ -64,7 +71,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding) -> Any:
             num_workers=num_workers,
         )
 
-    loader = get_iter(loader, data_sharding)
+    loader = get_iter(loader, data_sharding, config.half_precision)
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
 
     return loader, dataset

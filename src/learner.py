@@ -112,21 +112,25 @@ class ICRL:
         """
         
         rngs = nnx.Rngs(self._config.seeds.learner_seed)
+        dtype = jnp.float32
+        if self._config.half_precision:
+            dtype = jnp.float16
+
         model_cls = getattr(
             models,
             self._config.model_config.architecture,
-            self._config.half_precision,
         )
         dependency_cls = models.build_cls(
             self._dataset,
             self._config.model_config,
-            self._config.half_precision,
             rngs=rngs,
+            dtype=dtype,
         )
         self._model = model_cls(
             **vars(self._config.model_config.model_kwargs),
             **dependency_cls,
             rngs=rngs,
+            dtype=dtype,
         )
 
         self._optimizer = nnx.Optimizer(

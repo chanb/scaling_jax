@@ -17,7 +17,7 @@ from src.models.icrl import (
     LastActionTokenLinearPredictor,
 )
 
-def build_cls(dataset, model_config, half_precision, rngs):
+def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
     dependency_cls = {}
 
     encode_strategy = getattr(
@@ -31,12 +31,14 @@ def build_cls(dataset, model_config, half_precision, rngs):
                 XLandADEncoder,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
+                dtype=dtype,
             )
         elif encode_strategy == "xland_dpt":
             dependency_cls["encoder_cls"] = partial(
                 XLandDPTEncoder,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
+                dtype=dtype,
             )
         else:
             raise NotImplementedError
@@ -53,6 +55,7 @@ def build_cls(dataset, model_config, half_precision, rngs):
                 embed_dim=model_config.model_kwargs.embed_dim,
                 output_dim=dataset.action_space.n,
                 rngs=rngs,
+                dtype=dtype,
             )
         elif predictor_strategy == "last_action_token_linear":
             dependency_cls["predictor_cls"] = partial(
@@ -60,6 +63,7 @@ def build_cls(dataset, model_config, half_precision, rngs):
                 embed_dim=model_config.model_kwargs.embed_dim,
                 output_dim=dataset.action_space.n,
                 rngs=rngs,
+                dtype=dtype,
             )
 
     return dependency_cls
