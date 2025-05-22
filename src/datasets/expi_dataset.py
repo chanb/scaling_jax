@@ -6,15 +6,17 @@ from torch.utils.data import IterableDataset
 from xminigrid.core.constants import NUM_ACTIONS, NUM_COLORS
 
 
-class XMiniGridADDataset(IterableDataset):
+class XMiniGridExPIDataset(IterableDataset):
     def __init__(
         self,
         data_path: str,
         seq_len: int,
+        skip_ep: int,
         seed: int,
     ):
         self.data_file = None
         self.seq_len = seq_len
+        self.skip_ep = skip_ep
         self.data_path = data_path
         self.seed = seed
         self._rng = np.random.RandomState(seed)
@@ -62,18 +64,42 @@ class XMiniGridADDataset(IterableDataset):
         while True:
             task_id = self._rng.choice(self.task_ids)
             learning_history_idx = self._rng.randint(self.hists_per_task)
-            start_idx = self._rng.randint(self.max_len)
+
+            start_idxes = np.concatenate((
+                [0],
+                np.where(
+                    self.data_file[task_id]["dones"][learning_history_idx] == 1
+                )[0] + 1,
+            ))
+
+            curr_ep = self._rng.randint(len(start_idxes) - self.skip_ep)
+            start_idx = self._rng.randint(
+                start_idxes[curr_ep],
+                start_idxes[curr_ep + 1] - 1,
+            )
+
+            all_idxes = np.arange(start_idx, start_idxes[curr_ep + 1])
+            while len(all_idxes) < self.seq_len:
+                curr_ep += self.skip_ep
+                all_idxes = np.concatenate((
+                    all_idxes,
+                    np.arange(start_idxes[curr_ep], start_idxes[curr_ep + 1]),
+                ))
+
+            remainder = len(all_idxes) % self.seq_len
+            if remainder > 0:
+                all_idxes = all_idxes[:-remainder]
 
             states = self.decompress_obs(
                 self.data_file[task_id]["states"][learning_history_idx][
-                    start_idx : start_idx + self.seq_len
+                    all_idxes
                 ]
             )
             actions = self.data_file[task_id]["actions"][learning_history_idx][
-                start_idx : start_idx + self.seq_len
+                all_idxes
             ]
             rewards = self.data_file[task_id]["rewards"][learning_history_idx][
-                start_idx : start_idx + self.seq_len
+                all_idxes
             ]
 
             yield {

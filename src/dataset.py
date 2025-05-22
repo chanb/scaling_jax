@@ -18,6 +18,7 @@ import numpy as np
 from src.datasets.mock_dataset import MockXMiniGridADDataset
 from src.datasets.ad_dataset import XMiniGridADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
+from src.datasets.expi_dataset import XMiniGridExPIDataset
 
 
 def get_iter(data_loader, data_sharding, dtype):
@@ -49,6 +50,13 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset = XMiniGridADDataset(
                 dataset_kwargs.data_path,
                 dataset_kwargs.seq_len,
+                config.seeds.data_seed,
+            )
+        elif dataset_name == "xland_expi":
+            dataset = XMiniGridExPIDataset(
+                dataset_kwargs.data_path,
+                dataset_kwargs.seq_len,
+                dataset_kwargs.skip_ep,
                 config.seeds.data_seed,
             )
         elif dataset_name == "xland_dpt":
