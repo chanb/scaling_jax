@@ -4,7 +4,7 @@
 Python 3.10
 ```
 pip install jax # or pip install jax[cuda12]
-pip install flax
+pip install flax==0.10.4
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install chex optax dill gymnasium scikit-learn matplotlib seaborn tqdm tensorboard h5py
 pip install prefetch_generator
