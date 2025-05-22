@@ -1,8 +1,8 @@
 #!/bin/bash
 #SBATCH --account=aip-schuurma
-#SBATCH --time=0-01:30:00
-#SBATCH --mem=200GB
-#SBATCH --cpus-per-task=2
+#SBATCH --time=4-00:00:00
+#SBATCH --mem=24GB
+#SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:l40s:4
 #SBATCH --array=1-2
 #SBATCH --output=/home/chanb/scratch/logs/icrl_baselines/%j.out

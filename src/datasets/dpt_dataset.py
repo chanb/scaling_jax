@@ -40,7 +40,7 @@ class XMiniGridDPTDataset(IterableDataset):
                 self.ruleset_ids.append(df[task_id].attrs["ruleset-id"])
     
     def open_hdf5(self):
-        self.data_file = h5py.File(self.data_path, "r", driver="core", backing_store=False,)
+        self.data_file = h5py.File(self.data_path, "r")
     
     @staticmethod
     def get_episode_max_steps(env_id: str) -> int:
