@@ -13,7 +13,10 @@ from types import SimpleNamespace
 from typing import Any, Dict, Sequence, Callable
 
 import jax
+import jax.numpy as jnp
+import numpy as np
 
+from src.models import TrainState
 from src.optimizer import get_optimizer
 
 

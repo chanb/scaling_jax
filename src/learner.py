@@ -7,7 +7,6 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from flax import nnx
-from flax.training import train_state
 from jax.sharding import PartitionSpec as P, NamedSharding
 from types import SimpleNamespace
 from typing import Any, Dict, Sequence
@@ -56,14 +55,6 @@ def gather_learning_rate(
             ].item()
 
 
-class TrainState(train_state.TrainState):
-    """
-    A custom TrainState that includes the model parameters, optimizer state, and additional rest information.
-    """
-    graphdef: nnx.GraphDef
-    rest: Any
-
-
 class ICRL:
     """
     In-context Reinforcement Learning.
@@ -109,7 +100,7 @@ class ICRL:
         """
         Model states
         """
-        self._state
+        return self._state
 
     def _initialize_model_and_opt(self, dtype):
         """
