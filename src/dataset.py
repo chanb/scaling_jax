@@ -22,6 +22,10 @@ from src.datasets.expi_dataset import XMiniGridExPIDataset
 
 
 def get_iter(data_loader, data_sharding, dtype):
+    """
+    Converts a DataLoader to an iterator that handles data sharding and dtype conversion.
+    """
+
     loader = iter(data_loader)
     while True:
         try:
@@ -39,6 +43,10 @@ def get_iter(data_loader, data_sharding, dtype):
 
 
 def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
+    """
+    Returns a DataLoader for the specified dataset based on the configuration.
+    """
+
     dataset_name = config.dataset_name
     dataset_kwargs = config.dataset_kwargs
 

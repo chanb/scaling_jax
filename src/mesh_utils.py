@@ -7,9 +7,8 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from flax import nnx
-from flax.training import train_state
 from jax.experimental.mesh_utils import create_device_mesh
-from jax.sharding import Mesh, PartitionSpec as P, NamedSharding
+from jax.sharding import Mesh
 from types import SimpleNamespace
 from typing import Any, Dict, Sequence, Callable
 
@@ -19,18 +18,25 @@ from src.optimizer import get_optimizer
 
 
 def construct_mesh(mesh_config: SimpleNamespace):
+    """
+    Constructs a JAX mesh based on the provided configuration.
+    """
+
     num_devices = len(jax.devices())
 
+    # Automatically fill in unspecified mesh dimensions
     mesh_keys = ("data", "fsdp", "tensor",)
     mesh_vals = np.array(
         [getattr(mesh_config, mesh_key) for mesh_key in mesh_keys]
     )
     unspecified_idx = np.where(mesh_vals == -1)[0]
-    assert len(unspecified_idx) <= 1
+    assert len(unspecified_idx) <= 1, "Only one mesh dimension can be unspecified (-1)."
 
     if len(unspecified_idx) == 1:
         rest_prod = int(np.prod(mesh_vals) * -1)
-        assert num_devices % rest_prod == 0
+        assert num_devices % rest_prod == 0, (
+            "Number of devices must be divisible by the product of specified mesh dimensions."
+        )
         mesh_vals[unspecified_idx] = num_devices // rest_prod
 
     print("Mesh shape: {}".format(mesh_vals))
@@ -46,6 +52,10 @@ def construct_sharded_model(
     model_kwargs: Dict,
     opt_config: SimpleNamespace
 ):
+    """
+    Constructs a sharded model on the provided mesh.
+    """
+
     def _to_array(x):
         if not isinstance(x, jax.Array):
             x = jnp.asarray(x)

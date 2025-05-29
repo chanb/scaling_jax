@@ -45,6 +45,9 @@ def gather_learning_rate(
     model_name: str,
     opt_state_list: Sequence[Any],
 ):
+    """
+    Gathers the learning rate from the optimizer state and adds it to the aux dictionary.
+    """
     for opt_state in opt_state_list:
         hyperparams = getattr(opt_state, CONST_HYPERPARAMS, {})
         if CONST_LEARNING_RATE in hyperparams:
@@ -54,6 +57,9 @@ def gather_learning_rate(
 
 
 class TrainState(train_state.TrainState):
+    """
+    A custom TrainState that includes the model parameters, optimizer state, and additional rest information.
+    """
     graphdef: nnx.GraphDef
     rest: Any
 
