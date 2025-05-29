@@ -8,13 +8,24 @@ import numpy as np
 import os
 import xminigrid
 
+from collections import defaultdict
 from flax import nnx
+from typing import Any
+from typing_extensions import Protocol, runtime_checkable
+from tqdm import tqdm
 
 from xminigrid.core.constants import NUM_ACTIONS
 from xminigrid.environment import EnvParams
 from xminigrid.wrappers import GymAutoResetWrapper
 
 from src.datasets.ad_dataset import XMiniGridADDataset
+
+Dtype = Any
+Shape = tuple[int, ...]
+
+@runtime_checkable
+class HasCache(Protocol):
+    def init_cache(self, input_shape: Shape, dtype: Dtype = jnp.float32): ...
 
 
 def evaluate(
@@ -24,50 +35,65 @@ def evaluate(
     rng_key: jax.Array,
     reset_rng: jax.Array,
     model,
+    max_decode_len: int,
+    embed_dim: int,
     ruleset_ids: np.ndarray,
     eval_episodes: int,
+    half_precision: bool = True,
 ):
     num_envs = len(ruleset_ids)
-    kv_cache = model.init_cache(
-        batch_size=num_envs, dtype=torch.float16, device=model.device
-    )
-
     num_episodes = np.zeros(num_envs)
     returns = np.zeros(num_envs)
 
     eval_info = defaultdict(list)
 
-    with jax.default_device(jax.devices("cuda")[rank]):
-        timestep = jax.block_until_ready(reset_fn(env_params, reset_rng))
-        prev_action, prev_reward = jnp.zeros(num_envs), jnp.zeros(num_envs)
+    timestep = jax.block_until_ready(reset_fn(env_params, reset_rng))
+    empty_action = jnp.zeros(
+        (num_envs, 1),
+        dtype=jnp.int32,
+    )
+    dtype = jnp.bfloat16 if half_precision else jnp.float32
+    empty_reward = jnp.zeros(
+        (num_envs, 1),
+        dtype=dtype,
+    )
 
-    for step in itertools.count(start=1):
+    model.eval()
+    model.set_attributes(deterministic=True, decode=False)
+    # for _path, m in model.iter_modules():
+    #     if isinstance(m, HasCache):
+    #         input_shape = (num_envs, max_decode_len, embed_dim)
+    #         m.init_cache(input_shape, dtype=dtype)
+
+    batch = {
+        "state": timestep.observation[:, None],
+        "action": empty_action,
+        "reward": empty_reward,
+    }
+    for step in tqdm(itertools.count(start=1)):
 
         # predict next_action
         # [num_envs, seq_len, num_actions] -> [num_envs, num_actions]
-        logits = model(
-            {
-                "state": timestep.observation[:, None],
-                "action": prev_action[:, None],
-                "reward": prev_reward[:, None],
-            }
-        )
+        logits = model(batch)
         logits = logits[:, -1]
         dist = jrandom.categorical(
-            jrandom.foldin(rng_key, step), logits, axis=-1,
+            jrandom.fold_in(rng_key, step), logits, axis=-1,
         )
         action = jnp.argmax(logits, axis=-1)
 
         # query the worlds
-        timestep = jax.block_until_ready(step_fn(env_params, timestep, action_jnp))
+        timestep = jax.block_until_ready(step_fn(env_params, timestep, action))
 
         done = np.asarray(timestep.last())
         num_episodes += done.astype(int)
         returns += np.asarray(timestep.reward)
 
         # relabel for the next step
-        prev_action = action_jnp
-        prev_reward = timestep.reward
+        batch = {
+            "state": timestep.observation[:, None],
+            "action": action[:, None],
+            "reward": timestep.reward[:, None],
+        }
 
         # log returns if done
         for i, d in enumerate(done):
@@ -83,7 +109,13 @@ def evaluate(
     return eval_info
 
 
-def main(learner_path: str, eval_seed: int, num_eval_rulesets: int, eval_episodes: int):
+def main(
+    max_decode_len: int,
+    learner_path: str,
+    eval_seed: int,
+    num_eval_rulesets: int,
+    eval_episodes: int,
+):
     config_dict = json.load(open(os.path.join(learner_path, "config.json"), "r"))
     train_state = dill.load(open(os.path.join(learner_path, "models", "00000.dill"), "rb"))
     model = nnx.merge(
@@ -92,8 +124,6 @@ def main(learner_path: str, eval_seed: int, num_eval_rulesets: int, eval_episode
         train_state.rest,
     )
 
-    model.eval()
-    model.set_attributes(deterministic=True, decode=True)
     print("Loaded trained model")
 
     dataset = XMiniGridADDataset(
@@ -125,7 +155,7 @@ def main(learner_path: str, eval_seed: int, num_eval_rulesets: int, eval_episode
     print("Initialized environment")
 
     per_gpu = num_eval_rulesets // len(jax.devices())
-    idx_rank = np.arange(per_gpu * config.local_rank, per_gpu)
+    idx_rank = np.arange(per_gpu)
     rulesets_per_gpu = eval_rulesets[idx_rank]
     env_params_per_gpu = env_params.replace(
         ruleset=jax.vmap(benchmark.get_ruleset)(rulesets_per_gpu)
@@ -138,12 +168,16 @@ def main(learner_path: str, eval_seed: int, num_eval_rulesets: int, eval_episode
         env_params=env_params_per_gpu,
         rng_key=rng,
         reset_rng=reset_rng_per_gpu,
-        model=model_engine,
+        model=model,
+        max_decode_len=max_decode_len,
+        embed_dim=config_dict["model_config"]["model_kwargs"]["embed_dim"],
         ruleset_ids=rulesets_per_gpu,
         eval_episodes=eval_episodes,
     )
-    import ipdb
-    ipdb.set_trace()
+    dill.dump(
+        eval_info,
+        open(os.path.join(learner_path, "eval_info.dill"), "wb"),
+    )
 
 
 if __name__ == "__main__":
@@ -153,7 +187,9 @@ if __name__ == "__main__":
     eval_seed = 42
 
     num_eval_rulesets = 128
-    eval_episodes = 100
+    eval_episodes = 10
+
+    max_decode_len = 4096
 
     learner_path = os.path.join(base_path, algo_name, run_name)
-    main(learner_path, eval_seed, num_eval_rulesets, eval_episodes)
+    main(max_decode_len, learner_path, eval_seed, num_eval_rulesets, eval_episodes)
