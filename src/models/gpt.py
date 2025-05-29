@@ -142,10 +142,11 @@ class InContextGPT(nnx.Module):
         encoder_cls: Callable,
         predictor_cls: Callable,
         rngs: nnx.Rngs,
+        decode: bool = False,
         dtype=None,
         **kwargs,
     ) -> None:
-
+        self.decode = decode
         self.encoder = encoder_cls()
 
         self.sink_token = nnx.Embed(
@@ -173,14 +174,22 @@ class InContextGPT(nnx.Module):
         self,
         batch: Any,
     ):
-        token_seq = self.encoder(batch)
-        sink_token = self.sink_token(
-            np.zeros((len(token_seq), 1), dtype=int),
-        )
-        token_seq = jnp.concatenate(
-            (sink_token, token_seq),
-            axis=1,
-        )
+        if self.decode:
+            if "sink" not in batch:
+                token_seq = self.encoder(batch)
+            else:
+                token_seq = self.sink_token(
+                    np.zeros((batch["sink"], 1), dtype=int),
+                )
+        else:
+            token_seq = self.encoder(batch)
+            sink_token = self.sink_token(
+                np.zeros((len(token_seq), 1), dtype=int),
+            )
+            token_seq = jnp.concatenate(
+                (sink_token, token_seq),
+                axis=1,
+            )
         token_seq = self.gpt(token_seq)
         outputs = self.predictor(token_seq)
 

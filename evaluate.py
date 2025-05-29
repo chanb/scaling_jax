@@ -59,22 +59,18 @@ def evaluate(
     )
 
     model.eval()
-    model.set_attributes(deterministic=True, decode=False)
-    # for _path, m in model.iter_modules():
-    #     if isinstance(m, HasCache):
-    #         input_shape = (num_envs, max_decode_len, embed_dim)
-    #         m.init_cache(input_shape, dtype=dtype)
+    model.set_attributes(deterministic=True, decode=True)
+    for _path, m in model.iter_modules():
+        if isinstance(m, HasCache):
+            input_shape = (num_envs, 1 + max_decode_len * 3, embed_dim)
+            m.init_cache(input_shape, dtype=dtype)
+    model({"sink": num_envs})
 
-    batch = {
-        "state": timestep.observation[:, None],
-        "action": empty_action,
-        "reward": empty_reward,
-    }
     for step in tqdm(itertools.count(start=1)):
 
         # predict next_action
         # [num_envs, seq_len, num_actions] -> [num_envs, num_actions]
-        logits = model(batch)
+        logits = model({"state": timestep.observation[:, None],})
         logits = logits[:, -1]
         dist = jrandom.categorical(
             jrandom.fold_in(rng_key, step), logits, axis=-1,
@@ -89,11 +85,8 @@ def evaluate(
         returns += np.asarray(timestep.reward)
 
         # relabel for the next step
-        batch = {
-            "state": timestep.observation[:, None],
-            "action": action[:, None],
-            "reward": timestep.reward[:, None],
-        }
+        model({"action": action[:, None],})
+        model({"reward": timestep.reward[:, None],})
 
         # log returns if done
         for i, d in enumerate(done):
@@ -117,7 +110,9 @@ def main(
     eval_episodes: int,
 ):
     config_dict = json.load(open(os.path.join(learner_path, "config.json"), "r"))
-    train_state = dill.load(open(os.path.join(learner_path, "models", "00000.dill"), "rb"))
+
+    last_step = sorted(os.listdir(os.path.join(learner_path, "models")))[-1]
+    train_state = dill.load(open(os.path.join(learner_path, "models", last_step), "rb"))
     model = nnx.merge(
         train_state.graphdef,
         train_state.params,
@@ -182,8 +177,8 @@ def main(
 
 if __name__ == "__main__":
     base_path = "/home/chanb/scratch/results"
-    algo_name = "xland_ad"
-    run_name = "debug-05-29-25_11_08_17-f08106e8-f9d2-4503-808e-04a3afa8325d"
+    algo_name = "xland_dpt"
+    run_name = "debug-05-29-25_12_53_39-91f08367-25da-454e-802b-1b38cb8ca5af"
     eval_seed = 42
 
     num_eval_rulesets = 128

@@ -22,8 +22,10 @@ class XLandADEncoder(nnx.Module):
         self,
         embed_dim: int,
         rngs: nnx.Rngs,
+        decode: bool = False,
         dtype=None,
     ):
+        self.decode = decode
         self.embed_dim = embed_dim
 
         self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim // 2, rngs=rngs, dtype=dtype,)
@@ -64,41 +66,50 @@ class XLandADEncoder(nnx.Module):
         batch: Any,
         **kwargs,
     ):
-        obss = batch["state"]
-        acts = batch["action"]
-        rews = batch["reward"]
-        (batch_size, seq_len) = obss.shape[:2]
+        if "state" in batch:
+            obss = batch["state"]
+            (batch_size, seq_len) = obss.shape[:2]
+            entities = self.entity_emb(
+                obss[..., 0],
+            )
+            colors = self.color_emb(
+                obss[..., 1],
+            )
 
-        entities = self.entity_emb(
-            obss[..., 0],
-        )
-        colors = self.color_emb(
-            obss[..., 1],
-        )
+            obs_tokens = self.observation_emb(
+                jnp.concatenate((entities, colors), axis=-1),
+            )
+            obs_tokens = obs_tokens.reshape((batch_size, seq_len, -1))
+            obs_tokens = self.observation_projector(obs_tokens)
+            output_sequence = obs_tokens
+        
+        if "action" in batch:
+            acts = batch["action"]
+            act_tokens = self.action_emb(
+                acts,
+            )
+            output_sequence = act_tokens
 
-        obs_tokens = self.observation_emb(
-            jnp.concatenate((entities, colors), axis=-1),
-        )
-        obs_tokens = obs_tokens.reshape((batch_size, seq_len, -1))
-        obs_tokens = self.observation_projector(obs_tokens)
+        if "reward" in batch:
+            rews = batch["reward"]
+            rew_tokens = self.reward_emb(
+                rews[..., None],
+            )
+            output_sequence = rew_tokens
 
-        act_tokens = self.action_emb(
-            acts,
-        )
-
-        rew_tokens = self.reward_emb(
-            rews[..., None],
-        )
-
-        output_sequence = jnp.concatenate((
-            obs_tokens[:, :, None, :],
-            act_tokens[:, :, None, :],
-            rew_tokens[:, :, None, :],
-        ), axis=2).reshape((
-            batch_size,
-            3 * seq_len,
-            self.embed_dim, # D
-        ))
+        if self.decode:
+            return output_sequence
+        else:
+            (batch_size, seq_len) = obss.shape[:2]
+            output_sequence = jnp.concatenate((
+                obs_tokens[:, :, None, :],
+                act_tokens[:, :, None, :],
+                rew_tokens[:, :, None, :],
+            ), axis=2).reshape((
+                batch_size,
+                3 * seq_len,
+                self.embed_dim, # D
+            ))
 
         return output_sequence
     
@@ -108,8 +119,10 @@ class XLandDPTEncoder(nnx.Module):
         self,
         embed_dim: int,
         rngs: nnx.Rngs,
+        decode: bool = False,
         dtype=None,
     ):
+        self.decode = decode
         self.embed_dim = embed_dim
 
         self.entity_emb = nnx.Embed(NUM_TILES + 1, embed_dim // 2, rngs=rngs, dtype=dtype,)
@@ -150,57 +163,89 @@ class XLandDPTEncoder(nnx.Module):
         batch: Any,
         **kwargs,
     ):
-        query_obss = batch["query_state"]
-        obss = batch["state"]
-        next_obss = batch["next_state"]
-        all_obss = jnp.concatenate(
-            (
-                obss,
-                next_obss,
-                query_obss,
-            ),
-            axis=1,
-        )
-        acts = batch["action"]
-        rews = batch["reward"]
-        (batch_size, seq_len) = obss.shape[:2]
+        if self.decode:
+            if "state" in batch:
+                obss = batch["state"]
+                (batch_size, seq_len) = obss.shape[:2]
+                entities = self.entity_emb(
+                    obss[..., 0],
+                )
+                colors = self.color_emb(
+                    obss[..., 1],
+                )
 
-        entities = self.entity_emb(
-            all_obss[..., 0],
-        )
-        colors = self.color_emb(
-            all_obss[..., 1],
-        )
+                obs_tokens = self.observation_emb(
+                    jnp.concatenate((entities, colors), axis=-1),
+                )
+                obs_tokens = obs_tokens.reshape((batch_size, seq_len, -1))
+                obs_tokens = self.observation_projector(obs_tokens)
+                output_sequence = obs_tokens
+            elif "action" in batch:
+                acts = batch["action"]
+                act_tokens = self.action_emb(
+                    acts,
+                )
+                output_sequence = act_tokens
+            elif "reward" in batch:
+                rews = batch["reward"]
+                rew_tokens = self.reward_emb(
+                    rews[..., None],
+                )
+                output_sequence = rew_tokens
+            else:
+                raise ValueError("Batch must contain 'state', 'action', or 'reward' for decoding.")
+        else:
+            query_obss = batch["query_state"]
+            obss = batch["state"]
+            next_obss = batch["next_state"]
+            all_obss = jnp.concatenate(
+                (
+                    obss,
+                    next_obss,
+                    query_obss,
+                ),
+                axis=1,
+            )
+            acts = batch["action"]
+            rews = batch["reward"]
+            (batch_size, seq_len) = obss.shape[:2]
 
-        obs_tokens = self.observation_emb(
-            jnp.concatenate((entities, colors), axis=-1),
-        )
-        obs_tokens = obs_tokens.reshape((batch_size, 2 * seq_len + 1, -1))
-        obs_tokens = self.observation_projector(obs_tokens)
+            entities = self.entity_emb(
+                all_obss[..., 0],
+            )
+            colors = self.color_emb(
+                all_obss[..., 1],
+            )
 
-        act_tokens = self.action_emb(
-            acts,
-        )
+            obs_tokens = self.observation_emb(
+                jnp.concatenate((entities, colors), axis=-1),
+            )
+            obs_tokens = obs_tokens.reshape((batch_size, 2 * seq_len + 1, -1))
+            obs_tokens = self.observation_projector(obs_tokens)
 
-        rew_tokens = self.reward_emb(
-            rews[..., None],
-        )
+            act_tokens = self.action_emb(
+                acts,
+            )
 
-        output_sequence = jnp.concatenate((
-            obs_tokens[:, :seq_len, None, :],
-            act_tokens[:, :, None, :],
-            obs_tokens[:, seq_len:2 * seq_len, None, :],
-            rew_tokens[:, :, None, :],
-        ), axis=2).reshape((
-            batch_size,
-            4 * seq_len,
-            self.embed_dim, # D
-        ))
+            rew_tokens = self.reward_emb(
+                rews[..., None],
+            )
 
-        output_sequence = jnp.concatenate((
-            output_sequence,
-            obs_tokens[:, -1:, :],
-        ), axis=1)
+            output_sequence = jnp.concatenate((
+                obs_tokens[:, :seq_len, None, :],
+                act_tokens[:, :, None, :],
+                obs_tokens[:, seq_len:2 * seq_len, None, :],
+                rew_tokens[:, :, None, :],
+            ), axis=2).reshape((
+                batch_size,
+                4 * seq_len,
+                self.embed_dim, # D
+            ))
+
+            output_sequence = jnp.concatenate((
+                output_sequence,
+                obs_tokens[:, -1:, :],
+            ), axis=1)
 
         return output_sequence
 
@@ -211,8 +256,10 @@ class ActionTokenLinearPredictor(nnx.Module):
         embed_dim: int,
         output_dim: int,
         rngs: nnx.Rngs,
+        decode: bool = False,
         dtype=None,
     ):
+        self.decode = decode
         self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs, dtype=dtype,)
 
     def __call__(
@@ -222,7 +269,10 @@ class ActionTokenLinearPredictor(nnx.Module):
         **kwargs,
     ):
         # Assumes (S, A, R, S, A, ...)
-        return self.predictor(embed)[:, 1::3]
+        if self.decode:
+            return self.predictor(embed)
+        else:
+            return self.predictor(embed)[:, 1::3]
 
 
 class LastActionTokenLinearPredictor(nnx.Module):
@@ -231,8 +281,10 @@ class LastActionTokenLinearPredictor(nnx.Module):
         embed_dim: int,
         output_dim: int,
         rngs: nnx.Rngs,
+        decode: bool = False,
         dtype=None,
     ):
+        self.decode = decode
         self.predictor = nnx.Linear(embed_dim, output_dim, rngs=rngs, dtype=dtype,)
 
     def __call__(
@@ -241,4 +293,7 @@ class LastActionTokenLinearPredictor(nnx.Module):
         *args,
         **kwargs,
     ):
-        return self.predictor(embed)[:, -1]
+        if self.decode:
+            return self.predictor(embed)
+        else:
+            return self.predictor(embed)[:, -1]

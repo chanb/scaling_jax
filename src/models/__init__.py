@@ -45,6 +45,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 XLandADEncoder,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
+                decode=False,
                 dtype=dtype,
             )
         elif encode_strategy == "xland_dpt":
@@ -52,6 +53,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 XLandDPTEncoder,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
+                decode=False,
                 dtype=dtype,
             )
         else:

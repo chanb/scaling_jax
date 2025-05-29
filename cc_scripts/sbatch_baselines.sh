@@ -4,7 +4,7 @@
 #SBATCH --mem=200GB
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:l40s:4
-#SBATCH --array=1-2
+#SBATCH --array=1-3
 #SBATCH --output=/home/chanb/scratch/logs/icrl_baselines/%j.out
 
 module load StdEnv/2023
