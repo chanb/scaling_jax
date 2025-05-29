@@ -8,8 +8,7 @@ sys.path.insert(0, parentdir)
 
 from flax import nnx
 from flax.training import train_state
-from jax.experimental.mesh_utils import create_device_mesh
-from jax.sharding import Mesh, PartitionSpec as P, NamedSharding
+from jax.sharding import PartitionSpec as P, NamedSharding
 from types import SimpleNamespace
 from typing import Any, Dict, Sequence
 
@@ -25,7 +24,7 @@ import src.models as models
 
 from src.constants import *
 from src.dataset import get_data_loader
-from src.optimizer import get_optimizer
+from src.mesh_utils import construct_mesh, construct_sharded_model
 
 
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
@@ -71,7 +70,7 @@ class ICRL:
         self._config = config
         self._num_updates_per_epoch = config.num_updates_per_epoch
         self._learner_key = jrandom.PRNGKey(config.seeds.learner_seed)
-        self.construct_mesh()
+        self.data_mesh = construct_mesh(config.mesh)
 
         self.data_sharding = NamedSharding(self.data_mesh, P("data"))
 
@@ -88,27 +87,6 @@ class ICRL:
         self._initialize_model_and_opt(dtype)
         self._initialize_losses()
         self.train_step = nnx.jit(self.make_train_step())
-
-    def construct_mesh(self):
-        self.num_devices = len(jax.devices())
-
-        mesh_keys = ("data", "fsdp", "tensor",)
-        mesh_vals = np.array(
-            [getattr(self._config.mesh, mesh_key) for mesh_key in mesh_keys]
-        )
-        unspecified_idx = np.where(mesh_vals == -1)[0]
-        assert len(unspecified_idx) <= 1
-
-        if len(unspecified_idx) == 1:
-            rest_prod = int(np.prod(mesh_vals) * -1)
-            assert self.num_devices % rest_prod == 0
-            mesh_vals[unspecified_idx] = self.num_devices // rest_prod
-
-        print("Mesh shape: {}".format(mesh_vals))
-        self.data_mesh = Mesh(
-            create_device_mesh(mesh_vals),
-            mesh_keys,
-        )
 
     def close(self):
         del self.ds
@@ -145,41 +123,17 @@ class ICRL:
             dtype=dtype,
         )
 
-        def _to_array(x):
-            if not isinstance(x, jax.Array):
-                x = jnp.asarray(x)
-            return x
-
-        @nnx.jit
-        def create_sharded_model():
-            model = model_cls(
+        self._state, self._state_sharding = construct_sharded_model(
+            self.data_mesh,
+            model_cls,
+            dict(
                 **vars(self._config.model_config.model_kwargs),
                 **dependency_cls,
                 rngs=rngs,
                 dtype=dtype,
-            )
-
-            opt = get_optimizer(self._config.optimizer_config)
-
-            graphdef, params, rest = nnx.split(model, nnx.Param, ...)
-
-            state = TrainState.create(
-                apply_fn=graphdef.apply,
-                params=params,
-                tx=opt,
-                graphdef=graphdef,
-                rest=rest,
-            )
-            state = jax.tree.map(_to_array, state)
-            state_spec = nnx.get_partition_spec(state)
-            state = jax.lax.with_sharding_constraint(state, state_spec)
-            return state
-
-        with self.data_mesh:
-            state = create_sharded_model()
-            state_sharding = nnx.get_named_sharding(state, self.data_mesh)
-            self._state = state
-            self._state_sharding = state_sharding
+            ),
+            self._config.optimizer_config,
+        )
 
     def _initialize_losses(self):
         if self._config.objective == "mle":
