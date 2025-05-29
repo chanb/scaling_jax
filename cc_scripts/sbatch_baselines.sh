@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --account=aip-schuurma
 #SBATCH --time=4-00:00:00
-#SBATCH --mem=24GB
+#SBATCH --mem=200GB
 #SBATCH --cpus-per-task=8
 #SBATCH --gres=gpu:l40s:4
 #SBATCH --array=1-2

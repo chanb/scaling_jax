@@ -75,12 +75,15 @@ class XMiniGridExPIDataset(IterableDataset):
             curr_ep = self._rng.randint(len(start_idxes) - self.skip_ep)
             start_idx = self._rng.randint(
                 start_idxes[curr_ep],
-                start_idxes[curr_ep + 1] - 1,
+                start_idxes[curr_ep + 1],
             )
 
             all_idxes = np.arange(start_idx, start_idxes[curr_ep + 1])
+
             while len(all_idxes) < self.seq_len:
                 curr_ep += self.skip_ep
+                if curr_ep >= len(start_idxes) - 1:
+                    curr_ep -= self.skip_ep
                 all_idxes = np.concatenate((
                     all_idxes,
                     np.arange(start_idxes[curr_ep], start_idxes[curr_ep + 1]),
