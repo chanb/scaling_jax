@@ -23,7 +23,7 @@ curl -L -o xland-trivial-20b.hdf5 https://tinyurl.com/trivial-10k
 CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python src/main.py --config_path=configs/xland_ad.json
 
 # CPU devices
-xla_force_host_platform_device_count=8 python src/main.py --config_path=configs/xland_ad.json
+XLA_FLAGS="--xla_force_host_platform_device_count=8" python src/main.py --config_path=configs/xland_ad.json
 ```
 
 
