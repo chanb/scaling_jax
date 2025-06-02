@@ -1,9 +1,9 @@
 {
     "logging_config": {
-        "save_path": "/home/chanb/scratch/results/xland_expi",
+        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/xland_expi",
         "experiment_name": "debug",
         "log_interval": 50,
-        "checkpoint_interval": 1000
+        "checkpoint_interval": 5000
     },
     "model_config": {
         "architecture": "InContextGPT",
@@ -31,22 +31,22 @@
     },
     "half_precision": true,
     "mesh": {
-        "data": 2,
-        "fsdp": -1,
+        "data": 1,
+        "fsdp": 1,
         "tensor": 1
     },
     "learner": "ICRL",
     "dataset_name": "xland_expi",
     "dataset_kwargs": {
-        "data_path": "/home/chanb/scratch/datasets/xland-trivial-20b.hdf5",
+        "data_path": "/home/bryanpu1/projects/aaai_2026/xland-minigrid-datasets/xland-trivial-20b.hdf5",
         "seq_len": 4096,
         "skip_ep": 5
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 32,
+    "batch_size": 1,
     "objective": "mle",
-    "num_epochs": 50000,
+    "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
