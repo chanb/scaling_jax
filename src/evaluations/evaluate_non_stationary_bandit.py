@@ -280,10 +280,10 @@ if __name__ == "__main__":
     run_name = "debug-06-05-25_13_19_10-d1262807-a575-490d-abc8-35bae6930c8d"
 
     eval_seed = 40
-    num_envs = 50
-    eval_episodes = 2048
-    switch_freq = 2048
-    max_decode_len = 100
+    num_envs = 20
+    eval_episodes = 2000
+    switch_freq = 2000
+    max_decode_len = 2000
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
