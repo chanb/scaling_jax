@@ -112,6 +112,7 @@ class BanditADDataset(IterableDataset):
 
             # Exclude very last sample per history
             self.max_len = self.buffer["reward"].shape[-1] - seq_len - 1
+        print("Loaded dataset")
 
     @property
     def observation_space(self):
@@ -132,15 +133,15 @@ class BanditADDataset(IterableDataset):
             states = self.buffer["obs"][task_id][
                 start_idx : start_idx + self.seq_len
             ]
-            actions = self.buffer["actions"][task_id][
+            actions = self.buffer["action"][task_id][
                 start_idx : start_idx + self.seq_len
             ]
-            rewards = self.buffer["rewards"][task_id][
+            rewards = self.buffer["reward"][task_id][
                 start_idx : start_idx + self.seq_len
             ]
 
             yield {
-                "state": states, # (seq_len, 5, 5, 2)
+                "state": states, # (seq_len,)
                 "action": actions, # (seq_len,)
                 "reward": rewards, # (seq_len,)
                 "target": actions, # (seq_len,)

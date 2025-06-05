@@ -43,7 +43,7 @@
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 8,
+    "batch_size": 32,
     "objective": "mle",
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,
