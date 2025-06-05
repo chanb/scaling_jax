@@ -223,9 +223,9 @@ if __name__ == "__main__":
     run_name = "debug-06-05-25_13_19_10-d1262807-a575-490d-abc8-35bae6930c8d"
 
     eval_seed = 40
-    num_envs = 10
+    num_envs = 50
     eval_episodes = 2048
-    max_decode_len = 512
+    max_decode_len = 100
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
