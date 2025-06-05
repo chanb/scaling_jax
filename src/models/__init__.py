@@ -15,6 +15,7 @@ from typing import Any
 
 from src.models.gpt import InContextGPT
 from src.models.icrl import (
+    BanditADEncoder,
     XLandADEncoder,
     XLandDPTEncoder,
     ActionTokenLinearPredictor,
@@ -40,7 +41,15 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         False,
     )
     if encode_strategy:
-        if encode_strategy == "xland_ad":
+        if encode_strategy == "bandit_ad":
+            dependency_cls["encoder_cls"] = partial(
+                BanditADEncoder,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                decode=False,
+                dtype=dtype,
+            )
+        elif encode_strategy == "xland_ad":
             dependency_cls["encoder_cls"] = partial(
                 XLandADEncoder,
                 embed_dim=model_config.model_kwargs.embed_dim,

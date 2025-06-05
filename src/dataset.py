@@ -16,7 +16,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from src.datasets.mock_dataset import MockXMiniGridADDataset
-from src.datasets.ad_dataset import XMiniGridADDataset
+from src.datasets.ad_dataset import XMiniGridADDataset, BanditADDataset
 from src.datasets.dpt_dataset import XMiniGridDPTDataset
 from src.datasets.expi_dataset import XMiniGridExPIDataset
 
@@ -52,40 +52,46 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
 
     num_workers = getattr(config, "num_workers", 0)
 
-    if "xland" in dataset_name:
-        batch_size = config.batch_size
-        if dataset_name == "xland_ad":
-            dataset = XMiniGridADDataset(
-                dataset_kwargs.data_path,
-                dataset_kwargs.seq_len,
-                config.seeds.data_seed,
-            )
-        elif dataset_name == "xland_expi":
-            dataset = XMiniGridExPIDataset(
-                dataset_kwargs.data_path,
-                dataset_kwargs.seq_len,
-                dataset_kwargs.skip_ep,
-                config.seeds.data_seed,
-            )
-        elif dataset_name == "xland_dpt":
-            dataset = XMiniGridDPTDataset(
-                dataset_kwargs.data_path,
-                dataset_kwargs.seq_len,
-                config.seeds.data_seed,
-            )
-        elif dataset_name == "mock_xland_ad":
-            dataset = MockXMiniGridADDataset(
-                dataset_kwargs.data_path,
-                dataset_kwargs.seq_len,
-                config.seeds.data_seed,
-            )
-        else:
-            raise NotImplementedError
-        loader = DataLoader(
-            dataset,
-            batch_size=batch_size,
-            num_workers=num_workers,
+    batch_size = config.batch_size
+    if dataset_name == "bandit_ad":
+        dataset = BanditADDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
         )
+    elif dataset_name == "xland_ad":
+        dataset = XMiniGridADDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "xland_expi":
+        dataset = XMiniGridExPIDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            dataset_kwargs.skip_ep,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "xland_dpt":
+        dataset = XMiniGridDPTDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "mock_xland_ad":
+        dataset = MockXMiniGridADDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    else:
+        raise NotImplementedError
+
+    loader = DataLoader(
+        dataset,
+        batch_size=batch_size,
+        num_workers=num_workers,
+    )
 
     loader = get_iter(loader, data_sharding, dtype)
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)

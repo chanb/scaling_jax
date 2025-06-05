@@ -48,15 +48,7 @@ def evaluate(
     eval_info = defaultdict(list)
 
     timestep = jax.block_until_ready(reset_fn(env_params, reset_rng))
-    empty_action = jnp.zeros(
-        (num_envs, 1),
-        dtype=jnp.int32,
-    )
     dtype = jnp.bfloat16 if half_precision else jnp.float32
-    empty_reward = jnp.zeros(
-        (num_envs, 1),
-        dtype=dtype,
-    )
 
     model.eval()
     model.set_attributes(deterministic=True, decode=True)
@@ -157,34 +149,43 @@ def main(
     )
     reset_rng_per_gpu = jax.random.split(reset_rng, num_envs)[idx_rank]
 
-    eval_info = evaluate(
-        step_fn=step_fn,
-        reset_fn=reset_fn,
-        env_params=env_params_per_gpu,
-        rng_key=rng,
-        reset_rng=reset_rng_per_gpu,
-        model=model,
-        max_decode_len=max_decode_len,
-        embed_dim=config_dict["model_config"]["model_kwargs"]["embed_dim"],
-        ruleset_ids=rulesets_per_gpu,
-        eval_episodes=eval_episodes,
-    )
-    dill.dump(
-        eval_info,
-        open(os.path.join(learner_path, "eval_info.dill"), "wb"),
-    )
+    try:
+        eval_info = evaluate(
+            step_fn=step_fn,
+            reset_fn=reset_fn,
+            env_params=env_params_per_gpu,
+            rng_key=rng,
+            reset_rng=reset_rng_per_gpu,
+            model=model,
+            max_decode_len=max_decode_len,
+            embed_dim=config_dict["model_config"]["model_kwargs"]["embed_dim"],
+            ruleset_ids=rulesets_per_gpu,
+            eval_episodes=eval_episodes,
+        )
+    finally:
+        dill.dump(
+            eval_info,
+            open(os.path.join(learner_path, "eval_info.dill"), "wb"),
+        )
 
 
 if __name__ == "__main__":
-    base_path = "/home/chanb/scratch/results"
-    algo_name = "xland_dpt"
-    run_name = "debug-05-29-25_12_53_39-91f08367-25da-454e-802b-1b38cb8ca5af"
+    base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
+    # algo_name = "xland_ad"
+    # run_name = "debug-06-02-25_14_46_07-3c1bc77f-9d04-4c25-8356-67dd1919b82a"
+
+    # algo_name = "xland_dpt"
+    # run_name = "debug-06-02-25_14_47_19-f8577fb0-3fb8-4664-8982-64d5985a9961"
+
+    algo_name = "xland_expi"
+    run_name = "debug-06-02-25_14_47_55-e68410db-d131-44d5-8720-a660d26eb3f8"
+
     eval_seed = 42
 
-    num_eval_rulesets = 128
-    eval_episodes = 10
+    num_eval_rulesets = 32
+    eval_episodes = 100
 
-    max_decode_len = 4096
+    max_decode_len = 512
 
     learner_path = os.path.join(base_path, algo_name, run_name)
     main(max_decode_len, learner_path, eval_seed, num_eval_rulesets, eval_episodes)

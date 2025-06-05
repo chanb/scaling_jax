@@ -101,16 +101,17 @@ class BanditADDataset(IterableDataset):
         self.seed = seed
         self._rng = np.random.RandomState(seed)
 
-        with pickle.load(open(data_path, "rb")) as f:
-            self.env_params = f["env_params"]
-            self.buffer = f["buffer"]["data"]
+        with open(data_path, "rb") as f:
+            data = pickle.load(f)
+            self.env_params = data["env_params"]
+            self.buffer = data["data"]
             self.task_ids = np.arange(len(self.env_params))
             self.num_arms = self.env_params.shape[-1]
             self.num_tasks = len(self.task_ids)
             self.hists_per_task = 1
 
             # Exclude very last sample per history
-            self.max_len = self.buffer.reward.shape[-1] - seq_len - 1
+            self.max_len = self.buffer["reward"].shape[-1] - seq_len - 1
 
     @property
     def observation_space(self):
