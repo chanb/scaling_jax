@@ -128,7 +128,7 @@ def evaluate_single(
         eval_info,
     )
 
-    return results["eval_info"]
+    return results
 
 
 @partial(jax.jit, static_argnames=("model", "env", "num_envs", "eval_episodes"))
@@ -194,7 +194,7 @@ def main(
             input_shape = (1, 1 + max_decode_len * 3, embed_dim)
             m.init_cache(input_shape, dtype=dtype)
 
-    eval_info = evaluate(
+    results = evaluate(
         model,
         rng,
         env,
@@ -207,6 +207,8 @@ def main(
         eval_episodes,
         1,
     )
+
+    eval_info = results["eval_info"]
     eval_info["env_params"] = env_params
     dill.dump(
         eval_info,
@@ -217,11 +219,12 @@ def main(
 if __name__ == "__main__":
     base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
     algo_name = "bandit_ad"
-    run_name = "debug-06-05-25_09_29_45-4d86f527-fcc1-43b7-aeed-3901b032d33b"
+    # run_name = "debug-06-05-25_09_29_45-4d86f527-fcc1-43b7-aeed-3901b032d33b"
+    run_name = "debug-06-05-25_13_19_10-d1262807-a575-490d-abc8-35bae6930c8d"
 
-    eval_seed = 42
-    num_envs = 2
-    eval_episodes = 50
+    eval_seed = 40
+    num_envs = 10
+    eval_episodes = 2048
     max_decode_len = 512
 
     learner_path = os.path.join(base_path, algo_name, run_name)

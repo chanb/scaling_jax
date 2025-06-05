@@ -195,7 +195,7 @@ if __name__ == "__main__":
     eval_seed = 42
 
     num_eval_rulesets = 32
-    eval_episodes = 100
+    eval_episodes = 500
 
     max_decode_len = 512
 
