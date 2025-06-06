@@ -3,18 +3,19 @@
         "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/bandit_ad",
         "experiment_name": "debug",
         "log_interval": 50,
-        "checkpoint_interval": 50000
+        "checkpoint_interval": 100000
     },
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
             "output_dim": 5,
-            "num_blocks": 4,
+            "num_blocks": 6,
             "num_heads": 4,
-            "embed_dim": 64,
+            "embed_dim": 32,
             "widening_factor": 4,
             "encode_strategy": "bandit_ad",
-            "predictor_strategy": "action_token_linear"
+            "predictor_strategy": "action_token_linear",
+            "use_sink_token": false
         }
     },
     "optimizer_config": {
@@ -38,14 +39,14 @@
     "learner": "ICRL",
     "dataset_name": "bandit_ad",
     "dataset_kwargs": {
-        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb.pkl",
+        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb-200k_instances.pkl",
         "seq_len": 100
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 32,
     "objective": "mle",
-    "num_epochs": 500000,
+    "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,

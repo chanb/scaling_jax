@@ -24,6 +24,7 @@ class BanditADEncoder(nnx.Module):
         rngs: nnx.Rngs,
         decode: bool = False,
         dtype=None,
+        # TODO: Add dropout and see if that helps at all
     ):
         self.decode = decode
         self.embed_dim = embed_dim

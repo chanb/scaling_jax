@@ -144,17 +144,20 @@ class InContextGPT(nnx.Module):
         rngs: nnx.Rngs,
         decode: bool = False,
         dtype=None,
+        use_sink_token: bool = True,
         **kwargs,
     ) -> None:
         self.decode = decode
+        self.use_sink_token = use_sink_token
         self.encoder = encoder_cls()
 
-        self.sink_token = nnx.Embed(
-            1,
-            embed_dim,
-            rngs=rngs,
-            dtype=dtype,
-        )
+        if use_sink_token:
+            self.sink_token = nnx.Embed(
+                1,
+                embed_dim,
+                rngs=rngs,
+                dtype=dtype,
+            )
         self.gpt = GPT(
             num_blocks=num_blocks,
             num_heads=num_heads,
@@ -174,8 +177,9 @@ class InContextGPT(nnx.Module):
         self,
         batch: Any,
     ):
+        # TODO: Fix decoding with sink token---currently the sink token will get overwritten
         if self.decode:
-            if "sink" not in batch:
+            if "sink" not in batch or not self.use_sink_token:
                 token_seq = self.encoder(batch)
             else:
                 token_seq = self.sink_token(
@@ -183,13 +187,14 @@ class InContextGPT(nnx.Module):
                 )
         else:
             token_seq = self.encoder(batch)
-            sink_token = self.sink_token(
-                np.zeros((len(token_seq), 1), dtype=int),
-            )
-            token_seq = jnp.concatenate(
-                (sink_token, token_seq),
-                axis=1,
-            )
+            if self.use_sink_token:
+                sink_token = self.sink_token(
+                    np.zeros((len(token_seq), 1), dtype=int),
+                )
+                token_seq = jnp.concatenate(
+                    (sink_token, token_seq),
+                    axis=1,
+                )
         token_seq = self.gpt(token_seq)
         outputs = self.predictor(token_seq)
 

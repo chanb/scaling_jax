@@ -283,7 +283,7 @@ if __name__ == "__main__":
     num_envs = 20
     eval_episodes = 500
     switch_freq = 100
-    max_decode_len = 100
+    max_decode_len = 50
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
