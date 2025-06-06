@@ -17,7 +17,7 @@ import numpy as np
 
 from src.datasets.mock_dataset import MockXMiniGridADDataset
 from src.datasets.ad_dataset import XMiniGridADDataset, BanditADDataset
-from src.datasets.dpt_dataset import XMiniGridDPTDataset
+from src.datasets.dpt_dataset import XMiniGridDPTDataset, BanditDPTDataset
 from src.datasets.expi_dataset import XMiniGridExPIDataset
 
 
@@ -55,6 +55,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
     batch_size = config.batch_size
     if dataset_name == "bandit_ad":
         dataset = BanditADDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "bandit_dpt":
+        dataset = BanditDPTDataset(
             dataset_kwargs.data_path,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,

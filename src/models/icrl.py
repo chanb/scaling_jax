@@ -57,8 +57,6 @@ class BanditADEncoder(nnx.Module):
     ):
         if "state" in batch:
             obss = batch["state"]
-            (batch_size, seq_len) = obss.shape[:2]
-
             obs_tokens = self.observation_emb(
                 obss,
             )
@@ -91,6 +89,95 @@ class BanditADEncoder(nnx.Module):
                 3 * seq_len,
                 self.embed_dim, # D
             ))
+
+        return output_sequence
+
+
+class BanditDPTEncoder(nnx.Module):
+    def __init__(
+        self,
+        embed_dim: int,
+        rngs: nnx.Rngs,
+        decode: bool = False,
+        dtype=None,
+        # TODO: Add dropout and see if that helps at all
+    ):
+        self.decode = decode
+        self.embed_dim = embed_dim
+
+        self.observation_emb = nnx.Linear(
+            1,
+            embed_dim,
+            rngs=rngs,
+            dtype=dtype,
+        )
+
+        self.action_emb = nnx.Embed(NUM_ACTIONS, embed_dim, rngs=rngs, dtype=dtype,)
+
+        self.reward_emb = MLP(
+            in_dim=1,
+            out_dim=embed_dim,
+            hidden_layers=[],
+            activation=identity,
+            rngs=rngs,
+            dtype=dtype,
+            use_layer_norm=False,
+            use_batch_norm=False,
+            use_bias=True,
+        )
+
+    def __call__(
+        self,
+        batch: Any,
+        **kwargs,
+    ):
+        if "state" in batch:
+            obss = batch["state"]
+            obs_tokens = self.observation_emb(
+                obss,
+            )
+            output_sequence = obs_tokens
+        
+        if "action" in batch:
+            acts = batch["action"]
+            act_tokens = self.action_emb(
+                acts,
+            )
+            output_sequence = act_tokens
+
+        if "reward" in batch:
+            rews = batch["reward"]
+            rew_tokens = self.reward_emb(
+                rews[..., None],
+            )
+            output_sequence = rew_tokens
+
+        if "query_state" in batch:
+            query_obss = batch["query_state"]
+            query_obs_tokens = self.observation_emb(
+                query_obss,
+            )
+            output_sequence = query_obs_tokens
+
+
+        if self.decode:
+            return output_sequence
+        else:
+            (batch_size, seq_len) = obss.shape[:2]
+            output_sequence = jnp.concatenate((
+                obs_tokens[:, :, None, :],
+                act_tokens[:, :, None, :],
+                rew_tokens[:, :, None, :],
+            ), axis=2).reshape((
+                batch_size,
+                3 * seq_len,
+                self.embed_dim, # D
+            ))
+
+            output_sequence = jnp.concatenate((
+                output_sequence,
+                query_obs_tokens,
+            ), axis=1)
 
         return output_sequence
 

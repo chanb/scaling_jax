@@ -1,3 +1,4 @@
+import _pickle as pickle
 import h5py
 import numpy as np
 import random
@@ -97,5 +98,65 @@ class XMiniGridDPTDataset(IterableDataset):
                 "next_state": next_states, # (seq_len, 5, 5, 2)
                 "action": actions, # (seq_len,)
                 "reward": rewards, # (seq_len,)
-                "target": target_actions, # (seq_len,)
+                "target": target_actions, # ()
+            }
+
+
+class BanditDPTDataset(IterableDataset):
+    """
+    Data is collected using rejax.
+    """
+
+    def __init__(
+        self,
+        data_path: str,
+        seq_len: int,
+        seed: int,
+    ):
+        self.seq_len = seq_len
+        self.data_path = data_path
+        self.seed = seed
+        self._rng = np.random.RandomState(seed)
+
+        with open(data_path, "rb") as f:
+            data = pickle.load(f)
+            self.env_params = data["env_params"]
+            self.buffer = data["data"]
+            self.task_ids = np.arange(len(self.env_params))
+            self.num_arms = self.env_params.shape[-1]
+            self.num_tasks = len(self.task_ids)
+            self.hists_per_task = 1
+
+            # Exclude very last sample per history
+            self.max_len = self.buffer["reward"].shape[-1]
+        print("Loaded dataset")
+
+    @property
+    def observation_space(self):
+        return spaces.Box(low=0, high=1, shape=(1,), dtype=int)
+
+    @property
+    def action_space(self):
+        return spaces.Discrete(self.num_arms)
+
+    def __iter__(self):
+        return iter(self.get_sequences())
+
+    def get_sequences(self):
+        while True:
+            task_id = self._rng.choice(self.task_ids)
+            idxes = self._rng.randint(self.max_len, size=(self.seq_len,))
+            query_idx = self._rng.randint(self.max_len)
+
+            query_state = self.buffer["obs"][task_id][[query_idx]]
+            states = self.buffer["obs"][task_id][idxes]
+            actions = self.buffer["action"][task_id][idxes]
+            rewards = self.buffer["reward"][task_id][idxes]
+
+            yield {
+                "query_state": query_state, # (1,)
+                "state": states, # (seq_len,)
+                "action": actions, # (seq_len,)
+                "reward": rewards, # (seq_len,)
+                "target": np.array(np.argmax(self.env_params[task_id])), # ()
             }
