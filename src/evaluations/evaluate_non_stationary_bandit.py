@@ -105,8 +105,44 @@ def evaluate_single_env(
                 cache = nnx.state(model, nnx.Cache)
             return cache
     else:
-        # TODO: Fix this
-        raise NotImplementedError
+        def decode(batch, cache):
+            new_cache = {
+                "state": jnp.concatenate(
+                    (cache["state"][:, 1:], batch["state"]),
+                    axis=1,
+                ) if "state" in batch else cache["state"],
+                "action": jnp.concatenate(
+                    (cache["action"][:, 1:], batch["action"]),
+                    axis=1,
+                ) if "action" in batch else cache["action"],
+                "reward": jnp.concatenate(
+                    (cache["reward"][:, 1:], batch["reward"]),
+                    axis=1,
+                ) if "reward" in batch else cache["reward"],
+            }
+            out = model(new_cache)
+            return out, new_cache
+
+        def init_cache():
+            cache = {
+                "state": jnp.zeros(
+                    (
+                        1,
+                        eval_config.max_decode_len,
+                        *env.observation_space(
+                            jnp.zeros((eval_config.num_arms,))
+                        ).shape,
+                    )
+                ),
+                "action": jnp.zeros(
+                    (1, eval_config.max_decode_len,),
+                    dtype=int,
+                ),
+                "reward": jnp.zeros(
+                    (1, eval_config.max_decode_len,)
+                ),
+            }
+            return cache
 
     def rollout(ep_i: int, eval_state: EvalState):
         def step(step_state: StepState):
@@ -322,12 +358,15 @@ if __name__ == "__main__":
     run_name = "adamw-06-06-25_09_56_26-8373a959-1e98-4fe9-bedb-bd9a3e42a6b5"
 
     eval_seed = 40
-    num_envs = 1
-    eval_episodes = 3
+    num_envs = 20
+    eval_episodes = 500
     switch_freq = 100
-    max_decode_len = 2
+    max_decode_len = 100
     deterministic_action = False
-    use_autoregressive = True
+    use_autoregressive = False
+
+    if use_autoregressive:
+        max_decode_len = eval_episodes
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
