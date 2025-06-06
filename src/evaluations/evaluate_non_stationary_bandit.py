@@ -35,6 +35,7 @@ class EvalInfo(NamedTuple):
     episode_lengths: chex.Array
     episode_returns: chex.Array
     action_counts: chex.Array
+    logits: chex.Array
 
 
 class StepState(NamedTuple):
@@ -43,6 +44,7 @@ class StepState(NamedTuple):
     env_params: EnvParams
     env_state: EnvState
     last_obs: chex.Array
+    logits: chex.Array
     act_counts: chex.Array
     ep_done: bool = False
     ep_return: float = 0.0
@@ -63,6 +65,9 @@ class EvalConfig(NamedTuple):
     num_envs: int
     num_switches: int
     sample_env_params: Callable
+    deterministic_action: bool
+    use_autoregressive: bool
+    max_decode_len: int
 
 
 def sample_env_params(key, num_arms):
@@ -84,13 +89,24 @@ def evaluate_single_env(
     env: environment.Environment,
     eval_config: EvalConfig,
 ):
-    graphdef, _, rest = nnx.split(model, nnx.Cache, ...)
-    def decode(batch, cache):
-        module = nnx.merge(graphdef, cache, rest)
-        module.set_attributes(deterministic=True, decode=True)
-        out = module(batch)
-        cache = nnx.state(module, nnx.Cache)
-        return out, cache
+    if eval_config.use_autoregressive:
+        graphdef, _, rest = nnx.split(model, nnx.Cache, ...)
+        def decode(batch, cache):
+            module = nnx.merge(graphdef, cache, rest)
+            module.set_attributes(deterministic=True, decode=True)
+            out = module(batch)
+            cache = nnx.state(module, nnx.Cache)
+            return out, cache
+        
+        def init_cache():
+            if model.use_sink_token:
+                _, cache = decode({"sink": 1}, nnx.state(model, nnx.Cache))
+            else:
+                cache = nnx.state(model, nnx.Cache)
+            return cache
+    else:
+        # TODO: Fix this
+        raise NotImplementedError
 
     def rollout(ep_i: int, eval_state: EvalState):
         def step(step_state: StepState):
@@ -98,7 +114,14 @@ def evaluate_single_env(
 
             logits, cache = decode({"state": step_state.last_obs[None, None, None],}, step_state.cache)
             logits = logits[:, -1]
-            action = jnp.argmax(logits, axis=-1)
+
+            action = jax.lax.cond(
+                eval_config.deterministic_action,
+                lambda rng_step, logits: jnp.argmax(logits, axis=-1),
+                jax.random.categorical,
+                rng_step,
+                logits,
+            )
 
             obs, env_state, reward, done, _ = env.step(
                 rng_step, step_state.env_state, action, step_state.env_params
@@ -112,6 +135,7 @@ def evaluate_single_env(
                 env_params=env_params,
                 env_state=env_state,
                 last_obs=obs,
+                logits=step_state.logits.at[step_state.ep_length].set(logits[0]),
                 ep_done=done,
                 ep_return=step_state.ep_return + reward.squeeze(),
                 ep_length=step_state.ep_length + 1,
@@ -120,7 +144,7 @@ def evaluate_single_env(
             return step_state
 
         rng = jax.random.fold_in(eval_state.rng, ep_i)
-        rng_reset, rng_eval = jax.random.split(rng)
+        rng_reset, rng_step = jax.random.split(rng)
 
         # Sample new bandit instance
         curr_instance = ep_i // eval_config.switch_freq
@@ -135,15 +159,17 @@ def evaluate_single_env(
 
         step_state = StepState(
             cache=eval_state.cache,
-            rng=rng_eval,
+            rng=rng_step,
             env_params=env_params,
             env_state=env_state,
             last_obs=obs,
+            logits=jnp.zeros((eval_config.max_steps_in_episode, eval_config.num_arms)),
             act_counts=jnp.zeros(eval_config.num_arms),
         )
         step_state = jax.lax.while_loop(
             lambda s: jnp.logical_and(
-                s.ep_length < eval_config.max_steps_in_episode, jnp.logical_not(s.ep_done)
+                s.ep_length < eval_config.max_steps_in_episode,
+                jnp.logical_not(s.ep_done),
             ),
             step,
             step_state,
@@ -157,12 +183,13 @@ def evaluate_single_env(
                 episode_lengths=eval_state.eval_info.episode_lengths.at[ep_i].set(step_state.ep_length),
                 episode_returns=eval_state.eval_info.episode_returns.at[ep_i].set(step_state.ep_return),
                 action_counts=eval_state.eval_info.action_counts + step_state.act_counts,
+                logits=eval_state.eval_info.logits.at[ep_i].set(step_state.logits),
             )
         )
 
         return eval_state
 
-    _, cache = decode({"sink": 1}, nnx.state(model, nnx.Cache))
+    cache = init_cache()
 
     eval_state = EvalState(
         cache=cache,
@@ -172,10 +199,13 @@ def evaluate_single_env(
             episode_lengths=jnp.zeros(eval_episodes,),
             episode_returns=jnp.zeros(eval_episodes,),
             action_counts=jnp.zeros(eval_config.num_arms),
+            logits=jnp.zeros((
+                eval_episodes,
+                eval_config.max_steps_in_episode,
+                eval_config.num_arms,
+            )),
         )
     )
-
-    _, cache, _ = nnx.split(model, nnx.Cache, ...)
 
     eval_state = jax.lax.fori_loop(
         0,
@@ -213,13 +243,17 @@ def main(
     num_envs: int,
     eval_episodes: int,
     switch_freq: int,
+    deterministic_action: bool,
+    use_autoregressive: bool,
     half_precision: bool = True
 ):
     config_dict = json.load(open(os.path.join(learner_path, "config.json"), "r"))
     embed_dim = config_dict["model_config"]["model_kwargs"]["embed_dim"]
 
     last_step = sorted(os.listdir(os.path.join(learner_path, "models")))[-1]
-    train_state = dill.load(open(os.path.join(learner_path, "models", last_step), "rb"))
+    train_state = dill.load(
+        open(os.path.join(learner_path, "models", last_step), "rb")
+    )
     model = nnx.merge(
         train_state.graphdef,
         train_state.params,
@@ -234,11 +268,17 @@ def main(
     dtype = jnp.bfloat16 if half_precision else jnp.float32
 
     model.eval()
-    model.set_attributes(deterministic=True, decode=True)
-    for _path, m in model.iter_modules():
-        if isinstance(m, HasCache):
-            input_shape = (1, 1 + max_decode_len * 3, embed_dim)
-            m.init_cache(input_shape, dtype=dtype)
+    model.set_attributes(deterministic=True, decode=use_autoregressive)
+
+    if use_autoregressive:
+        for _path, m in model.iter_modules():
+            if isinstance(m, HasCache):
+                input_shape = (
+                    1,
+                    int(model.use_sink_token) + max_decode_len * 3,
+                    embed_dim,
+                )
+                m.init_cache(input_shape, dtype=dtype)
 
     eval_config = EvalConfig(
         eval_episodes=eval_episodes,
@@ -250,7 +290,10 @@ def main(
         sample_env_params=partial(
             sample_env_params,
             num_arms=config_dict["model_config"]["model_kwargs"]["output_dim"],
-        )
+        ),
+        deterministic_action=deterministic_action,
+        use_autoregressive=use_autoregressive,
+        max_decode_len=max_decode_len * 3,
     )
 
     eval_state = evaluate(
@@ -276,15 +319,25 @@ def main(
 if __name__ == "__main__":
     base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
     algo_name = "bandit_ad"
-    # run_name = "debug-06-05-25_09_29_45-4d86f527-fcc1-43b7-aeed-3901b032d33b"
-    run_name = "debug-06-05-25_13_19_10-d1262807-a575-490d-abc8-35bae6930c8d"
+    run_name = "adamw-06-06-25_09_56_26-8373a959-1e98-4fe9-bedb-bd9a3e42a6b5"
 
     eval_seed = 40
-    num_envs = 20
-    eval_episodes = 500
+    num_envs = 1
+    eval_episodes = 3
     switch_freq = 100
-    max_decode_len = 50
+    max_decode_len = 2
+    deterministic_action = False
+    use_autoregressive = True
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
-    main(max_decode_len, learner_path, eval_seed, num_envs, eval_episodes, switch_freq)
+    main(
+        max_decode_len,
+        learner_path,
+        eval_seed,
+        num_envs,
+        eval_episodes,
+        switch_freq,
+        deterministic_action,
+        use_autoregressive,
+    )

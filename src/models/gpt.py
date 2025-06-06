@@ -177,7 +177,6 @@ class InContextGPT(nnx.Module):
         self,
         batch: Any,
     ):
-        # TODO: Fix decoding with sink token---currently the sink token will get overwritten
         if self.decode:
             if "sink" not in batch or not self.use_sink_token:
                 token_seq = self.encoder(batch)
@@ -196,6 +195,6 @@ class InContextGPT(nnx.Module):
                     axis=1,
                 )
         token_seq = self.gpt(token_seq)
-        outputs = self.predictor(token_seq)
+        outputs = self.predictor(token_seq[:, int(self.use_sink_token):])
 
         return outputs

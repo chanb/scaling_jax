@@ -350,7 +350,7 @@ class ActionTokenLinearPredictor(nnx.Module):
         if self.decode:
             return self.predictor(embed)
         else:
-            return self.predictor(embed)[:, 1::3]
+            return self.predictor(embed)[:, ::3]
 
 
 class LastActionTokenLinearPredictor(nnx.Module):

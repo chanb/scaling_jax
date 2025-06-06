@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/bandit_ad",
-        "experiment_name": "debug",
+        "experiment_name": "adamw",
         "log_interval": 50,
         "checkpoint_interval": 100000
     },
@@ -9,7 +9,7 @@
         "architecture": "InContextGPT",
         "model_kwargs": {
             "output_dim": 5,
-            "num_blocks": 6,
+            "num_blocks": 4,
             "num_heads": 4,
             "embed_dim": 32,
             "widening_factor": 4,
@@ -19,14 +19,16 @@
         }
     },
     "optimizer_config": {
-        "optimizer": "adam",
+        "optimizer": "adamw",
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 3e-4
+                "value": 1e-4
             }
         },
-        "opt_kwargs": {},
+        "opt_kwargs": {
+            "weight_decay": 1e-4
+        },
         "max_grad_norm": false,
         "mask_names": []
     },
@@ -39,12 +41,12 @@
     "learner": "ICRL",
     "dataset_name": "bandit_ad",
     "dataset_kwargs": {
-        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb-200k_instances.pkl",
-        "seq_len": 100
+        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb.pkl",
+        "seq_len": 500
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 32,
+    "batch_size": 64,
     "objective": "mle",
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
