@@ -142,12 +142,15 @@ class ICRL:
                 loss = jnp.mean(
                     optax.softmax_cross_entropy_with_integer_labels(logits, targets)
                 )
+                acts_taken = jnp.argmax(logits, axis=-1)
                 acc = jnp.mean(
-                    jnp.argmax(logits, axis=-1) == targets
+                    acts_taken == targets
                 )
 
                 return loss, {
                     CONST_ACCURACY: acc,
+                    CONST_ACT_TAKEN: acts_taken,
+                    CONST_ACT_TARGET: targets,
                 }
 
             self._loss = cross_entropy
@@ -223,6 +226,8 @@ class ICRL:
             f"time/{CONST_UPDATE_TIME}": total_update_time,
             f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
             f"{CONST_PARAM_NORM}/model": l2_norm(self._state.params).item(),
+            f"hist/{CONST_ACT_TAKEN}": aux[CONST_ACT_TAKEN],
+            f"hist/{CONST_ACT_TARGET}": aux[CONST_ACT_TARGET],
         }
 
         if isinstance(self._state.opt_state, dict):

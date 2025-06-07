@@ -33,6 +33,8 @@ CONST_ENCODER = "encoder"
 CONST_SINK_TOKEN = "sink_token"
 
 # Learning
+CONST_ACT_TAKEN = "action_taken"
+CONST_ACT_TARGET = "action_target"
 CONST_ACCURACY = "accuracy"
 CONST_AUX = "aux"
 CONST_AGG_LOSS = "aggregate_loss"

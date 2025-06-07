@@ -8,13 +8,15 @@ sys.path.insert(0, parentdir)
 
 import dill
 import math
+import numpy as np
 import tqdm
 
 from torch.utils.tensorboard import SummaryWriter
 from types import SimpleNamespace
 
-from src.constants import *
 import src.learner as learners
+
+from src.constants import *
 from src.utils import DummySummaryWriter
 
 
@@ -74,7 +76,14 @@ def train(
             ):
                 # NOTE: we expect the user to properly define the logging scalars in the learner
                 for key, val in train_aux.items():
-                    summary_writer.add_scalar(key, val, true_epoch)
+                    if key.startswith("hist/"):
+                        summary_writer.add_text(
+                            key,
+                            ",".join([f"{k}: {v}" for k, v in zip(*np.unique(val, return_counts=True))]),
+                            true_epoch,
+                        )
+                    else:
+                        summary_writer.add_scalar(key, val, true_epoch)
 
             if (
                 save_path

@@ -1,3 +1,11 @@
+import inspect
+import os
+import sys
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(os.path.dirname(currentdir))
+sys.path.insert(0, parentdir)
+
 import dill
 import itertools
 import jax
@@ -5,7 +13,6 @@ import jax.numpy as jnp
 import jax.random as jrandom
 import json
 import numpy as np
-import os
 import xminigrid
 
 from collections import defaultdict
@@ -48,15 +55,7 @@ def evaluate(
     eval_info = defaultdict(list)
 
     timestep = jax.block_until_ready(reset_fn(env_params, reset_rng))
-    empty_action = jnp.zeros(
-        (num_envs, 1),
-        dtype=jnp.int32,
-    )
     dtype = jnp.bfloat16 if half_precision else jnp.float32
-    empty_reward = jnp.zeros(
-        (num_envs, 1),
-        dtype=dtype,
-    )
 
     model.eval()
     model.set_attributes(deterministic=True, decode=True)
@@ -64,17 +63,24 @@ def evaluate(
         if isinstance(m, HasCache):
             input_shape = (num_envs, 1 + max_decode_len * 3, embed_dim)
             m.init_cache(input_shape, dtype=dtype)
-    model({"sink": num_envs})
+
+
+    graphdef, _, rest = nnx.split(model, nnx.Cache, ...)
+    def decode(batch, cache):
+        module = nnx.merge(graphdef, cache, rest)
+        module.set_attributes(deterministic=True, decode=True)
+        out = module(batch)
+        cache = nnx.state(module, nnx.Cache)
+        return out, cache
+
+    _, cache = decode({"sink": num_envs}, nnx.state(model, nnx.Cache))
 
     for step in tqdm(itertools.count(start=1)):
 
         # predict next_action
         # [num_envs, seq_len, num_actions] -> [num_envs, num_actions]
-        logits = model({"state": timestep.observation[:, None],})
+        logits, cache = decode({"state": timestep.observation[:, None],}, cache)
         logits = logits[:, -1]
-        dist = jrandom.categorical(
-            jrandom.fold_in(rng_key, step), logits, axis=-1,
-        )
         action = jnp.argmax(logits, axis=-1)
 
         # query the worlds
@@ -85,8 +91,8 @@ def evaluate(
         returns += np.asarray(timestep.reward)
 
         # relabel for the next step
-        model({"action": action[:, None],})
-        model({"reward": timestep.reward[:, None],})
+        _, cache = decode({"action": action[:, None],}, cache)
+        _, cache = decode({"reward": timestep.reward[:, None],}, cache)
 
         # log returns if done
         for i, d in enumerate(done):
@@ -176,15 +182,22 @@ def main(
 
 
 if __name__ == "__main__":
-    base_path = "/home/chanb/scratch/results"
-    algo_name = "xland_dpt"
-    run_name = "debug-05-29-25_12_53_39-91f08367-25da-454e-802b-1b38cb8ca5af"
+    base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
+    # algo_name = "xland_ad"
+    # run_name = "debug-06-02-25_14_46_07-3c1bc77f-9d04-4c25-8356-67dd1919b82a"
+
+    # algo_name = "xland_dpt"
+    # run_name = "debug-06-02-25_14_47_19-f8577fb0-3fb8-4664-8982-64d5985a9961"
+
+    algo_name = "xland_expi"
+    run_name = "debug-06-02-25_14_47_55-e68410db-d131-44d5-8720-a660d26eb3f8"
+
     eval_seed = 42
 
-    num_eval_rulesets = 128
-    eval_episodes = 10
+    num_eval_rulesets = 32
+    eval_episodes = 500
 
-    max_decode_len = 4096
+    max_decode_len = 512
 
     learner_path = os.path.join(base_path, algo_name, run_name)
     main(max_decode_len, learner_path, eval_seed, num_eval_rulesets, eval_episodes)

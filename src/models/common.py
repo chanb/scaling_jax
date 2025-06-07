@@ -7,7 +7,9 @@ parentdir = os.path.dirname(os.path.dirname(currentdir))
 sys.path.insert(0, parentdir)
 
 from flax import nnx
+from jax import lax
 
+import jax
 import jax.numpy as jnp
 
 from src.constants import CONST_SAME_PADDING

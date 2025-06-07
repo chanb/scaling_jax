@@ -1,31 +1,34 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/xland_dpt",
-        "experiment_name": "debug",
+        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/bandit_dpt",
+        "experiment_name": "adamw",
         "log_interval": 50,
-        "checkpoint_interval": 5000
+        "checkpoint_interval": 100000
     },
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "output_dim": 6,
+            "output_dim": 5,
             "num_blocks": 4,
             "num_heads": 4,
-            "embed_dim": 64,
+            "embed_dim": 32,
             "widening_factor": 4,
-            "encode_strategy": "xland_dpt",
-            "predictor_strategy": "last_action_token_linear"
+            "encode_strategy": "bandit_dpt",
+            "predictor_strategy": "last_action_token_linear",
+            "use_sink_token": false
         }
     },
     "optimizer_config": {
-        "optimizer": "adam",
+        "optimizer": "adamw",
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 3e-4
+                "value": 1e-4
             }
         },
-        "opt_kwargs": {},
+        "opt_kwargs": {
+            "weight_decay": 1e-4
+        },
         "max_grad_norm": false,
         "mask_names": []
     },
@@ -36,16 +39,16 @@
         "tensor": 1
     },
     "learner": "ICRL",
-    "dataset_name": "xland_dpt",
+    "dataset_name": "bandit_dpt",
     "dataset_kwargs": {
-        "data_path": "/home/bryanpu1/projects/aaai_2026/xland-minigrid-datasets/xland-trivial-20b.hdf5",
-        "seq_len": 4096
+        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb.pkl",
+        "seq_len": 500
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 1,
+    "batch_size": 64,
     "objective": "mle",
-    "num_epochs": 100000,
+    "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
