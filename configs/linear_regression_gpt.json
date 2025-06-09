@@ -14,7 +14,7 @@
             "embed_dim": 32,
             "widening_factor": 4,
             "embedder_strategy": "supervised",
-            "shared_decoding": true,
+            "shared_decoding": false,
             "use_sink_token": false
         }
     },
