@@ -49,11 +49,20 @@ class ICLinearRegression(IterableDataset):
     ):
         sample_rng = np.random.RandomState(self.rng.randint(0, 2**16) + int(self.train))
 
-        while True:
-            task_i = sample_rng.choice(self.num_tasks)
+        if self.num_tasks is not None:
+            def sample_weights(rng):
+                task_i = rng.choice(self.num_tasks)
 
-            task_rng = np.random.RandomState(task_i)
-            weights = task_rng.standard_normal((self.num_dims, 1))
+                task_rng = np.random.RandomState(task_i)
+                weights = task_rng.standard_normal((self.num_dims, 1))
+                return weights
+        else:
+            def sample_weights(rng):
+                return rng.standard_normal((self.num_dims, 1))
+
+        while True:
+            # Sample task
+            weights = sample_weights(sample_rng)
 
             # Inputs
             inputs = self.rng.standard_normal(size=(self.context_len, self.num_dims))
@@ -62,7 +71,7 @@ class ICLinearRegression(IterableDataset):
 
             # Targets
             targets = inputs @ weights
-            targets = self.rng.standard_normal(targets.shape) * self.label_noise_std
+            targets += self.rng.standard_normal(targets.shape) * self.label_noise_std
 
             yield {
                 "example": inputs,
