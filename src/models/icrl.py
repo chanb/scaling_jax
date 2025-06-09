@@ -19,6 +19,7 @@ from src.models.common import MLP, identity
 class BanditADEncoder(nnx.Module):
     def __init__(
         self,
+        num_arms: int,
         embed_dim: int,
         rngs: nnx.Rngs,
         decode: bool = False,
@@ -27,6 +28,7 @@ class BanditADEncoder(nnx.Module):
     ):
         self.decode = decode
         self.embed_dim = embed_dim
+        self.num_arms = num_arms
 
         self.observation_emb = nnx.Linear(
             1,
@@ -35,8 +37,7 @@ class BanditADEncoder(nnx.Module):
             dtype=dtype,
         )
 
-        # TODO: Fix this
-        self.action_emb = nnx.Embed(NUM_ACTIONS, embed_dim, rngs=rngs, dtype=dtype,)
+        self.action_emb = nnx.Embed(num_arms, embed_dim, rngs=rngs, dtype=dtype,)
 
         self.reward_emb = MLP(
             in_dim=1,

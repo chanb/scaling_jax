@@ -23,8 +23,9 @@ class BanditDPTDataset(IterableDataset):
 
         with open(data_path, "rb") as f:
             data = pickle.load(f)
-            self.env_params = data["env_params"]
+            self.env_params = np.array(data["env_params"])
             self.buffer = data["data"]
+            self.best_actions = np.array(np.argmax(self.env_params, axis=-1))
             self.task_ids = np.arange(len(self.env_params))
             self.num_arms = self.env_params.shape[-1]
             self.num_tasks = len(self.task_ids)
@@ -60,6 +61,6 @@ class BanditDPTDataset(IterableDataset):
                 "reward": rewards, # (seq_len,)
                 "target": np.full_like(
                     actions,
-                    fill_value=np.argmax(self.env_params[task_id])
+                    fill_value=self.best_actions[task_id]
                 ), # (seq_len,)
             }

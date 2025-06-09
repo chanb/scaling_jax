@@ -41,6 +41,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         if encode_strategy == "bandit_ad":
             dependency_cls["encoder_cls"] = partial(
                 BanditADEncoder,
+                num_arms=dataset.action_space.n,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 decode=False,

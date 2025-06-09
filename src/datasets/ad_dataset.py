@@ -24,7 +24,7 @@ class BanditADDataset(IterableDataset):
 
         with open(data_path, "rb") as f:
             data = pickle.load(f)
-            self.env_params = data["env_params"]
+            self.env_params = np.array(data["env_params"])
             self.buffer = data["data"]
             self.task_ids = np.arange(len(self.env_params))
             self.num_arms = self.env_params.shape[-1]
