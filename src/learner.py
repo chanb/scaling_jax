@@ -148,9 +148,13 @@ class ICSL:
                 )
 
                 return loss, {
-                    CONST_ACCURACY: acc,
-                    CONST_ACT_TAKEN: acts_taken,
-                    CONST_ACT_TARGET: targets,
+                    CONST_TRAIN: {
+                        CONST_ACCURACY: acc,
+                    },
+                    CONST_HIST: {
+                        CONST_ACT_TAKEN: acts_taken,
+                        CONST_ACT_TARGET: targets,
+                    },
                 }
 
             self._loss = cross_entropy
@@ -161,11 +165,17 @@ class ICSL:
                 model.set_attributes(deterministic=False, decode=False)
                 preds = model(batch)
 
-                loss = jnp.mean(
-                    optax.squared_error(preds, targets)
-                )
+                loss = optax.squared_error(preds, targets)
 
-                return loss, {}
+                return jnp.mean(loss), {
+                    CONST_TRAIN: {
+                        **{
+                            f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
+                        for context_i in range(loss.shape[1])
+                        }
+                    },
+                    CONST_HIST: {},
+                }
 
             self._loss = mse
         else:
@@ -239,16 +249,13 @@ class ICSL:
             f"time/{CONST_UPDATE_TIME}": total_update_time,
             f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
             f"{CONST_PARAM_NORM}/model": l2_norm(self._state.params).item(),
+            **{
+                f"train/{k}": v for k, v in auxes[CONST_TRAIN].items()
+            },
+            **{
+                f"hist/{k}": v for k, v in auxes[CONST_HIST].items()
+            },
         }
-
-        if CONST_ACCURACY in auxes:
-            log[f"losses/{CONST_ACCURACY}"] = auxes[CONST_ACCURACY].item()
-
-        if CONST_ACT_TAKEN in aux:
-            log[f"hist/{CONST_ACT_TAKEN}"] = aux[CONST_ACT_TAKEN]
-
-        if CONST_ACT_TARGET in aux:
-            log[f"hist/{CONST_ACT_TARGET}"] = aux[CONST_ACT_TARGET]
 
         if isinstance(self._state.opt_state, dict):
             for model_name, optimizer in self._state.opt_state:

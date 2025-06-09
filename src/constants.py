@@ -3,14 +3,17 @@ CONST_GPU = "gpu"
 
 CONST_BATCH_STATS = "batch_stats"
 CONST_EVAL = "eval"
+CONST_HIST = "hist"
 CONST_HYPERPARAMS = "hyperparams"
 CONST_HYPERPARAMETERS = "hyperparameters"
 CONST_INTERMEDIATES = "intermediates"
 CONST_LEARNING_RATE = "learning_rate"
+CONST_LOSS = "loss"
 CONST_MODEL = "model"
 CONST_MODEL_DICT = "model_dict"
 CONST_OPT_STATE = "opt_state"
 CONST_OPTIMIZER = "optimizer"
+CONST_TRAIN = "train"
 
 # Optimizer
 CONST_FROZEN = "frozen"
