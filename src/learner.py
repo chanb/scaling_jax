@@ -55,9 +55,9 @@ def gather_learning_rate(
             ].item()
 
 
-class ICRL:
+class ICSL:
     """
-    In-context Reinforcement Learning.
+    In-context Supervised Learning.
     """
 
     def __init__(
@@ -133,7 +133,7 @@ class ICRL:
         )
 
     def _initialize_losses(self):
-        if self._config.objective == "mle":
+        if self._config.objective == "ce":
             def cross_entropy(params, rest, batch):
                 targets = batch["target"]
                 model = nnx.merge(self._state.graphdef, params, rest)
@@ -154,6 +154,20 @@ class ICRL:
                 }
 
             self._loss = cross_entropy
+        elif self._config.objective == "mse":
+            def mse(params, rest, batch):
+                targets = batch["target"]
+                model = nnx.merge(self._state.graphdef, params, rest)
+                model.set_attributes(deterministic=False, decode=False)
+                preds = model(batch)
+
+                loss = jnp.mean(
+                    optax.squared_error(preds, targets)
+                )
+
+                return loss, {}
+
+            self._loss = mse
         else:
             raise NotImplementedError
 
@@ -221,14 +235,20 @@ class ICRL:
 
         log = {
             f"losses/{CONST_AGG_LOSS}": auxes[CONST_AGG_LOSS].item(),
-            f"losses/{CONST_ACCURACY}": auxes[CONST_ACCURACY].item(),
             f"time/{CONST_SAMPLE_TIME}": total_sample_time,
             f"time/{CONST_UPDATE_TIME}": total_update_time,
             f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
             f"{CONST_PARAM_NORM}/model": l2_norm(self._state.params).item(),
-            f"hist/{CONST_ACT_TAKEN}": aux[CONST_ACT_TAKEN],
-            f"hist/{CONST_ACT_TARGET}": aux[CONST_ACT_TARGET],
         }
+
+        if CONST_ACCURACY in auxes:
+            log[f"losses/{CONST_ACCURACY}"] = auxes[CONST_ACCURACY].item()
+
+        if CONST_ACT_TAKEN in aux:
+            log[f"hist/{CONST_ACT_TAKEN}"] = aux[CONST_ACT_TAKEN]
+
+        if CONST_ACT_TARGET in aux:
+            log[f"hist/{CONST_ACT_TARGET}"] = aux[CONST_ACT_TARGET]
 
         if isinstance(self._state.opt_state, dict):
             for model_name, optimizer in self._state.opt_state:

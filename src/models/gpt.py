@@ -139,8 +139,7 @@ class InContextGPT(nnx.Module):
         num_heads: int,
         embed_dim: int,
         widening_factor: int,
-        encoder_cls: Callable,
-        predictor_cls: Callable,
+        embedder_cls: Callable,
         rngs: nnx.Rngs,
         decode: bool = False,
         dtype=None,
@@ -149,7 +148,7 @@ class InContextGPT(nnx.Module):
     ) -> None:
         self.decode = decode
         self.use_sink_token = use_sink_token
-        self.encoder = encoder_cls()
+        self.embedders = embedder_cls()
 
         if use_sink_token:
             self.sink_token = nnx.Embed(
@@ -167,8 +166,6 @@ class InContextGPT(nnx.Module):
             use_causal_mask=True,
             dtype=dtype,
         )
-
-        self.predictor = predictor_cls()
         
         self.num_heads = num_heads
         self.embed_dim = embed_dim
@@ -179,13 +176,13 @@ class InContextGPT(nnx.Module):
     ):
         if self.decode:
             if "sink" not in batch or not self.use_sink_token:
-                token_seq = self.encoder(batch)
+                token_seq = self.embedders.embed(batch)
             else:
                 token_seq = self.sink_token(
                     np.zeros((batch["sink"], 1), dtype=int),
                 )
         else:
-            token_seq = self.encoder(batch)
+            token_seq = self.embedders.embed(batch)
             if self.use_sink_token:
                 sink_token = self.sink_token(
                     np.zeros((len(token_seq), 1), dtype=int),
@@ -195,6 +192,8 @@ class InContextGPT(nnx.Module):
                     axis=1,
                 )
         token_seq = self.gpt(token_seq)
-        outputs = self.predictor(token_seq[:, int(self.use_sink_token):])
+        outputs = self.embedders.unembed(
+            token_seq[:, int(self.use_sink_token):]
+        )
 
         return outputs

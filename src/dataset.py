@@ -13,8 +13,7 @@ from typing import Any
 
 import numpy as np
 
-from src.datasets.ad_dataset import BanditADDataset
-from src.datasets.dpt_dataset import BanditDPTDataset
+from src.datasets.linear_regression import ICLinearRegression
 
 
 def get_iter(data_loader, data_sharding, dtype):
@@ -49,17 +48,15 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
     num_workers = getattr(config, "num_workers", 0)
 
     batch_size = config.batch_size
-    if dataset_name == "bandit_ad":
-        dataset = BanditADDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
+    if dataset_name == "linear_regression":
+        dataset = ICLinearRegression(
+            dataset_kwargs.num_tasks,
+            dataset_kwargs.num_dims,
+            dataset_kwargs.context_len,
             config.seeds.data_seed,
-        )
-    elif dataset_name == "bandit_dpt":
-        dataset = BanditDPTDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-            config.seeds.data_seed,
+            dataset_kwargs.train,
+            dataset_kwargs.input_noise_std,
+            dataset_kwargs.label_noise_std,
         )
     else:
         raise NotImplementedError

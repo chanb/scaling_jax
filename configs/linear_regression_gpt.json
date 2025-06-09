@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/bandit_dpt",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/regression_gpt",
         "experiment_name": "adamw",
         "log_interval": 50,
         "checkpoint_interval": 100000
@@ -8,13 +8,13 @@
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "output_dim": 5,
-            "num_blocks": 4,
-            "num_heads": 4,
+            "output_dim": 1,
+            "num_blocks": 2,
+            "num_heads": 2,
             "embed_dim": 32,
             "widening_factor": 4,
-            "encode_strategy": "bandit_ad",
-            "predictor_strategy": "action_token_linear",
+            "embedder_strategy": "supervised",
+            "shared_decoding": true,
             "use_sink_token": false
         }
     },
@@ -38,16 +38,20 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "ICRL",
-    "dataset_name": "bandit_dpt",
+    "learner": "ICSL",
+    "dataset_name": "linear_regression",
     "dataset_kwargs": {
-        "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb.pkl",
-        "seq_len": 500
+        "num_tasks": 1000,
+        "num_dims": 64,
+        "context_len": 32,
+        "train": true,
+        "input_noise_std": 0.1,
+        "label_noise_std": 0.0
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 64,
-    "objective": "mle",
+    "objective": "mse",
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {

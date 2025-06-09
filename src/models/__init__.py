@@ -7,6 +7,7 @@ parentdir = os.path.dirname(os.path.dirname(currentdir))
 sys.path.insert(0, parentdir)
 
 import jax.numpy as jnp
+import numpy as np
 
 from flax import nnx
 from flax.training import train_state
@@ -14,9 +15,9 @@ from functools import partial
 from typing import Any
 
 from src.models.gpt import InContextGPT
-from src.models.icrl import (
-    BanditADEncoder,
-    ActionTokenLinearPredictor,
+from src.models.rnn import InContextGRU
+from src.models.supervised import (
+    RegressionEmbedders,
 )
 
 class TrainState(train_state.TrainState):
@@ -32,36 +33,20 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
     """
     dependency_cls = {}
 
-    encode_strategy = getattr(
+    embedder_strategy = getattr(
         model_config.model_kwargs,
-        "encode_strategy",
+        "embedder_strategy",
         False,
     )
-    if encode_strategy:
-        if encode_strategy == "bandit_ad":
-            dependency_cls["encoder_cls"] = partial(
-                BanditADEncoder,
-                num_arms=dataset.action_space.n,
+    if embedder_strategy:
+        if embedder_strategy == "supervised":
+            dependency_cls["embedder_cls"] = partial(
+                RegressionEmbedders,
+                input_dim=int(np.prod(dataset.input_space.shape)),
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
+                shared_decoding=model_config.model_kwargs.shared_decoding,
                 decode=False,
-                dtype=dtype,
-            )
-        else:
-            raise NotImplementedError
-
-    predictor_strategy = getattr(
-        model_config.model_kwargs,
-        "predictor_strategy",
-        False,
-    )
-    if predictor_strategy:
-        if predictor_strategy == "action_token_linear":
-            dependency_cls["predictor_cls"] = partial(
-                ActionTokenLinearPredictor,
-                embed_dim=model_config.model_kwargs.embed_dim,
-                output_dim=dataset.action_space.n,
-                rngs=rngs,
                 dtype=dtype,
             )
         else:
