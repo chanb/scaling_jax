@@ -16,11 +16,7 @@ from typing import Any
 from src.models.gpt import InContextGPT
 from src.models.icrl import (
     BanditADEncoder,
-    BanditDPTEncoder,
-    XLandADEncoder,
-    XLandDPTEncoder,
     ActionTokenLinearPredictor,
-    LastActionTokenLinearPredictor,
 )
 
 class TrainState(train_state.TrainState):
@@ -50,30 +46,6 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 decode=False,
                 dtype=dtype,
             )
-        elif encode_strategy == "bandit_dpt":
-            dependency_cls["encoder_cls"] = partial(
-                BanditDPTEncoder,
-                embed_dim=model_config.model_kwargs.embed_dim,
-                rngs=rngs,
-                decode=False,
-                dtype=dtype,
-            )
-        elif encode_strategy == "xland_ad":
-            dependency_cls["encoder_cls"] = partial(
-                XLandADEncoder,
-                embed_dim=model_config.model_kwargs.embed_dim,
-                rngs=rngs,
-                decode=False,
-                dtype=dtype,
-            )
-        elif encode_strategy == "xland_dpt":
-            dependency_cls["encoder_cls"] = partial(
-                XLandDPTEncoder,
-                embed_dim=model_config.model_kwargs.embed_dim,
-                rngs=rngs,
-                decode=False,
-                dtype=dtype,
-            )
         else:
             raise NotImplementedError
 
@@ -91,13 +63,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 rngs=rngs,
                 dtype=dtype,
             )
-        elif predictor_strategy == "last_action_token_linear":
-            dependency_cls["predictor_cls"] = partial(
-                LastActionTokenLinearPredictor,
-                embed_dim=model_config.model_kwargs.embed_dim,
-                output_dim=dataset.action_space.n,
-                rngs=rngs,
-                dtype=dtype,
-            )
+        else:
+            raise NotImplementedError
 
     return dependency_cls

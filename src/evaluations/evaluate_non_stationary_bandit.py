@@ -22,6 +22,8 @@ from gymnax.environments import environment
 
 from src.envs.bernoulli_bandit import BernoulliBandit, EnvParams, EnvState
 
+import src.evaluations.decoding as decoding
+
 
 Dtype = Any
 Shape = tuple[int, ...]
@@ -67,6 +69,7 @@ class EvalConfig(NamedTuple):
     sample_env_params: Callable
     deterministic_action: bool
     use_autoregressive: bool
+    reset_at_switch: bool
     max_decode_len: int
 
 
@@ -83,8 +86,7 @@ def sample_env_params(key, num_arms):
     return EnvParams(reward_probs=reward_probs)
 
 
-def evaluate_single_env(
-    rng: chex.PRNGKey,
+def make_model_funcs(
     model: nnx.Module,
     env: environment.Environment,
     eval_config: EvalConfig,
@@ -104,45 +106,33 @@ def evaluate_single_env(
             else:
                 cache = nnx.state(model, nnx.Cache)
             return cache
-    else:
-        def decode(batch, cache):
-            new_cache = {
-                "state": jnp.concatenate(
-                    (cache["state"][:, 1:], batch["state"]),
-                    axis=1,
-                ) if "state" in batch else cache["state"],
-                "action": jnp.concatenate(
-                    (cache["action"][:, 1:], batch["action"]),
-                    axis=1,
-                ) if "action" in batch else cache["action"],
-                "reward": jnp.concatenate(
-                    (cache["reward"][:, 1:], batch["reward"]),
-                    axis=1,
-                ) if "reward" in batch else cache["reward"],
-            }
-            out = model(new_cache)
-            return out, new_cache
 
-        def init_cache():
-            cache = {
-                "state": jnp.zeros(
-                    (
-                        1,
-                        eval_config.max_decode_len,
-                        *env.observation_space(
-                            jnp.zeros((eval_config.num_arms,))
-                        ).shape,
-                    )
-                ),
-                "action": jnp.zeros(
-                    (1, eval_config.max_decode_len,),
-                    dtype=int,
-                ),
-                "reward": jnp.zeros(
-                    (1, eval_config.max_decode_len,)
-                ),
-            }
-            return cache
+        return decode, init_cache
+
+    return decoding.make_decode_funcs(
+        model,
+        eval_config.max_decode_len,
+        env.observation_space(
+            jnp.zeros((eval_config.num_arms,))
+        ).shape,
+        [],
+    )
+
+    raise NotImplementedError
+
+
+def evaluate_single_env(
+    rng: chex.PRNGKey,
+    model: nnx.Module,
+    env: environment.Environment,
+    eval_config: EvalConfig,
+):
+
+    decode, init_cache = make_model_funcs(
+        model,
+        env,
+        eval_config,
+    )
 
     def rollout(ep_i: int, eval_state: EvalState):
         def step(step_state: StepState):
@@ -191,10 +181,19 @@ def evaluate_single_env(
             rng,
         )
 
+        curr_cache = jax.lax.cond(
+            jnp.logical_and(
+                ep_i % eval_config.switch_freq == 0,
+                eval_config.reset_at_switch
+            ),
+            init_cache,
+            lambda: eval_state.cache,
+        )
+
         obs, env_state = env.reset(rng_reset, env_params)
 
         step_state = StepState(
-            cache=eval_state.cache,
+            cache=curr_cache,
             rng=rng_step,
             env_params=env_params,
             env_state=env_state,
@@ -281,7 +280,8 @@ def main(
     switch_freq: int,
     deterministic_action: bool,
     use_autoregressive: bool,
-    half_precision: bool = True
+    reset_at_switch: bool,
+    half_precision: bool = True,
 ):
     config_dict = json.load(open(os.path.join(learner_path, "config.json"), "r"))
     embed_dim = config_dict["model_config"]["model_kwargs"]["embed_dim"]
@@ -329,7 +329,8 @@ def main(
         ),
         deterministic_action=deterministic_action,
         use_autoregressive=use_autoregressive,
-        max_decode_len=max_decode_len * 3,
+        reset_at_switch=reset_at_switch,
+        max_decode_len=max_decode_len,
     )
 
     eval_state = evaluate(
@@ -343,10 +344,10 @@ def main(
     dill.dump(
         {
             **{k: np.array(v) for k, v in eval_info._asdict().items()},
+            "eval_config": {
+                k: v for k, v in eval_config._asdict().items() if k != "sample_env_params"
+            },
             "env_params": np.array(eval_state.env_params),
-            "switch_freq": eval_config.switch_freq,
-            "num_envs": eval_config.num_envs,
-            "num_arms": eval_config.num_arms,
         },
         open(os.path.join(learner_path, "eval_info.dill"), "wb"),
     )
@@ -357,13 +358,18 @@ if __name__ == "__main__":
     algo_name = "bandit_ad"
     run_name = "adamw-06-06-25_09_56_26-8373a959-1e98-4fe9-bedb-bd9a3e42a6b5"
 
+
+    # algo_name = "bandit_dpt"
+    # run_name = "adamw-06-06-25_10_57_39-481d2657-cdef-494c-ad5d-b8f73e53cf7e"
+
     eval_seed = 40
-    num_envs = 20
-    eval_episodes = 500
-    switch_freq = 100
-    max_decode_len = 100
+    num_envs = 5
+    eval_episodes = 2000
+    switch_freq = 500
+    max_decode_len = 500
     deterministic_action = False
     use_autoregressive = False
+    reset_at_switch = False
 
     if use_autoregressive:
         max_decode_len = eval_episodes
@@ -379,4 +385,5 @@ if __name__ == "__main__":
         switch_freq,
         deterministic_action,
         use_autoregressive,
+        reset_at_switch,
     )

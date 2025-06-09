@@ -11,14 +11,10 @@ from torch.utils.data import DataLoader
 from types import SimpleNamespace
 from typing import Any
 
-import jax
-import jax.numpy as jnp
 import numpy as np
 
-from src.datasets.mock_dataset import MockXMiniGridADDataset
-from src.datasets.ad_dataset import XMiniGridADDataset, BanditADDataset
-from src.datasets.dpt_dataset import XMiniGridDPTDataset, BanditDPTDataset
-from src.datasets.expi_dataset import XMiniGridExPIDataset
+from src.datasets.ad_dataset import BanditADDataset
+from src.datasets.dpt_dataset import BanditDPTDataset
 
 
 def get_iter(data_loader, data_sharding, dtype):
@@ -61,31 +57,6 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         )
     elif dataset_name == "bandit_dpt":
         dataset = BanditDPTDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-            config.seeds.data_seed,
-        )
-    elif dataset_name == "xland_ad":
-        dataset = XMiniGridADDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-            config.seeds.data_seed,
-        )
-    elif dataset_name == "xland_expi":
-        dataset = XMiniGridExPIDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-            dataset_kwargs.skip_ep,
-            config.seeds.data_seed,
-        )
-    elif dataset_name == "xland_dpt":
-        dataset = XMiniGridDPTDataset(
-            dataset_kwargs.data_path,
-            dataset_kwargs.seq_len,
-            config.seeds.data_seed,
-        )
-    elif dataset_name == "mock_xland_ad":
-        dataset = MockXMiniGridADDataset(
             dataset_kwargs.data_path,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,

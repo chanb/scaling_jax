@@ -51,7 +51,3 @@ CONST_STATE = "state"
 CONST_ACTION = "action"
 CONST_REWARD = "reward"
 CONST_TERMINAL = "terminal"
-
-# XLand
-CONST_ENTITY = "entity"
-CONST_COLOR = "color"

@@ -8,22 +8,17 @@ pip install flax==0.10.4
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 pip install chex optax dill gymnasium scikit-learn matplotlib seaborn tqdm tensorboard h5py
 pip install prefetch_generator
-pip install xminigrid~=0.8.0
+pip install gymnax
 ```
 
-### Downloading XLand-100B Datasets
-See [here](https://github.com/dunnolab/xland-minigrid-datasets/tree/main) for detailed instructions:
-```
-curl -L -o xland-trivial-20b.hdf5 https://tinyurl.com/trivial-10k
-```
 
 ## Example
 ```
 # GPU devices
-CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python src/main.py --config_path=configs/xland_ad.json
+CUDA_VISIBLE_DEVICES="0,1,2,3" XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python src/main.py --config_path=configs/bandit_ad.json
 
 # CPU devices
-XLA_FLAGS="--xla_force_host_platform_device_count=8" python src/main.py --config_path=configs/xland_ad.json
+XLA_FLAGS="--xla_force_host_platform_device_count=8" python src/main.py --config_path=configs/bandit_ad.json
 ```
 
 
@@ -47,7 +42,7 @@ pip install scikit-learn --no-index
 pip install prefetch_generator --no-index
 pip install h5py --no-index
 
-pip install xminigrid~=0.8.0
+pip install gymnax
 ```
 
 ### Running:
@@ -58,7 +53,7 @@ module load cuda/12.2
 
 source <PATH_TO_VENV>/bin/activate
 
-XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python <PATH_TO_REPO>/src/main.py --config_path=<PATH_TO_REPO>/configs/xland_ad.json
+XLA_PYTHON_CLIENT_MEM_FRACTION=0.95 python <PATH_TO_REPO>/src/main.py --config_path=<PATH_TO_REPO>/configs/bandit_ad.json
 ```
 
 ### Interactive:

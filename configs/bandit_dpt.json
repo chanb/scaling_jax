@@ -13,8 +13,8 @@
             "num_heads": 4,
             "embed_dim": 32,
             "widening_factor": 4,
-            "encode_strategy": "bandit_dpt",
-            "predictor_strategy": "last_action_token_linear",
+            "encode_strategy": "bandit_ad",
+            "predictor_strategy": "action_token_linear",
             "use_sink_token": false
         }
     },
