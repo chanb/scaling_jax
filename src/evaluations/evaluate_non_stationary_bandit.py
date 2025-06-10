@@ -73,18 +73,35 @@ class EvalConfig(NamedTuple):
     max_decode_len: int
 
 
+# Default beta
+# def sample_env_params(key, task_i, num_arms):
+#     reward_probs = jax.random.beta(
+#         key,
+#         a=0.2,
+#         b=0.2,
+#         shape=(
+#             num_arms,
+#         ),
+#     )
+
+#     return EnvParams(reward_probs=reward_probs)
+
+
+# Uniform one hot
+# def sample_env_params(key, task_i, num_arms):
+#     return EnvParams(reward_probs=jnp.eye(num_arms)[
+#         jax.random.randint(key, minval=0, maxval=num_arms, shape=())]
+#     )
+
+# Smooth change K = 0 -> K = 1
 def sample_env_params(key, task_i, num_arms):
-    reward_probs = jax.random.beta(
-        key,
-        a=0.2,
-        b=0.2,
-        shape=(
-            num_arms,
-        ),
-    )
+    rewards = jnp.eye(num_arms)[0]
+    delta = task_i / num_arms
+    rewards = rewards.at[0].set(rewards[0] - delta)
+    rewards = rewards.at[1].set(rewards[1] + delta)
+    return EnvParams(reward_probs=rewards)
 
-    return EnvParams(reward_probs=reward_probs)
-
+# Uniform[0, 1]
 # def sample_env_params(key, task_i, num_arms):
 #     reward_probs = jax.random.uniform(
 #         key,
@@ -95,14 +112,9 @@ def sample_env_params(key, task_i, num_arms):
 
 #     return EnvParams(reward_probs=reward_probs)
 
-
+# Best arm K = 0 to K = 4
 # def sample_env_params(key, task_i, num_arms):
 #     return EnvParams(reward_probs=jnp.eye(num_arms)[task_i])
-
-# def sample_env_params(key, task_i, num_arms):
-#     return EnvParams(reward_probs=jnp.eye(num_arms)[
-#         jax.random.randint(key, minval=0, maxval=num_arms, shape=())]
-#     )
 
 # def sample_env_params(key, task_i, num_arms):
 #     rewards = task_i / (num_arms - 1) + jax.random.beta(
@@ -113,13 +125,6 @@ def sample_env_params(key, task_i, num_arms):
 #             num_arms,
 #         ),
 #     )
-#     return EnvParams(reward_probs=rewards)
-
-# def sample_env_params(key, task_i, num_arms):
-#     rewards = jnp.eye(num_arms)[0]
-#     delta = task_i / num_arms
-#     rewards = rewards.at[0].set(rewards[0] - delta)
-#     rewards = rewards.at[1].set(rewards[1] + delta)
 #     return EnvParams(reward_probs=rewards)
 
 
@@ -394,11 +399,11 @@ if __name__ == "__main__":
     algo_name = "bandit_ad"
     run_name = "adamw-06-09-25_10_17_25-dd55f7aa-c8f9-49f9-b58c-a8af9d8e6d69"
 
-    algo_name = "bandit_dpt"
-    run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
+    # algo_name = "bandit_dpt"
+    # run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
 
     eval_seed = 40
-    num_envs = 5
+    num_envs = 1
     eval_episodes = 5000
     switch_freq = 1000
     max_decode_len = 500

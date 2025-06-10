@@ -61,8 +61,8 @@ def make_decode_funcs(
         out = model(new_cache)
         out = jax.lax.cond(
             cache["count"] < max_decode_len,
-            lambda: out[:, [3 * cache["count"]]],
-            lambda: out[:, [-3]],
+            lambda: out[:, [cache["count"]]],
+            lambda: out[:, [-1]],
         )
         return out, new_cache
 

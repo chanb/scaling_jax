@@ -13,7 +13,7 @@ from typing import Any
 
 import numpy as np
 
-from src.datasets.ad_dataset import BanditADDataset
+from src.datasets.ad_dataset import BanditADDataset, NonStationaryBanditADDataset
 from src.datasets.dpt_dataset import BanditDPTDataset
 
 
@@ -51,6 +51,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
     batch_size = config.batch_size
     if dataset_name == "bandit_ad":
         dataset = BanditADDataset(
+            dataset_kwargs.data_path,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "ns_bandit_ad":
+        dataset = NonStationaryBanditADDataset(
             dataset_kwargs.data_path,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,
