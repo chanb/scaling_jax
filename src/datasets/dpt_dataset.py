@@ -14,10 +14,12 @@ class BanditDPTDataset(IterableDataset):
         self,
         data_path: str,
         seq_len: int,
+        cut_off: int,
         seed: int,
     ):
         self.seq_len = seq_len
         self.data_path = data_path
+        self.cut_off = cut_off
         self.seed = seed
         self._rng = np.random.RandomState(seed)
 
@@ -32,7 +34,7 @@ class BanditDPTDataset(IterableDataset):
             self.hists_per_task = 1
 
             # Exclude very last sample per history
-            self.max_len = self.buffer["reward"].shape[-1]
+            self.max_len = min(self.buffer["reward"].shape[-1], self.cut_off)
         print("Loaded dataset")
 
     @property

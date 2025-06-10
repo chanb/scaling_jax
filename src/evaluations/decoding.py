@@ -3,7 +3,6 @@ import jax
 import jax.numpy as jnp
 
 from flax import nnx
-from gymnax.environments import environment
 
 
 import jax

@@ -73,7 +73,7 @@ class EvalConfig(NamedTuple):
     max_decode_len: int
 
 
-def sample_env_params(key, num_arms):
+def sample_env_params(key, task_i, num_arms):
     reward_probs = jax.random.beta(
         key,
         a=0.2,
@@ -84,6 +84,43 @@ def sample_env_params(key, num_arms):
     )
 
     return EnvParams(reward_probs=reward_probs)
+
+# def sample_env_params(key, task_i, num_arms):
+#     reward_probs = jax.random.uniform(
+#         key,
+#         shape=(
+#             num_arms,
+#         ),
+#     )
+
+#     return EnvParams(reward_probs=reward_probs)
+
+
+# def sample_env_params(key, task_i, num_arms):
+#     return EnvParams(reward_probs=jnp.eye(num_arms)[task_i])
+
+# def sample_env_params(key, task_i, num_arms):
+#     return EnvParams(reward_probs=jnp.eye(num_arms)[
+#         jax.random.randint(key, minval=0, maxval=num_arms, shape=())]
+#     )
+
+# def sample_env_params(key, task_i, num_arms):
+#     rewards = task_i / (num_arms - 1) + jax.random.beta(
+#         key,
+#         a=0.5,
+#         b=5.0,
+#         shape=(
+#             num_arms,
+#         ),
+#     )
+#     return EnvParams(reward_probs=rewards)
+
+# def sample_env_params(key, task_i, num_arms):
+#     rewards = jnp.eye(num_arms)[0]
+#     delta = task_i / num_arms
+#     rewards = rewards.at[0].set(rewards[0] - delta)
+#     rewards = rewards.at[1].set(rewards[1] + delta)
+#     return EnvParams(reward_probs=rewards)
 
 
 def make_model_funcs(
@@ -117,8 +154,6 @@ def make_model_funcs(
         ).shape,
         [],
     )
-
-    raise NotImplementedError
 
 
 def evaluate_single_env(
@@ -177,8 +212,9 @@ def evaluate_single_env(
         env_params = jax.lax.cond(
             ep_i % eval_config.switch_freq == 0,
             eval_config.sample_env_params,
-            lambda x: EnvParams(reward_probs=eval_state.env_params[curr_instance]),
+            lambda a, bs: EnvParams(reward_probs=eval_state.env_params[curr_instance]),
             rng,
+            ep_i // eval_config.switch_freq,
         )
 
         curr_cache = jax.lax.cond(
@@ -356,23 +392,22 @@ def main(
 if __name__ == "__main__":
     base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
     algo_name = "bandit_ad"
-    run_name = "adamw-06-06-25_09_56_26-8373a959-1e98-4fe9-bedb-bd9a3e42a6b5"
+    run_name = "adamw-06-09-25_10_17_25-dd55f7aa-c8f9-49f9-b58c-a8af9d8e6d69"
 
-
-    # algo_name = "bandit_dpt"
-    # run_name = "adamw-06-06-25_10_57_39-481d2657-cdef-494c-ad5d-b8f73e53cf7e"
+    algo_name = "bandit_dpt"
+    run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
 
     eval_seed = 40
     num_envs = 5
-    eval_episodes = 2000
-    switch_freq = 500
+    eval_episodes = 5000
+    switch_freq = 1000
     max_decode_len = 500
     deterministic_action = False
     use_autoregressive = False
-    reset_at_switch = False
+    reset_at_switch = True
 
     if use_autoregressive:
-        max_decode_len = eval_episodes
+        max_decode_len = switch_freq if reset_at_switch else eval_episodes
 
     learner_path = os.path.join(base_path, algo_name, run_name)
 
