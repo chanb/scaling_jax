@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/regression_gru",
-        "experiment_name": "adamw",
+        "experiment_name": "full_precision",
         "log_interval": 50,
         "checkpoint_interval": 100000
     },
@@ -20,16 +20,16 @@
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 1e-4
+                "value": 3e-4
             }
         },
         "opt_kwargs": {
-            "weight_decay": 1e-4
+            "weight_decay": 0.0
         },
         "max_grad_norm": false,
         "mask_names": []
     },
-    "half_precision": true,
+    "half_precision": false,
     "mesh": {
         "data": 1,
         "fsdp": 1,
@@ -47,7 +47,7 @@
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "batch_size": 64,
+    "batch_size": 128,
     "objective": "mse",
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
