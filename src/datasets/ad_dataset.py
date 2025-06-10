@@ -131,11 +131,11 @@ class NonStationaryBanditADDataset(IterableDataset):
                     :remainder
                 ]))
 
-                actions = np.concatenate((self.buffer["action"][new_task_id][
+                actions = np.concatenate((actions, self.buffer["action"][new_task_id][
                     :remainder
                 ]))
 
-                rewards = np.concatenate((self.buffer["reward"][new_task_id][
+                rewards = np.concatenate((rewards, self.buffer["reward"][new_task_id][
                     :remainder
                 ]))
 
