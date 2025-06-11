@@ -66,6 +66,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.data_path,
             dataset_kwargs.seq_len,
             dataset_kwargs.cut_off,
+            dataset_kwargs.use_buffer,
             config.seeds.data_seed,
         )
     else:

@@ -74,17 +74,17 @@ class EvalConfig(NamedTuple):
 
 
 # Default beta
-# def sample_env_params(key, task_i, num_arms):
-#     reward_probs = jax.random.beta(
-#         key,
-#         a=0.2,
-#         b=0.2,
-#         shape=(
-#             num_arms,
-#         ),
-#     )
+def sample_env_params(key, task_i, num_arms):
+    reward_probs = jax.random.beta(
+        key,
+        a=0.2,
+        b=0.2,
+        shape=(
+            num_arms,
+        ),
+    )
 
-#     return EnvParams(reward_probs=reward_probs)
+    return EnvParams(reward_probs=reward_probs)
 
 
 # Uniform one hot
@@ -94,12 +94,12 @@ class EvalConfig(NamedTuple):
 #     )
 
 # Smooth change K = 0 -> K = 1
-def sample_env_params(key, task_i, num_arms):
-    rewards = jnp.eye(num_arms)[0]
-    delta = task_i / num_arms
-    rewards = rewards.at[0].set(rewards[0] - delta)
-    rewards = rewards.at[1].set(rewards[1] + delta)
-    return EnvParams(reward_probs=rewards)
+# def sample_env_params(key, task_i, num_arms):
+#     rewards = jnp.eye(num_arms)[0]
+#     delta = task_i / num_arms
+#     rewards = rewards.at[0].set(rewards[0] - delta)
+#     rewards = rewards.at[1].set(rewards[1] + delta)
+#     return EnvParams(reward_probs=rewards)
 
 # Uniform[0, 1]
 # def sample_env_params(key, task_i, num_arms):
@@ -399,11 +399,12 @@ if __name__ == "__main__":
     algo_name = "bandit_ad"
     run_name = "adamw-06-09-25_10_17_25-dd55f7aa-c8f9-49f9-b58c-a8af9d8e6d69"
 
-    # algo_name = "bandit_dpt"
+    algo_name = "bandit_dpt"
     # run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
+    run_name = "adamw-06-10-25_14_11_46-4a5795d8-b591-4af2-96b1-1d247753dc83"
 
     eval_seed = 40
-    num_envs = 1
+    num_envs = 5
     eval_episodes = 5000
     switch_freq = 1000
     max_decode_len = 500

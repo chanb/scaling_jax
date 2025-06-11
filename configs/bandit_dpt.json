@@ -43,7 +43,8 @@
     "dataset_kwargs": {
         "data_path": "/home/bryanpu1/projects/aaai_2026/data/learning_hist-ucb.pkl",
         "seq_len": 500,
-        "cut_off": 250
+        "cut_off": 250,
+        "use_buffer": false
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
