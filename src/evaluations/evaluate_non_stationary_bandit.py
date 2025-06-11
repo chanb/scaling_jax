@@ -400,8 +400,12 @@ if __name__ == "__main__":
     run_name = "adamw-06-09-25_10_17_25-dd55f7aa-c8f9-49f9-b58c-a8af9d8e6d69"
 
     algo_name = "bandit_dpt"
-    # run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
-    run_name = "adamw-06-10-25_14_11_46-4a5795d8-b591-4af2-96b1-1d247753dc83"
+    run_name = "adamw-06-09-25_10_12_16-0accc7c0-d4f9-42ae-b70e-8b3c590d90e1"
+    # run_name = "adamw-06-10-25_14_11_46-4a5795d8-b591-4af2-96b1-1d247753dc83"
+    # run_name = "adamw-06-10-25_22_15_07-a934d939-7314-4334-925d-4751dfed506c"
+
+    algo_name = "ns_bandit_ad"
+    run_name = "adamw-06-10-25_17_34_41-9f12ef85-c567-4d61-a1f2-dec104e22df1"
 
     eval_seed = 40
     num_envs = 5
@@ -410,7 +414,7 @@ if __name__ == "__main__":
     max_decode_len = 500
     deterministic_action = False
     use_autoregressive = False
-    reset_at_switch = True
+    reset_at_switch = False
 
     if use_autoregressive:
         max_decode_len = switch_freq if reset_at_switch else eval_episodes
