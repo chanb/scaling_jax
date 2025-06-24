@@ -39,10 +39,10 @@
     "dataset_name": "linear_regression",
     "dataset_kwargs": {
         "num_tasks": 1000,
-        "num_dims": 64,
+        "num_dims": 4,
         "context_len": 32,
         "train": true,
-        "input_noise_std": 0.1,
+        "input_noise_std": 0.0,
         "label_noise_std": 0.0
     },
     "shuffle_buffer_size": 100,

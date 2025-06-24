@@ -76,4 +76,5 @@ class ICLinearRegression(IterableDataset):
             yield {
                 "example": inputs,
                 "target": targets,
+                "weights": weights,
             }
