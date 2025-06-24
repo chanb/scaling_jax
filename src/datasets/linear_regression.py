@@ -10,7 +10,6 @@ from gymnasium import spaces
 from torch.utils.data import IterableDataset
 
 import numpy as np
-import timeit
 
 
 class ICLinearRegression(IterableDataset):
