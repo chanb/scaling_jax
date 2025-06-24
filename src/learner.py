@@ -258,7 +258,7 @@ class ICSL:
                 f"train/{k}": v for k, v in auxes[CONST_TRAIN].items()
             },
             **{
-                f"hist/{k}": v for k, v in auxes[CONST_HIST].items()
+                f"hist/{k}": v for k, v in aux[CONST_HIST].items()
             },
         }
 
