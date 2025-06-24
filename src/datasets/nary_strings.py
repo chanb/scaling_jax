@@ -208,14 +208,15 @@ class NaryStrings(IterableDataset):
             elif len(sequence) < self.context_len + 1:
                 sequence.extend([0] * (self.context_len - len(sequence) + 1))
 
+            sequence = np.array(sequence)
             try:
-                assert np.all([seq_i <= self.num_elements for seq_i in sequence])
+                assert np.sum(sequence > self.num_elements) == 0
             except:
                 import ipdb
                 ipdb.set_trace()
 
             yield {
-                "task": task,
+                "task": np.array(task),
                 "target": sequence[1:],
                 "sequence": sequence[:-1],
             }

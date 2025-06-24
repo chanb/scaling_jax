@@ -72,17 +72,17 @@ class ICSL:
 
         self.data_sharding = NamedSharding(self.data_mesh, P("data"))
 
-        dtype = jnp.float32
+        self.dtype = jnp.float32
         if self._config.half_precision:
-            dtype = jnp.bfloat16
+            self.dtype = jnp.bfloat16
 
         self.ds, self._dataset = get_data_loader(
             config,
             self.data_sharding,
-            dtype,
+            self.dtype,
         )
 
-        self._initialize_model_and_opt(dtype)
+        self._initialize_model_and_opt(self.dtype)
         self._initialize_losses()
         self.train_step = nnx.jit(self.make_train_step())
         self.validation_step = self.make_validate_step()
@@ -276,7 +276,9 @@ class ICSL:
 
         self.val_dss = {
             validation_config["validation_name"]: get_data_loader(
-                parse_dict(validation_config)
+                parse_dict(validation_config),
+                self.data_sharding,
+                self.dtype,
             )[0]
             for validation_config in self._config.validate
         }
