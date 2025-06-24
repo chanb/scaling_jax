@@ -76,10 +76,10 @@ def train(
             ):
                 # NOTE: we expect the user to properly define the logging scalars in the learner
                 for key, val in train_aux.items():
-                    if key.startswith("hist/"):
+                    if key.startswith(f"{CONST_HIST}/"):
                         summary_writer.add_text(
                             key,
-                            ",".join([f"{k}: {v}" for k, v in zip(*np.unique(val, return_counts=True))]),
+                            " | ".join([f"{k}: {v}" for k, v in zip(*np.unique(val, return_counts=True))]),
                             true_epoch,
                         )
                     else:

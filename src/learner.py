@@ -141,17 +141,20 @@ class ICSL:
                 model = nnx.merge(self._state.graphdef, params, rest)
                 model.set_attributes(deterministic=False, decode=False)
                 logits = model(batch)
-                loss = jnp.mean(
-                    optax.softmax_cross_entropy_with_integer_labels(logits, targets)
-                )
+                loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
                 acts_taken = jnp.argmax(logits, axis=-1)
-                acc = jnp.mean(
-                    acts_taken == targets
-                )
+                acc = acts_taken == targets
 
-                return loss, {
+                return jnp.mean(loss), {
                     CONST_TRAIN: {
-                        CONST_ACCURACY: acc,
+                        **{
+                            f"{CONST_ACCURACY}-context_{context_i}": jnp.mean(acc[:, context_i])
+                            for context_i in range(acc.shape[1])
+                        },
+                        **{
+                            f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
+                            for context_i in range(loss.shape[1])
+                        },
                     },
                     CONST_HIST: {
                         CONST_ACT_TAKEN: acts_taken,
