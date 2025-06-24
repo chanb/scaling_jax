@@ -13,8 +13,6 @@ from typing import Any
 
 import numpy as np
 
-from src.datasets.linear_regression import ICLinearRegression
-
 
 def get_iter(data_loader, data_sharding, dtype):
     """
@@ -49,6 +47,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
 
     batch_size = config.batch_size
     if dataset_name == "linear_regression":
+        from src.datasets.linear_regression import ICLinearRegression
         dataset = ICLinearRegression(
             dataset_kwargs.num_tasks,
             dataset_kwargs.num_dims,
@@ -57,6 +56,17 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.train,
             dataset_kwargs.input_noise_std,
             dataset_kwargs.label_noise_std,
+        )
+    elif dataset_name == "nary_strings":
+        from src.datasets.nary_strings import NaryStrings
+        dataset = NaryStrings(
+            dataset_kwargs.n_ary,
+            dataset_kwargs.num_levels,
+            dataset_kwargs.context_len,
+            dataset_kwargs.min_sequence_len,
+            dataset_kwargs.train,
+            config.seeds.data_seed,
+            dataset_kwargs.sequence_type,
         )
     else:
         raise NotImplementedError

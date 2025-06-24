@@ -73,7 +73,7 @@ class ICLinearRegression(IterableDataset):
             targets += self.rng.standard_normal(targets.shape) * self.label_noise_std
 
             yield {
-                "example": inputs,
-                "target": targets,
                 "weights": weights,
+                "target": targets,
+                "example": inputs,
             }

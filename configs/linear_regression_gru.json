@@ -10,7 +10,7 @@
         "model_kwargs": {
             "output_dim": 1,
             "embed_dim": 32,
-            "embedder_strategy": "supervised",
+            "embedder_strategy": "regression",
             "shared_decoding": false,
             "use_sink_token": false
         }

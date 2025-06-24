@@ -15,13 +15,13 @@ import jax.lax as lax
 import jax.random as jrandom
 
 from src.constants import *
-from src.models.common import MLP, identity
 
 
-class RegressionEmbedders(nnx.Module):
+class SupervisedEmbedders(nnx.Module):
     def __init__(
         self,
         input_dim: int,
+        output_dim: int,
         embed_dim: int,
         rngs: nnx.Rngs,
         shared_decoding: bool = False,
@@ -41,12 +41,12 @@ class RegressionEmbedders(nnx.Module):
         )
 
         self.output_emb = nnx.Param(
-            jrandom.uniform(rngs.params(), (1, embed_dim))
+            jrandom.uniform(rngs.params(), (output_dim, embed_dim))
         )
 
         if not shared_decoding:
             self.output_unemb = nnx.Param(
-                jrandom.uniform(rngs.params(), (embed_dim, 1))
+                jrandom.uniform(rngs.params(), (embed_dim, output_dim))
             )
 
     def embed(

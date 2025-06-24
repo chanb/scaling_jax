@@ -15,9 +15,12 @@ from functools import partial
 from typing import Any
 
 from src.models.gpt import InContextGPT
+from src.models.next_token import (
+    TokenEmbedders
+)
 from src.models.rnn import InContextGRU
 from src.models.supervised import (
-    RegressionEmbedders,
+    SupervisedEmbedders,
 )
 
 class TrainState(train_state.TrainState):
@@ -39,10 +42,32 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         False,
     )
     if embedder_strategy:
-        if embedder_strategy == "supervised":
+        if embedder_strategy == "regression":
             dependency_cls["embedder_cls"] = partial(
-                RegressionEmbedders,
+                SupervisedEmbedders,
                 input_dim=int(np.prod(dataset.input_space.shape)),
+                output_dim=1,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                shared_decoding=model_config.model_kwargs.shared_decoding,
+                decode=False,
+                dtype=dtype,
+            )
+        elif embedder_strategy == "classification":
+            dependency_cls["embedder_cls"] = partial(
+                SupervisedEmbedders,
+                input_dim=int(np.prod(dataset.input_space.shape)),
+                output_dim=dataset.output_space.n,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                shared_decoding=model_config.model_kwargs.shared_decoding,
+                decode=False,
+                dtype=dtype,
+            )
+        elif embedder_strategy == "next_token":
+            dependency_cls["embedder_cls"] = partial(
+                TokenEmbedders,
+                num_tokens=dataset.output_space.n,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 shared_decoding=model_config.model_kwargs.shared_decoding,

@@ -13,7 +13,7 @@
             "num_heads": 2,
             "embed_dim": 32,
             "widening_factor": 4,
-            "embedder_strategy": "supervised",
+            "embedder_strategy": "regression",
             "shared_decoding": false,
             "use_sink_token": false
         }
