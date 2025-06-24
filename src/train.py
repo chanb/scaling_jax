@@ -90,6 +90,12 @@ def train(
                 and logging_config.checkpoint_interval
                 and (true_epoch % logging_config.checkpoint_interval == 0)
             ):
+                # Perform validation and save checkpoint
+                if hasattr(learner, "validation_step"):
+                    val_aux = learner.validation_step(epoch)
+
+                    for key, val in val_aux.items():
+                        summary_writer.add_scalar(key, val, true_epoch)
 
                 dill.dump(
                     learner.state,

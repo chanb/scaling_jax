@@ -24,6 +24,7 @@ import src.models as models
 from src.constants import *
 from src.dataset import get_data_loader
 from src.mesh_utils import construct_mesh, construct_sharded_model
+from src.utils import parse_dict
 
 
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
@@ -84,6 +85,7 @@ class ICSL:
         self._initialize_model_and_opt(dtype)
         self._initialize_losses()
         self.train_step = nnx.jit(self.make_train_step())
+        self.validation_step = self.make_validate_step()
 
     def close(self):
         del self.ds
@@ -263,3 +265,47 @@ class ICSL:
         else:
             gather_learning_rate(aux, CONST_MODEL, self._state.opt_state)
         return log
+
+    def make_validate_step(self):
+        if not hasattr(self._config, "validate"):
+            print("No validation")
+            return
+
+        self.val_dss = {
+            validation_config["validation_name"]: get_data_loader(
+                parse_dict(validation_config)
+            )[0]
+            for validation_config in self._config.validate
+        }
+
+        @nnx.jit
+        def _compute_metrics(state, batch):
+            agg_loss, aux = self._loss(
+                state.params,
+                state.rest,
+                batch,
+            )
+            return agg_loss, aux
+
+        def validate_step(epoch: int):
+            log = dict()
+            for validation_name, val_ds in self.val_dss.items():
+                tic = timeit.default_timer()
+                batch = next(val_ds)
+                batch = jax.device_put(batch, self.data_sharding)
+                agg_loss, aux = _compute_metrics(
+                    self._state,
+                    batch,
+                )
+                validation_time = timeit.default_timer() - tic
+
+                aux = jax.tree_util.tree_map(lambda v: np.mean(v).item(), aux)
+                log[f"losses/validation-{validation_name}"] = agg_loss.item()
+                log[f"time/validation-{validation_name}"] = validation_time
+                log.update({
+                    f"validation-{validation_name}/{k}": v for k, v in aux[CONST_TRAIN].items()
+                })
+
+            return log
+
+        return validate_step
