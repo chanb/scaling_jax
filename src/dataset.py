@@ -68,6 +68,15 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             config.seeds.data_seed,
             dataset_kwargs.sequence_type,
         )
+    elif dataset_name == "k_parity":
+        from src.datasets.k_parity import KParity
+        dataset = KParity(
+            dataset_kwargs.sequence_length,
+            dataset_kwargs.k,
+            dataset_kwargs.train,
+            config.seeds.data_seed,
+            dataset_kwargs.sequence_type,
+        )
     else:
         raise NotImplementedError
 

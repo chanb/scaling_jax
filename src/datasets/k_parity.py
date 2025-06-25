@@ -39,7 +39,7 @@ class KParity(IterableDataset):
 
     @property
     def output_space(self):
-        return spaces.Discrete(2)
+        return spaces.Discrete(3)
 
     def __iter__(self):
         return iter(self.get_sequences())
