@@ -25,6 +25,7 @@ class HasCache(Protocol):
 def make_autoregressive(
     model: nnx.Module,
     max_decode_len: int,
+    batch_size: int,
     embed_dim: int,
     dtype: Dtype,
     eval_mode: bool,
@@ -36,7 +37,7 @@ def make_autoregressive(
     for _, m in model.iter_modules():
         if isinstance(m, HasCache):
             input_shape = (
-                1,
+                batch_size,
                 int(getattr(model, "use_sink_token", False)) + max_decode_len,
                 embed_dim,
             )
@@ -52,7 +53,7 @@ def make_autoregressive(
     
     def init_cache():
         if model.use_sink_token:
-            _, cache = decode({"sink": 1}, nnx.state(model, nnx.Cache))
+            _, cache = decode({"sink": batch_size}, nnx.state(model, nnx.Cache))
         else:
             cache = nnx.state(model, nnx.Cache)
         return cache
