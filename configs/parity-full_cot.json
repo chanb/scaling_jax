@@ -41,8 +41,8 @@
     "learner": "ICSL",
     "dataset_name": "k_parity",
     "dataset_kwargs": {
-        "sequence_length": 5,
-        "k": 5,
+        "sequence_length": 20,
+        "k": 20,
         "train": true,
         "sequence_type": "full_cot"
     },
@@ -62,8 +62,8 @@
             "validation_name": "heldout",
             "dataset_name": "k_parity",
             "dataset_kwargs": {
-                "sequence_length": 5,
-                "k": 5,
+                "sequence_length": 20,
+                "k": 20,
                 "train": false,
                 "sequence_type": "full_cot"
             },
