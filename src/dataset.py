@@ -76,6 +76,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.train,
             config.seeds.data_seed,
             dataset_kwargs.sequence_type,
+            dataset_kwargs.train_val_ratio,
         )
     else:
         raise NotImplementedError

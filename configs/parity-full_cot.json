@@ -44,7 +44,8 @@
         "sequence_length": 20,
         "k": 20,
         "train": true,
-        "sequence_type": "full_cot"
+        "sequence_type": "full_cot",
+        "train_val_ratio": 0.1
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -65,7 +66,8 @@
                 "sequence_length": 20,
                 "k": 20,
                 "train": false,
-                "sequence_type": "full_cot"
+                "sequence_type": "full_cot",
+                "train_val_ratio": 0.1
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

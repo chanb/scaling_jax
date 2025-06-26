@@ -21,14 +21,17 @@ class KParity(IterableDataset):
         train: bool,
         seed: int,
         sequence_type: str="no_cot",
+        train_val_ratio: float=0.8,
     ):
         assert sequence_length >= k > 0
+        assert 0 < train_val_ratio < 1
         self._rng = np.random.RandomState(seed)
         self.seed = seed
         self.train = train
         self.sequence_length = sequence_length
         self.k = k
         self.sequence_type = sequence_type
+        self.train_val_ratio = train_val_ratio
 
         self.get_train_sequences()
 
@@ -48,10 +51,10 @@ class KParity(IterableDataset):
         return np.arange(self.sequence_length)[:self.k]
 
     def get_train_sequences(self):
-        # ~80% of training sequences
+        # ~train_val_ratio of training sequences
         self.is_train_sequence = self._rng.binomial(
             1,
-            0.8,
+            self.train_val_ratio,
             size=(2 ** self.sequence_length,)
         )
         if self.train:
