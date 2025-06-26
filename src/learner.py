@@ -85,7 +85,6 @@ class ICSL:
         self._initialize_model_and_opt(self.dtype)
         self._initialize_losses()
         self.train_step = nnx.jit(self.make_train_step())
-        self.validation_step = self.make_validate_step()
 
     def close(self):
         del self.ds
@@ -313,4 +312,4 @@ class ICSL:
 
             return log
 
-        return validate_step
+        self.validation_step = validate_step

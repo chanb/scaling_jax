@@ -79,7 +79,7 @@ class KParity(IterableDataset):
 
     def get_sequences(self):
         sample_rng = np.random.RandomState(
-            self.rng.randint(0, 2**16) + int(self.train)
+            self._rng.randint(0, 2**16) + int(self.train)
         )
         while True:
             k_indices = self.get_k_indices()

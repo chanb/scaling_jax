@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/parity_gpt",
-        "experiment_name": "parity-no_cot",
+        "experiment_name": "parity-cot",
         "log_interval": 50,
         "checkpoint_interval": 50000
     },
@@ -44,7 +44,7 @@
         "sequence_length": 5,
         "k": 5,
         "train": true,
-        "sequence_type": "no_cot"
+        "sequence_type": "full_cot"
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -65,7 +65,7 @@
                 "sequence_length": 5,
                 "k": 5,
                 "train": false,
-                "sequence_type": "no_cot"
+                "sequence_type": "full_cot"
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
