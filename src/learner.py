@@ -67,6 +67,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
 
         def cross_entropy(params, rest, batch):
             targets = compute_target(batch["target"])
+            mask = batch["mask"]
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             logits = model(batch)
@@ -74,7 +75,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             acts_taken = jnp.argmax(logits, axis=-1)
             acc = acts_taken == targets
 
-            return jnp.mean(loss), {
+            return jnp.sum(loss * mask) / jnp.sum(mask), {
                 CONST_TRAIN: {
                     **{
                         f"{CONST_ACCURACY}-context_{context_i}": jnp.mean(acc[:, context_i])
@@ -95,13 +96,14 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
     elif objective == "mse":
         def mse(params, rest, batch):
             targets = batch["target"]
+            mask = batch["mask"]
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             preds = model(batch)
 
             loss = optax.squared_error(preds, targets)
 
-            return jnp.mean(loss), {
+            return jnp.sum(loss * mask) / jnp.sum(mask), {
                 CONST_TRAIN: {
                     **{
                         f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])

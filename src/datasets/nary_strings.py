@@ -219,4 +219,5 @@ class NaryStrings(IterableDataset):
                 "task": np.array(task),
                 "target": sequence[1:],
                 "sequence": sequence[:-1],
+                "mask": np.ones((len(sequence) - 1), dtype=np.float32),
             }

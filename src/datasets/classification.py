@@ -118,7 +118,7 @@ class Classification(IterableDataset):
 
         examples = self.centers[targets]
         examples += self.input_noise_std * rng.randn(*examples.shape)
-        return examples, targets
+        return examples, targets, num_relevant_contexts
 
     def get_sequences(
         self,
@@ -136,7 +136,7 @@ class Classification(IterableDataset):
             rng = np.random.RandomState(self.seed + 1)
 
         while True:
-            examples, targets = self.generate_sample(rng, weights)
+            examples, targets, num_relevant_contexts = self.generate_sample(rng, weights)
 
             # OOD labels: Make sure OOD label is still within the same frequency class
             if self.flip_label:
@@ -150,15 +150,28 @@ class Classification(IterableDataset):
                 ) % self.num_low_prob_classes + self.num_high_prob_classes
 
             if rng.uniform() < self.label_noise:
-                new_targets = rng.choice(self.num_classes - 1, size=(self.context_len,))
-
-                if self.target_in_context:
-                    new_targets[
-                        rng.choice(np.where(targets[:-1] == targets[-1])[0])
-                    ] = new_targets[-1]
-
+                # All labels are randomly sampled such that they're not the original label
+                new_targets = rng.choice(
+                    self.num_classes - 1,
+                    size=(self.num_classes,),
+                )[targets]
                 new_targets[new_targets >= targets] += 1
-                targets = new_targets % self.num_classes
+                new_targets = new_targets % self.num_classes
+
+                # With some probability, change the query label to a different class
+                # This is to ensure that P*(target | query) == P*(target | query, context)
+                if (
+                    num_relevant_contexts > 0
+                    and not self.target_in_context
+                    and rng.uniform() < self.label_noise
+                ):
+                    while (
+                        new_targets[-1] == targets[-1]
+                        or new_targets[-1] == targets[np.where(targets[:-1] == targets[-1])[0][0]]
+                    ):
+                        new_targets[-1] = rng.choice(self.num_classes)
+
+                targets = new_targets
 
             one_hot = np.zeros((self.context_len, self.num_classes))
             one_hot[np.arange(self.context_len), targets] = 1
@@ -166,4 +179,5 @@ class Classification(IterableDataset):
             yield {
                 "example": examples,
                 "target": one_hot,
+                "mask": np.eye(self.context_len, dtype=np.float32)[-1],
             }

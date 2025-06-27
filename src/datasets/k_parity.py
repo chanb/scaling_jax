@@ -105,4 +105,5 @@ class KParity(IterableDataset):
                 "task": np.array(sequence_id),
                 "target": sequence_int[1:],
                 "sequence": sequence_int[:-1],
+                "mask": np.ones((len(sequence_int) - 1), dtype=np.float32),
             }
