@@ -56,6 +56,59 @@ def gather_learning_rate(
             ].item()
 
 
+def initialize_loss_fn(self, graphdef):
+    if self._config.objective == "ce":
+        def cross_entropy(params, rest, batch):
+            targets = batch["target"]
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            logits = model(batch)
+            loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
+            acts_taken = jnp.argmax(logits, axis=-1)
+            acc = acts_taken == targets
+
+            return jnp.mean(loss), {
+                CONST_TRAIN: {
+                    **{
+                        f"{CONST_ACCURACY}-context_{context_i}": jnp.mean(acc[:, context_i])
+                        for context_i in range(acc.shape[1])
+                    },
+                    **{
+                        f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
+                        for context_i in range(loss.shape[1])
+                    },
+                },
+                CONST_HIST: {
+                    CONST_ACT_TAKEN: acts_taken,
+                    CONST_ACT_TARGET: targets,
+                },
+            }
+
+        return cross_entropy
+    elif self._config.objective == "mse":
+        def mse(params, rest, batch):
+            targets = batch["target"]
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            preds = model(batch)
+
+            loss = optax.squared_error(preds, targets)
+
+            return jnp.mean(loss), {
+                CONST_TRAIN: {
+                    **{
+                        f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
+                    for context_i in range(loss.shape[1])
+                    }
+                },
+                CONST_HIST: {},
+            }
+
+        return mse
+    else:
+        raise NotImplementedError
+
+
 class ICSL:
     """
     In-context Supervised Learning.
@@ -83,7 +136,7 @@ class ICSL:
         )
 
         self._initialize_model_and_opt(self.dtype)
-        self._initialize_losses()
+        self._loss = initialize_loss_fn()
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()
 
@@ -133,58 +186,6 @@ class ICSL:
             ),
             self._config.optimizer_config,
         )
-
-    def _initialize_losses(self):
-        if self._config.objective == "ce":
-            def cross_entropy(params, rest, batch):
-                targets = batch["target"]
-                model = nnx.merge(self._state.graphdef, params, rest)
-                model.set_attributes(deterministic=False, decode=False)
-                logits = model(batch)
-                loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
-                acts_taken = jnp.argmax(logits, axis=-1)
-                acc = acts_taken == targets
-
-                return jnp.mean(loss), {
-                    CONST_TRAIN: {
-                        **{
-                            f"{CONST_ACCURACY}-context_{context_i}": jnp.mean(acc[:, context_i])
-                            for context_i in range(acc.shape[1])
-                        },
-                        **{
-                            f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
-                            for context_i in range(loss.shape[1])
-                        },
-                    },
-                    CONST_HIST: {
-                        CONST_ACT_TAKEN: acts_taken,
-                        CONST_ACT_TARGET: targets,
-                    },
-                }
-
-            self._loss = cross_entropy
-        elif self._config.objective == "mse":
-            def mse(params, rest, batch):
-                targets = batch["target"]
-                model = nnx.merge(self._state.graphdef, params, rest)
-                model.set_attributes(deterministic=False, decode=False)
-                preds = model(batch)
-
-                loss = optax.squared_error(preds, targets)
-
-                return jnp.mean(loss), {
-                    CONST_TRAIN: {
-                        **{
-                            f"{CONST_LOSS}-context_{context_i}": jnp.mean(loss[:, context_i])
-                        for context_i in range(loss.shape[1])
-                        }
-                    },
-                    CONST_HIST: {},
-                }
-
-            self._loss = mse
-        else:
-            raise NotImplementedError
 
     def make_train_step(self):
         """
