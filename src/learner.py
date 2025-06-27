@@ -59,22 +59,20 @@ def gather_learning_rate(
 def initialize_loss_fn(objective, graphdef, one_hot=False):
     if objective == "ce":
         if one_hot:
-            loss_fn = optax.softmax_cross_entropy
-            def accuracy(acts_taken, targets):
-                return acts_taken == jnp.argmax(targets, axis=-1)
+            def compute_target(targets):
+                return jnp.argmax(targets, axis=-1)
         else:
-            loss_fn = optax.softmax_cross_entropy_with_integer_labels
-            def accuracy(acts_taken, targets):
-                return acts_taken == targets
+            def compute_target(targets):
+                return targets
 
         def cross_entropy(params, rest, batch):
-            targets = batch["target"]
+            targets = compute_target(batch["target"])
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             logits = model(batch)
-            loss = loss_fn(logits, targets)
+            loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
             acts_taken = jnp.argmax(logits, axis=-1)
-            acc = accuracy(acts_taken, targets)
+            acc = acts_taken == targets
 
             return jnp.mean(loss), {
                 CONST_TRAIN: {
