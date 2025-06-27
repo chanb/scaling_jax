@@ -65,6 +65,13 @@ def train(
                 ),
             )
 
+            # Perform validation before any training
+            if hasattr(learner, "validation_step"):
+                val_aux = learner.validation_step(0)
+
+                for key, val in val_aux.items():
+                    summary_writer.add_scalar(key, val, 0)
+
         for epoch in tqdm.tqdm(range(config.num_epochs)):
             train_aux = learner.update(epoch)
             true_epoch = epoch + 1

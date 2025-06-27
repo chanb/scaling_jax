@@ -56,6 +56,8 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.train,
             dataset_kwargs.input_noise_std,
             dataset_kwargs.label_noise_std,
+            dataset_kwargs.sparsity,
+            dataset_kwargs.target_generator,
         )
     elif dataset_name == "nary_strings":
         from src.datasets.nary_strings import NaryStrings

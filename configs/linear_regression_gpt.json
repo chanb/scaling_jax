@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/regression_gpt",
-        "experiment_name": "full_precision",
+        "experiment_name": "default-dim_10",
         "log_interval": 50,
         "checkpoint_interval": 100000
     },
@@ -32,7 +32,7 @@
         "max_grad_norm": false,
         "mask_names": []
     },
-    "half_precision": false,
+    "half_precision": true,
     "mesh": {
         "data": 1,
         "fsdp": 1,
@@ -42,11 +42,13 @@
     "dataset_name": "linear_regression",
     "dataset_kwargs": {
         "num_tasks": 1000,
-        "num_dims": 4,
+        "num_dims": 10,
         "context_len": 32,
         "train": true,
         "input_noise_std": 0.0,
-        "label_noise_std": 0.0
+        "label_noise_std": 0.0,
+        "sparsity": 10,
+        "target_generator": "ground_truth"
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -58,5 +60,27 @@
         "seed": 0,
         "learner_seed": 42,
         "data_seed": 42
-    }
+    },
+    "validate": [
+        {
+            "validation_name": "weighted_weights",
+            "dataset_name": "linear_regression",
+            "dataset_kwargs": {
+                "num_tasks": 1000,
+                "num_dims": 10,
+                "context_len": 32,
+                "train": false,
+                "input_noise_std": 0.0,
+                "label_noise_std": 0.0,
+                "sparsity": 10,
+                "target_generator": "weighted_weights"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        }
+    ]
 }

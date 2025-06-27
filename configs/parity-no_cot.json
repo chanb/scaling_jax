@@ -45,7 +45,7 @@
         "k": 20,
         "train": true,
         "sequence_type": "no_cot",
-        "train_val_ratio": 0.1
+        "train_val_ratio": 0.001
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -67,7 +67,7 @@
                 "k": 20,
                 "train": false,
                 "sequence_type": "no_cot",
-                "train_val_ratio": 0.1
+                "train_val_ratio": 0.001
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
