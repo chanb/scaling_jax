@@ -13,6 +13,8 @@ from typing import Any
 
 import numpy as np
 
+from src.utils import parse_dict
+
 
 def get_iter(data_loader, data_sharding, dtype):
     """
@@ -35,24 +37,33 @@ def get_iter(data_loader, data_sharding, dtype):
         yield batch
 
 
-def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
-    """
-    Returns a DataLoader for the specified dataset based on the configuration.
-    """
-
+def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
     dataset_name = config.dataset_name
     dataset_kwargs = config.dataset_kwargs
 
-    num_workers = getattr(config, "num_workers", 0)
-
-    batch_size = config.batch_size
-    if dataset_name == "linear_regression":
+    if dataset_name == "curriculum":
+        from src.datasets.curriculum import Curriculum
+        datasets = [
+            get_dataset(
+                parse_dict(config),
+                data_sharding,
+                dtype,
+                seed,
+            ) for config in dataset_kwargs.datasets
+        ]
+        dataset = Curriculum(
+            datasets,
+            dataset_kwargs.curriculum_schedule,
+            dataset_kwargs.curriculum_type,
+            seed,
+        )
+    elif dataset_name == "linear_regression":
         from src.datasets.linear_regression import ICLinearRegression
         dataset = ICLinearRegression(
             dataset_kwargs.num_tasks,
             dataset_kwargs.num_dims,
             dataset_kwargs.context_len,
-            config.seeds.data_seed,
+            seed,
             dataset_kwargs.train,
             dataset_kwargs.input_noise_std,
             dataset_kwargs.label_noise_std,
@@ -67,7 +78,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.context_len,
             dataset_kwargs.min_sequence_len,
             dataset_kwargs.train,
-            config.seeds.data_seed,
+            seed,
             dataset_kwargs.sequence_type,
         )
     elif dataset_name == "k_parity":
@@ -76,12 +87,30 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.sequence_length,
             dataset_kwargs.k,
             dataset_kwargs.train,
-            config.seeds.data_seed,
+            seed,
             dataset_kwargs.sequence_type,
             dataset_kwargs.train_val_ratio,
         )
     else:
         raise NotImplementedError
+    
+    return dataset
+
+
+def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
+    """
+    Returns a DataLoader for the specified dataset based on the configuration.
+    """
+
+    num_workers = getattr(config, "num_workers", 0)
+
+    batch_size = config.batch_size
+    dataset = get_dataset(
+        config,
+        data_sharding=data_sharding,
+        dtype=dtype,
+        seed=config.seeds.data_seed,
+    )
 
     loader = DataLoader(
         dataset,
