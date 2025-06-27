@@ -213,6 +213,11 @@ class ICSL:
 
         return _train_step
 
+    def get_batch(self):
+        batch = next(self.ds)
+        batch = jax.device_put(batch, self.data_sharding)
+        return batch
+
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         """
         Updates the model.
@@ -229,8 +234,7 @@ class ICSL:
 
         for update_i in range(self._num_updates_per_epoch):
             tic = timeit.default_timer()
-            batch = next(self.ds)
-            batch = jax.device_put(batch, self.data_sharding)
+            batch = self.get_batch()
             total_sample_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()

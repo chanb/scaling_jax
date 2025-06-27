@@ -60,4 +60,4 @@ class Curriculum(IterableDataset):
 
             if step >= self.curriculum_schedule[curriculum_i]:
                 step = 0
-                curriculum_i = max(curriculum_i + 1, len(self.datasets) - 1)
+                curriculum_i = min(curriculum_i + 1, len(self.datasets) - 1)
