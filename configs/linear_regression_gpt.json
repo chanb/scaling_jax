@@ -63,6 +63,66 @@
     },
     "validate": [
         {
+            "validation_name": "ground_truth",
+            "dataset_name": "linear_regression",
+            "dataset_kwargs": {
+                "num_tasks": 1000,
+                "num_dims": 10,
+                "context_len": 32,
+                "train": false,
+                "input_noise_std": 0.0,
+                "label_noise_std": 0.0,
+                "sparsity": 10,
+                "target_generator": "ground_truth"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "closed_form",
+            "dataset_name": "linear_regression",
+            "dataset_kwargs": {
+                "num_tasks": 1000,
+                "num_dims": 10,
+                "context_len": 32,
+                "train": false,
+                "input_noise_std": 0.0,
+                "label_noise_std": 0.0,
+                "sparsity": 10,
+                "target_generator": "closed_form"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "weight_retrieval",
+            "dataset_name": "linear_regression",
+            "dataset_kwargs": {
+                "num_tasks": 1000,
+                "num_dims": 10,
+                "context_len": 32,
+                "train": false,
+                "input_noise_std": 0.0,
+                "label_noise_std": 0.0,
+                "sparsity": 10,
+                "target_generator": "weight_retrieval"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
             "validation_name": "weighted_weights",
             "dataset_name": "linear_regression",
             "dataset_kwargs": {
@@ -74,6 +134,26 @@
                 "label_noise_std": 0.0,
                 "sparsity": 10,
                 "target_generator": "weighted_weights"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "sparse_d2_ground_truth",
+            "dataset_name": "linear_regression",
+            "dataset_kwargs": {
+                "num_tasks": 1000,
+                "num_dims": 10,
+                "context_len": 32,
+                "train": false,
+                "input_noise_std": 0.0,
+                "label_noise_std": 0.0,
+                "sparsity": 5,
+                "target_generator": "ground_truth"
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

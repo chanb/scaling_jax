@@ -73,11 +73,12 @@ class ICLinearRegression(IterableDataset):
         elif self.target_generator == "closed_form":
             def get_target(inputs, weights):
                 outputs = inputs @ weights
-                return np.linalg.lstsq(
+                new_weights = np.linalg.lstsq(
                     inputs,
                     outputs,
                     rcond=None,
                 )[0]
+                return inputs @ new_weights
             return get_target
         elif self.target_generator == "weight_retrieval":
             pretrained_weights = np.concatenate([
@@ -92,7 +93,7 @@ class ICLinearRegression(IterableDataset):
                     np.sum((pretrained_weights - weights) ** 2, axis=0)
                 )
 
-                return inputs @ pretrained_weights[:, closest_task]
+                return inputs @ pretrained_weights[:, [closest_task]]
             return get_target
         elif self.target_generator == "weighted_weights":
             pretrained_weights = np.concatenate([
