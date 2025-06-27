@@ -54,7 +54,9 @@ class ICLinearRegression(IterableDataset):
             def sample_weights(rng):
                 task_i = rng.choice(self.num_tasks)
 
-                task_rng = np.random.RandomState(task_i)
+                task_rng = np.random.RandomState(
+                    task_i + self.num_tasks * (1 - int(self.train))
+                )
                 weights = task_rng.standard_normal((self.num_dims, 1))
                 return weights
         else:
