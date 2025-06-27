@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/classification_gpt",
-        "experiment_name": "default-dim_10",
+        "experiment_name": "equal_prob-label_noise_0.01",
         "log_interval": 50,
         "checkpoint_interval": 100000
     },
@@ -59,6 +59,7 @@
     "num_workers": 4,
     "batch_size": 128,
     "objective": "ce",
+    "one_hot": true,
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -85,6 +86,9 @@
                 "target_in_context": false,
                 "flip_label": true
             },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
             "seeds": {
                 "data_seed": 42
             }
@@ -107,6 +111,9 @@
                 "target_in_context": true,
                 "flip_label": true
             },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
             "seeds": {
                 "data_seed": 42
             }
@@ -121,6 +128,7 @@
                 "p_relevant_context": 0.0,
                 "num_dims": 64,
                 "train": true,
+                "query_cond": "none",
                 "context_len": 16,
                 "input_noise_std": 0.0,
                 "label_noise": 0.01,
@@ -128,6 +136,9 @@
                 "target_in_context": false,
                 "flip_label": false
             },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
             "seeds": {
                 "data_seed": 42
             }

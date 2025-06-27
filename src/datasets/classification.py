@@ -68,7 +68,10 @@ class Classification(IterableDataset):
         return iter(self.get_sequences())
 
     def generate_sample(self, rng, weights):
-        targets = np.full(shape=(self.context_len,), fill_value=rng.choice(p=weights))
+        targets = np.full(
+            shape=(self.context_len,),
+            fill_value=rng.choice(len(weights), p=weights),
+        )
 
         if self.query_cond == "high_prob":
             targets[-1] = rng.choice(
@@ -113,9 +116,7 @@ class Classification(IterableDataset):
 
             targets[:-1] = np.random.default_rng(self.seed).permuted(targets[:-1])
 
-        examples = self.centers[self.targets.flatten()].reshape(
-            (self.context_len + 1, -1)
-        )
+        examples = self.centers[targets]
         examples += self.input_noise_std * rng.randn(*examples.shape)
         return examples, targets
 

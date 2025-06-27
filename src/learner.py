@@ -56,16 +56,25 @@ def gather_learning_rate(
             ].item()
 
 
-def initialize_loss_fn(self, graphdef):
-    if self._config.objective == "ce":
+def initialize_loss_fn(objective, graphdef, one_hot=False):
+    if objective == "ce":
+        if one_hot:
+            loss_fn = optax.softmax_cross_entropy
+            def accuracy(acts_taken, targets):
+                return acts_taken == jnp.argmax(targets, axis=-1)
+        else:
+            loss_fn = optax.softmax_cross_entropy_with_integer_labels
+            def accuracy(acts_taken, targets):
+                return acts_taken == targets
+
         def cross_entropy(params, rest, batch):
             targets = batch["target"]
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             logits = model(batch)
-            loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
+            loss = loss_fn(logits, targets)
             acts_taken = jnp.argmax(logits, axis=-1)
-            acc = acts_taken == targets
+            acc = accuracy(acts_taken, targets)
 
             return jnp.mean(loss), {
                 CONST_TRAIN: {
@@ -85,7 +94,7 @@ def initialize_loss_fn(self, graphdef):
             }
 
         return cross_entropy
-    elif self._config.objective == "mse":
+    elif objective == "mse":
         def mse(params, rest, batch):
             targets = batch["target"]
             model = nnx.merge(graphdef, params, rest)
@@ -136,7 +145,11 @@ class ICSL:
         )
 
         self._initialize_model_and_opt(self.dtype)
-        self._loss = initialize_loss_fn()
+        self._loss = initialize_loss_fn(
+            self._config.objective,
+            self._state.graphdef,
+            getattr(self._config, "one_hot", False),
+        )
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()
 
