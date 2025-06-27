@@ -59,7 +59,7 @@
                 "dataset_name": "linear_regression",
                 "dataset_kwargs": {
                     "num_tasks": 1000,
-                    "num_dims": 5,
+                    "num_dims": 10,
                     "context_len": 32,
                     "train": true,
                     "input_noise_std": 0.0,
