@@ -3,7 +3,7 @@
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/classification_gpt",
         "experiment_name": "equal_prob-label_noise_0.01",
         "log_interval": 50,
-        "checkpoint_interval": 1000
+        "checkpoint_interval": 100000
     },
     "model_config": {
         "architecture": "InContextGPT",
@@ -60,7 +60,7 @@
     "batch_size": 128,
     "objective": "ce",
     "one_hot": true,
-    "num_epochs": 100000,
+    "num_epochs": 10000000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
@@ -81,7 +81,7 @@
                 "query_cond": "none",
                 "context_len": 16,
                 "input_noise_std": 0.0,
-                "label_noise": 0.01,
+                "label_noise": 0.1,
                 "num_relevant_contexts": null,
                 "target_in_context": false,
                 "flip_label": true
@@ -106,7 +106,7 @@
                 "query_cond": "none",
                 "context_len": 16,
                 "input_noise_std": 0.0,
-                "label_noise": 0.01,
+                "label_noise": 0.1,
                 "num_relevant_contexts": null,
                 "target_in_context": true,
                 "flip_label": true
@@ -131,7 +131,7 @@
                 "query_cond": "none",
                 "context_len": 16,
                 "input_noise_std": 0.0,
-                "label_noise": 0.01,
+                "label_noise": 0.1,
                 "num_relevant_contexts": null,
                 "target_in_context": false,
                 "flip_label": false
