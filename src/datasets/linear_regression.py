@@ -145,5 +145,5 @@ class ICLinearRegression(IterableDataset):
                 "weights": weights,
                 "target": targets,
                 "example": inputs,
-                "mask": np.ones((self.context_len), dtype=np.float32),
+                "mask": np.ones((self.context_len, 1), dtype=np.float32),
             }
