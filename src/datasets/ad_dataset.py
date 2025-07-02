@@ -193,7 +193,7 @@ class GymnaxADDataset(IterableDataset):
                         buffer=data["data"],
                     )
                 )
-            self.num_total_tasks += self.data_infos[data_path].num_tasks
+            self.num_total_tasks += self.data_infos[-1].num_tasks
 
         print("Loaded dataset")
 

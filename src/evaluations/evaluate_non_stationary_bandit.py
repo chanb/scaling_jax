@@ -74,17 +74,17 @@ class EvalConfig(NamedTuple):
 
 
 # Default beta
-def sample_env_params(key, task_i, num_arms):
-    reward_probs = jax.random.beta(
-        key,
-        a=0.2,
-        b=0.2,
-        shape=(
-            num_arms,
-        ),
-    )
+# def sample_env_params(key, task_i, num_arms):
+#     reward_probs = jax.random.beta(
+#         key,
+#         a=0.2,
+#         b=0.2,
+#         shape=(
+#             num_arms,
+#         ),
+#     )
 
-    return EnvParams(reward_probs=reward_probs)
+#     return EnvParams(reward_probs=reward_probs)
 
 
 # Uniform one hot
@@ -113,8 +113,8 @@ def sample_env_params(key, task_i, num_arms):
 #     return EnvParams(reward_probs=reward_probs)
 
 # Best arm K = 0 to K = 4
-# def sample_env_params(key, task_i, num_arms):
-#     return EnvParams(reward_probs=jnp.eye(num_arms)[task_i])
+def sample_env_params(key, task_i, num_arms):
+    return EnvParams(reward_probs=jnp.eye(num_arms)[task_i])
 
 # def sample_env_params(key, task_i, num_arms):
 #     rewards = task_i / (num_arms - 1) + jax.random.beta(

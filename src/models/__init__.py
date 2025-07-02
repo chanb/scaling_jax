@@ -16,6 +16,7 @@ from typing import Any
 from src.models.gpt import InContextGPT
 from src.models.icrl import (
     BanditADEncoder,
+    RLDiscreteADEncoder,
     ActionTokenLinearPredictor,
 )
 
@@ -47,6 +48,17 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 decode=False,
                 dtype=dtype,
             )
+        elif encode_strategy == "discrete_ad":
+            dependency_cls["encoder_cls"] = partial(
+                RLDiscreteADEncoder,
+                state_dim=dataset.observation_space.shape[0],
+                num_actions=dataset.action_space.n,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                decode=False,
+                dtype=dtype,
+                include_next_state=False,
+            )
         else:
             raise NotImplementedError
 
@@ -56,11 +68,21 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         False,
     )
     if predictor_strategy:
-        if predictor_strategy == "action_token_linear":
+        if predictor_strategy == "contiguous_action_token_linear":
             dependency_cls["predictor_cls"] = partial(
                 ActionTokenLinearPredictor,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 output_dim=dataset.action_space.n,
+                skip_step=3,
+                rngs=rngs,
+                dtype=dtype,
+            )
+        elif predictor_strategy == "transitions_action_token_linear":
+            dependency_cls["predictor_cls"] = partial(
+                ActionTokenLinearPredictor,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                output_dim=dataset.action_space.n,
+                skip_step=4,
                 rngs=rngs,
                 dtype=dtype,
             )
