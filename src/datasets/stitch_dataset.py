@@ -73,10 +73,7 @@ class GymnaxStitchDataset(IterableDataset):
 
             """
             TODO:
-            1. Sample good performance episode
-            2. Sample transitions from learning history
-            3. Shuffle (1) into (2) <-- This should enforce stitching
-            4. Append (1)
+            Include next state
 
             TODO:
             Eval for Gymnax env

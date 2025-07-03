@@ -19,6 +19,7 @@ from src.datasets.ad_dataset import (
     GymnaxADDataset,
 )
 from src.datasets.dpt_dataset import BanditDPTDataset
+from src.datasets.stitch_dataset import GymnaxStitchDataset
 
 
 def get_iter(data_loader, data_sharding, dtype):
@@ -75,6 +76,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         )
     elif dataset_name == "gymnax_ad":
         dataset = GymnaxADDataset(
+            dataset_kwargs.data_paths,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "gymnax_stitch":
+        dataset = GymnaxStitchDataset(
             dataset_kwargs.data_paths,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,
