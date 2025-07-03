@@ -13,6 +13,7 @@ class DataInfo(NamedTuple):
     num_tasks: int
     max_len: int
     buffer: Any
+    expert_data: Any
 
 
 class GymnaxStitchDataset(IterableDataset):
@@ -101,7 +102,7 @@ class GymnaxStitchDataset(IterableDataset):
             expert_ep = self._rng.randint(
                 expert_data["obss"][task_id].shape[0]
             )
-            expert_ep_len = np.where(expert_data["dones"][task_id, expert_ep] == 1)[0] + 1
+            expert_ep_len = np.where(expert_data["dones"][task_id, expert_ep] == 1)[0][0] + 1
             states[-expert_ep_len:] = expert_data["obss"][task_id, expert_ep, :expert_ep_len]
             actions[-expert_ep_len:] = expert_data["actions"][task_id, expert_ep, :expert_ep_len]
             rewards[-expert_ep_len:] = expert_data["rewards"][task_id, expert_ep, :expert_ep_len]
