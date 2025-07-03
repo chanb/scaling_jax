@@ -115,8 +115,8 @@ class GymnaxStitchDataset(IterableDataset):
             rewards[replacement_idxes] = expert_data["rewards"][task_id, expert_ep, :expert_ep_len]
 
             # Only care about the last expert episode
-            mask = np.zeros(self.seq_len, dtype=np.float32)
-            mask[-expert_ep_len:] = 1.0
+            mask = np.ones_like(actions, dtype=np.float32)
+            mask[:-expert_ep_len] = 0.0
 
             yield {
                 "state": states, # (seq_len,)
