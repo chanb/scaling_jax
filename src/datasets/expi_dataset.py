@@ -110,4 +110,5 @@ class XMiniGridExPIDataset(IterableDataset):
                 "action": actions, # (seq_len,)
                 "reward": rewards, # (seq_len,)
                 "target": actions, # (seq_len,)
+                "mask": np.ones_like(actions, dtype=np.float32),  # Mask for the sequence
             }

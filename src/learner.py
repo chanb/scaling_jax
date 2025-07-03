@@ -136,18 +136,17 @@ class ICRL:
         if self._config.objective == "mle":
             def cross_entropy(params, rest, batch):
                 targets = batch["target"]
+                mask = batch["mask"]
                 model = nnx.merge(self._state.graphdef, params, rest)
                 model.set_attributes(deterministic=False, decode=False)
                 logits = model(batch)
-                loss = jnp.mean(
-                    optax.softmax_cross_entropy_with_integer_labels(logits, targets)
-                )
+                loss = optax.softmax_cross_entropy_with_integer_labels(logits, targets)
                 acts_taken = jnp.argmax(logits, axis=-1)
                 acc = jnp.mean(
                     acts_taken == targets
                 )
 
-                return loss, {
+                return jnp.sum(loss * mask) / jnp.sum(mask), {
                     CONST_ACCURACY: acc,
                     CONST_ACT_TAKEN: acts_taken,
                     CONST_ACT_TARGET: targets,

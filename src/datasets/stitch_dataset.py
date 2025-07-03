@@ -50,6 +50,7 @@ class GymnaxStitchDataset(IterableDataset):
                         num_tasks=len(data["env_params"]),
                         max_len=data["data"]["reward"].shape[-1] - seq_len - 1,
                         buffer=data["data"],
+                        expert_data=data["expert_data"],
                     )
                 )
             self.num_total_tasks += self.data_infos[-1].num_tasks
@@ -71,30 +72,59 @@ class GymnaxStitchDataset(IterableDataset):
         while True:
 
             """
+            TODO:
             1. Sample good performance episode
             2. Sample transitions from learning history
             3. Shuffle (1) into (2) <-- This should enforce stitching
             4. Append (1)
+
+            TODO:
+            Eval for Gymnax env
             """
             data_path_id = self._rng.randint(self.num_data_paths)
             data_info = self.data_infos[data_path_id]
             task_id = self._rng.randint(data_info.num_tasks)
-            start_idx = self._rng.randint(data_info.max_len)
             buffer = data_info.buffer
+            expert_data = data_info.expert_data
 
+            transition_idxes = self._rng.randint(
+                data_info.max_len, size=(self.seq_len,)
+            )
             states = buffer["obs"][task_id][
-                start_idx : start_idx + self.seq_len
+                transition_idxes
             ]
             actions = buffer["action"][task_id][
-                start_idx : start_idx + self.seq_len
+                transition_idxes
             ]
             rewards = buffer["reward"][task_id][
-                start_idx : start_idx + self.seq_len
+                transition_idxes
             ]
+
+            # Fill expert data to the end
+            expert_ep = self._rng.randint(
+                expert_data["obss"][task_id].shape[0]
+            )
+            expert_ep_len = np.where(expert_data["dones"][task_id, expert_ep] == 1)[0] + 1
+            states[-expert_ep_len:] = expert_data["obss"][task_id, expert_ep, :expert_ep_len]
+            actions[-expert_ep_len:] = expert_data["actions"][task_id, expert_ep, :expert_ep_len]
+            rewards[-expert_ep_len:] = expert_data["rewards"][task_id, expert_ep, :expert_ep_len]
+
+            # Replace some transitions with expert data to encourage stitching
+            replacement_idxes = self._rng.permutation(
+                np.arange(self.seq_len - expert_ep_len)
+            )[:expert_ep_len]
+            states[replacement_idxes] = expert_data["obss"][task_id, expert_ep, :expert_ep_len]
+            actions[replacement_idxes] = expert_data["actions"][task_id, expert_ep, :expert_ep_len]
+            rewards[replacement_idxes] = expert_data["rewards"][task_id, expert_ep, :expert_ep_len]
+
+            # Only care about the last expert episode
+            mask = np.zeros(self.seq_len, dtype=np.float32)
+            mask[-expert_ep_len:] = 1.0
 
             yield {
                 "state": states, # (seq_len,)
                 "action": actions, # (seq_len,)
                 "reward": rewards, # (seq_len,)
                 "target": actions, # (seq_len,)
+                "mask": mask,
             }

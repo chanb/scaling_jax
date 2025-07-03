@@ -68,6 +68,7 @@ class BanditDPTDataset(IterableDataset):
                         actions,
                         fill_value=self.best_actions[task_id]
                     ), # (seq_len,)
+                    "mask": np.ones_like(actions, dtype=np.float32),  # Mask for the sequence
                 }
         return sample_from_buffer()
 
@@ -96,6 +97,7 @@ class BanditDPTDataset(IterableDataset):
                         actions,
                         fill_value=self.best_actions[task_id]
                     ), # (seq_len,)
+                    "mask": np.ones_like(actions, dtype=np.float32),  # Mask for the sequence
                 }
         return sample_from_random()
 
