@@ -18,7 +18,10 @@ from src.datasets.ad_dataset import (
     NonStationaryBanditADDataset,
     GymnaxADDataset,
 )
-from src.datasets.dpt_dataset import BanditDPTDataset
+from src.datasets.dpt_dataset import (
+    BanditDPTDataset,
+    GymnaxDPTDataset,
+)
 from src.datasets.stitch_dataset import GymnaxStitchDataset
 
 
@@ -82,6 +85,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         )
     elif dataset_name == "gymnax_stitch":
         dataset = GymnaxStitchDataset(
+            dataset_kwargs.data_paths,
+            dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "gymnax_dpt":
+        dataset = GymnaxDPTDataset(
             dataset_kwargs.data_paths,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,

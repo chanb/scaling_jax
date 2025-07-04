@@ -39,7 +39,7 @@
         "tensor": 1
     },
     "learner": "ICRL",
-    "dataset_name": "gymnax_stitch",
+    "dataset_name": "gymnax_dpt",
     "dataset_kwargs": {
         "data_paths": [
             "/home/bryanpu1/projects/aaai_2026/data/cartpole/learning_hist-cartpole-num_tasks_500-seed_1000-ppo.pkl",
