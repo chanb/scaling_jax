@@ -79,7 +79,7 @@ class GymnaxExPIDataset(IterableDataset):
             start_idxes = np.concatenate((
                 [0],
                 np.where(
-                    self.data_file[task_id]["done"][task_id] == 1
+                    buffer["done"][task_id] == 1
                 )[0] + 1,
             ))
 
