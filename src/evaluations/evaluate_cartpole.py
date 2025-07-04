@@ -73,7 +73,7 @@ class EvalConfig(NamedTuple):
 
 # Default
 def sample_env_params(key, task_i, max_steps_in_episode):
-    gravity = jax.random.uniform(key, shape=())
+    gravity = jax.random.uniform(key, shape=()) * 10.0
 
     return EnvParams(
         gravity=gravity,
@@ -324,6 +324,9 @@ if __name__ == "__main__":
     base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
     algo_name = "cartpole_ad"
     run_name = "default-07-02-25_12_10_37-c8198893-1827-4a30-abe6-ad8ca9078f5f"
+
+    # algo_name = "cartpole_stitch"
+    # run_name = "default-07-03-25_14_10_38-9ac9cab7-fb92-40af-bd9b-c7eb4bd34fd6"
 
     eval_seed = 40
     num_envs = 5

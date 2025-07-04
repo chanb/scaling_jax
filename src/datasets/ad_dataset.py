@@ -1,9 +1,18 @@
+import inspect
+import os
+import sys
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(os.path.dirname(currentdir))
+sys.path.insert(0, parentdir)
+
 import _pickle as pickle
 import numpy as np
 
 from gymnasium import spaces
 from torch.utils.data import IterableDataset
-from typing import Any, NamedTuple
+
+from src.datasets.utils import DataInfo
 
 
 class BanditADDataset(IterableDataset):
@@ -149,15 +158,6 @@ class NonStationaryBanditADDataset(IterableDataset):
             }
 
 
-class DataInfo(NamedTuple):
-    data_path: str
-    env_params: Any
-    task_ids: list[int]
-    num_tasks: int
-    max_len: int
-    buffer: Any
-
-
 class GymnaxADDataset(IterableDataset):
     """
     Data is collected using rejax.
@@ -191,8 +191,8 @@ class GymnaxADDataset(IterableDataset):
                         env_params=data["env_params"],
                         task_ids=self.num_total_tasks + np.arange(len(data["env_params"])),
                         num_tasks=len(data["env_params"]),
-                        max_len=data["data"]["reward"].shape[-1] - seq_len - 1,
-                        buffer=data["data"],
+                        max_len=data["learning_histories"]["reward"].shape[-1] - seq_len - 1,
+                        buffer=data["learning_histories"],
                     )
                 )
             self.num_total_tasks += self.data_infos[-1].num_tasks
