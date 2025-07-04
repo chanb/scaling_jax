@@ -117,7 +117,8 @@ class Classification(IterableDataset):
             targets[:-1] = np.random.default_rng(self.seed).permuted(targets[:-1])
 
         examples = self.centers[targets]
-        examples += self.input_noise_std * rng.randn(*examples.shape)
+        # XXX: Noise should just be stretching
+        examples = (1 + self.input_noise_std * rng.randn(len(examples))[:, None]) * examples
         return examples, targets, num_relevant_contexts
 
     def get_sequences(
