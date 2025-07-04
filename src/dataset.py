@@ -22,6 +22,7 @@ from src.datasets.dpt_dataset import (
     BanditDPTDataset,
     GymnaxDPTDataset,
 )
+from src.datasets.expi_dataset import GymnaxExPIDataset
 from src.datasets.stitch_dataset import GymnaxStitchDataset
 
 
@@ -93,6 +94,13 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         dataset = GymnaxDPTDataset(
             dataset_kwargs.data_paths,
             dataset_kwargs.seq_len,
+            config.seeds.data_seed,
+        )
+    elif dataset_name == "gymnax_expi":
+        dataset = GymnaxExPIDataset(
+            dataset_kwargs.data_paths,
+            dataset_kwargs.seq_len,
+            dataset_kwargs.skip_ep,
             config.seeds.data_seed,
         )
     else:

@@ -1,74 +1,85 @@
-import h5py
+import inspect
+import os
+import sys
+
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(os.path.dirname(currentdir))
+sys.path.insert(0, parentdir)
+
+import _pickle as pickle
 import numpy as np
 
-from gymnasium import spaces
 from torch.utils.data import IterableDataset
-from xminigrid.core.constants import NUM_ACTIONS, NUM_COLORS
+
+from src.datasets.utils import DataInfo
 
 
-class XMiniGridExPIDataset(IterableDataset):
+class GymnaxExPIDataset(IterableDataset):
+    """
+    Data is collected using rejax.
+    """
+
     def __init__(
         self,
-        data_path: str,
+        data_paths: list[str],
         seq_len: int,
         skip_ep: int,
         seed: int,
     ):
-        self.data_file = None
         self.seq_len = seq_len
         self.skip_ep = skip_ep
-        self.data_path = data_path
+        self.data_paths = data_paths
+        self.num_data_paths = len(data_paths)
         self.seed = seed
         self._rng = np.random.RandomState(seed)
 
-        with h5py.File(data_path, "r") as df:
-            self.benchmark_id = df["0"].attrs["benchmark-id"]
-            self.env_id = df["0"].attrs["env-id"]
-            self.task_ids = list(df.keys())
+        self.data_infos = []
+        self.num_total_tasks = 0
 
-            self.num_tasks = len(list(df.keys()))
-            self.hists_per_task = df["0/rewards"].shape[0]
-            self.max_len = df["0/rewards"].shape[-1] - seq_len - 1 # Exclude very last sample per history
+        for path_i, data_path in enumerate(self.data_paths):
+            with open(data_path, "rb") as f:
+                data = pickle.load(f)
+                if path_i == 0:
+                    self._observation_space = data["observation_space"]
+                    self._action_space = data["action_space"]
 
-            self.ruleset_ids = []
+                self.data_infos.append(
+                    DataInfo(
+                        data_path=data_path,
+                        env_params=data["env_params"],
+                        task_ids=self.num_total_tasks + np.arange(len(data["env_params"])),
+                        num_tasks=len(data["env_params"]),
+                        max_len=data["learning_histories"]["reward"].shape[-1] - seq_len - 1,
+                        buffer=data["learning_histories"],
+                    )
+                )
+            self.num_total_tasks += self.data_infos[-1].num_tasks
 
-            for i in df.keys():
-                self.ruleset_ids.append(df[i].attrs["ruleset-id"])
+        print("Loaded dataset")
 
     @property
     def observation_space(self):
-        return spaces.Box(low=0, high=255, shape=(5, 5, 2), dtype=int)
+        return self._observation_space
 
     @property
     def action_space(self):
-        return spaces.Discrete(NUM_ACTIONS)
-
-    @property
-    def trajectories_metadata(self):
-        return self.benchmark_id, self.env_id, self.ruleset_ids
-
-    @staticmethod
-    def decompress_obs(obs: np.ndarray) -> np.ndarray:
-        return np.stack(np.divmod(obs, NUM_COLORS), axis=-1)
-
-    def open_hdf5(self):
-        self.data_file = h5py.File(self.data_path, "r")
+        return self._action_space
 
     def __iter__(self):
         return iter(self.get_sequences())
 
     def get_sequences(self):
-        if self.data_file is None:
-            self.open_hdf5()
-        
         while True:
-            task_id = self._rng.choice(self.task_ids)
-            learning_history_idx = self._rng.randint(self.hists_per_task)
+            data_path_id = self._rng.randint(self.num_data_paths)
+            data_info = self.data_infos[data_path_id]
+            task_id = self._rng.randint(data_info.num_tasks)
+            start_idx = self._rng.randint(data_info.max_len)
+            buffer = data_info.buffer
 
             start_idxes = np.concatenate((
                 [0],
                 np.where(
-                    self.data_file[task_id]["dones"][learning_history_idx] == 1
+                    self.data_file[task_id]["done"][task_id] == 1
                 )[0] + 1,
             ))
 
@@ -93,20 +104,12 @@ class XMiniGridExPIDataset(IterableDataset):
             if remainder > 0:
                 all_idxes = all_idxes[:-remainder]
 
-            states = self.decompress_obs(
-                self.data_file[task_id]["states"][learning_history_idx][
-                    all_idxes
-                ]
-            )
-            actions = self.data_file[task_id]["actions"][learning_history_idx][
-                all_idxes
-            ]
-            rewards = self.data_file[task_id]["rewards"][learning_history_idx][
-                all_idxes
-            ]
+            states = buffer["obs"][task_id][all_idxes]
+            actions = buffer["action"][task_id][all_idxes]
+            rewards = buffer["reward"][task_id][all_idxes]
 
             yield {
-                "state": states, # (seq_len, 5, 5, 2)
+                "state": states, # (seq_len,)
                 "action": actions, # (seq_len,)
                 "reward": rewards, # (seq_len,)
                 "target": actions, # (seq_len,)
