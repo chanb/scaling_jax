@@ -183,3 +183,142 @@ class Classification(IterableDataset):
                 "target": one_hot,
                 "mask": np.eye(self.context_len, dtype=np.float32)[-1],
             }
+
+
+class UniformClassification(IterableDataset):
+    def __init__(
+        self,
+        context_len: int,
+        num_classes: int,
+        p_relevant_context: float,
+        num_dims: int,
+        seed: int,
+        train: bool,
+        query_cond: str = "none",
+        input_noise_std: float = 0.0,
+        label_noise: float = 0.0,
+        num_relevant_contexts: int = None,
+        target_in_context: bool = False,
+        flip_label: bool = False,
+    ):
+        assert num_relevant_contexts is None or num_relevant_contexts >= 0
+
+        self.num_classes = num_classes
+        self.p_relevant_context = p_relevant_context
+        self.num_dims = num_dims
+        self.train = train
+        self.seed = seed
+        self.input_noise_std = input_noise_std
+        self.label_noise = label_noise
+        self.context_len = context_len
+        self.num_relevant_contexts = num_relevant_contexts
+        self.target_in_context = target_in_context
+        self.query_cond = query_cond
+        self.flip_label = flip_label
+        self.rng = np.random.RandomState(seed)
+
+        self.centers = self.rng.standard_normal(size=(self.num_classes, self.num_dims))
+        self.centers /= np.linalg.norm(self.centers, axis=-1, keepdims=True)
+
+    @property
+    def input_space(self):
+        return spaces.Box(-np.inf, np.inf, shape=(self.num_dims,))
+
+    @property
+    def output_space(self):
+        return spaces.Discrete(self.num_classes)
+
+    def __iter__(self):
+        return iter(self.get_sequences())
+
+    def generate_sample(self, rng):
+        targets = np.full(
+            shape=(self.context_len,),
+            fill_value=rng.randint(0, self.num_classes),
+        )
+
+        relevant_context_mask = rng.uniform() < self.p_relevant_context
+
+        if relevant_context_mask:
+            num_relevant_contexts = (
+                rng.randint(self.context_len - 1)
+                if self.num_relevant_contexts is None else
+                self.num_relevant_contexts
+            )
+        else:
+            num_relevant_contexts = 0
+        
+        query_context_identical = np.sum(
+            targets[:-1] == targets[[-1]],
+            axis=-1,
+        )
+        
+        if num_relevant_contexts < self.context_len - 1:
+            while query_context_identical != num_relevant_contexts:
+                targets[num_relevant_contexts:-1] = rng.randing(
+                    0,
+                    self.num_classes,
+                    size=(
+                        self.context_len - 1 - num_relevant_contexts,
+                    ),
+                )
+
+                query_context_identical = np.sum(
+                    targets[:-1] == targets[[-1]],
+                    axis=-1,
+                )
+
+            targets[:-1] = np.random.default_rng(self.seed).permuted(targets[:-1])
+
+        if rng.uniform() < self.label_noise:
+            # W.p. eps we sample uniformly from other classes instead of the target class
+            # P(Y | X = x) = [eps/(C - 1), ..., 1 - eps, ..., eps/(C - 1)]
+            new_targets = rng.choice(
+                self.num_classes - 1,
+                size=(self.num_classes,),
+            )[targets]
+            new_targets[new_targets >= targets] += 1
+            new_targets = new_targets % self.num_classes
+
+            # W.p. eps we sample uniformly from other classes for context labels
+            # This is to ensure that P*(target | query) == P*(target | query, context)
+            if (
+                num_relevant_contexts > 0
+                and not self.target_in_context
+                and rng.uniform() < self.label_noise
+            ):
+                while (
+                    new_targets[-1] == new_targets[np.where(targets[:-1] == targets[-1])[0][0]]
+                ):
+                    new_targets[np.where(targets[:-1] == targets[-1])[0][0]] = rng.choice(self.num_classes)
+
+            targets = new_targets
+
+        examples = self.centers[targets]
+        # XXX: Noise should just be stretching
+        examples = (1 + self.input_noise_std * rng.randn(len(examples))[:, None]) * examples
+        return examples, targets, num_relevant_contexts
+
+    def get_sequences(
+        self,
+    ):
+        if self.train:
+            rng = np.random.RandomState(self.seed)
+        else:
+            rng = np.random.RandomState(self.seed + 1)
+
+        while True:
+            examples, targets, num_relevant_contexts = self.generate_sample(rng)
+
+            # OOD labels by shifting
+            if self.flip_label:
+                targets = (targets + 1) % self.num_classes
+
+            one_hot = np.zeros((self.context_len, self.num_classes))
+            one_hot[np.arange(self.context_len), targets] = 1
+
+            yield {
+                "example": examples,
+                "target": one_hot,
+                "mask": np.eye(self.context_len, dtype=np.float32)[-1],
+            }
