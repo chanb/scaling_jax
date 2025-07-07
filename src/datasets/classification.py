@@ -12,7 +12,8 @@ from torch.utils.data import IterableDataset
 import numpy as np
 import timeit
 
-
+# TODO: Linear attention experiment
+# TODO: Curriculum learning from difficult to easy
 class Classification(IterableDataset):
     def __init__(
         self,
