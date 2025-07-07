@@ -88,6 +88,22 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             dataset_kwargs.target_in_context,
             dataset_kwargs.flip_label,
         )
+    elif dataset_name == "uniform_classification":
+        from src.datasets.classification import UniformClassification
+        dataset = UniformClassification(
+            dataset_kwargs.context_len,
+            dataset_kwargs.num_classes,
+            dataset_kwargs.p_relevant_context,
+            dataset_kwargs.num_dims,
+            seed,
+            dataset_kwargs.train,
+            dataset_kwargs.query_cond,
+            dataset_kwargs.input_noise_std,
+            dataset_kwargs.label_noise,
+            dataset_kwargs.num_relevant_contexts,
+            dataset_kwargs.target_in_context,
+            dataset_kwargs.flip_label,
+        )
     elif dataset_name == "nary_strings":
         from src.datasets.nary_strings import NaryStrings
         dataset = NaryStrings(
