@@ -255,7 +255,7 @@ class UniformClassification(IterableDataset):
         
         if num_relevant_contexts < self.context_len - 1:
             while query_context_identical != num_relevant_contexts:
-                targets[num_relevant_contexts:-1] = rng.randing(
+                targets[num_relevant_contexts:-1] = rng.randint(
                     0,
                     self.num_classes,
                     size=(

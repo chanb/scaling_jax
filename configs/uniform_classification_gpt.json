@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/uniform_classification_gpt",
-        "experiment_name": "label_noise_0.0-num_classes_10000",
+        "experiment_name": "input_noise_0.01-label_noise_0.0-num_classes_10000",
         "log_interval": 50,
         "checkpoint_interval": 100000
     },
@@ -47,7 +47,7 @@
         "train": true,
         "query_cond": "none",
         "context_len": 16,
-        "input_noise_std": 0.0,
+        "input_noise_std": 0.01,
         "label_noise": 0.0,
         "num_relevant_contexts": null,
         "target_in_context": false,
@@ -67,18 +67,39 @@
     },
     "validate": [
         {
-            "validation_name": "ic_prediction",
-            "dataset_name": "classification",
+            "validation_name": "heldout",
+            "dataset_name": "uniform_classification",
             "dataset_kwargs": {
-                "num_high_prob_classes": 5000,
-                "num_low_prob_classes": 5000,
-                "p_high": 0.5,
+                "num_classes": 10000,
+                "p_relevant_context": 1.0,
+                "num_dims": 64,
+                "train": false,
+                "query_cond": "none",
+                "context_len": 16,
+                "input_noise_std": 0.01,
+                "label_noise": 0.0,
+                "num_relevant_contexts": null,
+                "target_in_context": false,
+                "flip_label": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "ic_prediction",
+            "dataset_name": "uniform_classification",
+            "dataset_kwargs": {
+                "num_classes": 10000,
                 "p_relevant_context": 1.0,
                 "num_dims": 64,
                 "train": true,
                 "query_cond": "none",
                 "context_len": 16,
-                "input_noise_std": 0.0,
+                "input_noise_std": 0.01,
                 "label_noise": 0.0,
                 "num_relevant_contexts": null,
                 "target_in_context": false,
@@ -92,43 +113,16 @@
             }
         },
         {
-            "validation_name": "ic_prediction-target_in_context",
-            "dataset_name": "classification",
-            "dataset_kwargs": {
-                "num_high_prob_classes": 5000,
-                "num_low_prob_classes": 5000,
-                "p_high": 0.5,
-                "p_relevant_context": 1.0,
-                "num_dims": 64,
-                "train": true,
-                "query_cond": "none",
-                "context_len": 16,
-                "input_noise_std": 0.0,
-                "label_noise": 0.0,
-                "num_relevant_contexts": null,
-                "target_in_context": true,
-                "flip_label": true
-            },
-            "shuffle_buffer_size": 100,
-            "num_workers": 1,
-            "batch_size": 32,
-            "seeds": {
-                "data_seed": 42
-            }
-        },
-        {
             "validation_name": "iw_prediction",
-            "dataset_name": "classification",
+            "dataset_name": "uniform_classification",
             "dataset_kwargs": {
-                "num_high_prob_classes": 5000,
-                "num_low_prob_classes": 5000,
-                "p_high": 0.5,
+                "num_classes": 10000,
                 "p_relevant_context": 0.0,
                 "num_dims": 64,
                 "train": true,
                 "query_cond": "none",
                 "context_len": 16,
-                "input_noise_std": 0.0,
+                "input_noise_std": 0.01,
                 "label_noise": 0.0,
                 "num_relevant_contexts": null,
                 "target_in_context": false,
