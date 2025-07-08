@@ -14,6 +14,7 @@ import timeit
 
 # TODO: Linear attention experiment
 # TODO: Curriculum learning from difficult to easy
+
 class Classification(IterableDataset):
     def __init__(
         self,
@@ -241,7 +242,7 @@ class UniformClassification(IterableDataset):
 
         if relevant_context_mask:
             num_relevant_contexts = (
-                rng.randint(self.context_len - 1)
+                rng.randint(1, self.context_len)
                 if self.num_relevant_contexts is None else
                 self.num_relevant_contexts
             )
@@ -322,3 +323,5 @@ class UniformClassification(IterableDataset):
                 "target": one_hot,
                 "mask": np.eye(self.context_len, dtype=np.float32)[-1],
             }
+
+
