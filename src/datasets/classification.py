@@ -290,7 +290,7 @@ class UniformClassification(IterableDataset):
                 while (
                     new_targets[-1] == new_targets[np.where(targets[:-1] == targets[-1])[0][0]]
                 ):
-                    new_targets[np.where(targets[:-1] == targets[-1])[0][0]] = rng.choice(self.num_classes)
+                    new_targets[np.where(targets[:-1] == targets[-1])[0]] = rng.choice(self.num_classes)
 
             targets = new_targets
 
