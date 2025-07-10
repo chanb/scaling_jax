@@ -1,15 +1,15 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/threshold_sum",
-        "experiment_name": "context_len_10",
+        "experiment_name": "context_len_5-iw_only",
         "log_interval": 50,
-        "checkpoint_interval": 100000,
-        "validation_interval": 1000
+        "checkpoint_interval": 10000,
+        "validation_interval": 500
     },
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "output_dim": 1026,
+            "output_dim": 34,
             "num_blocks": 2,
             "num_heads": 2,
             "embed_dim": 64,
@@ -42,16 +42,17 @@
     "learner": "ICSL",
     "dataset_name": "threshold_sum",
     "dataset_kwargs": {
-        "context_len": 10,
+        "context_len": 5,
         "train": true,
         "train_val_ratio": 0.5,
-        "include_boundary": true
+        "include_boundary": true,
+        "sequence_type": "iw"
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 32,
     "objective": "ce",
-    "num_epochs": 1000000,
+    "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
@@ -63,10 +64,45 @@
             "validation_name": "heldout",
             "dataset_name": "threshold_sum",
             "dataset_kwargs": {
-                "context_len": 10,
+                "context_len": 5,
                 "train": false,
                 "train_val_ratio": 0.5,
-                "include_boundary": true
+                "include_boundary": true,
+                "sequence_type": "default"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "iw_pred",
+            "dataset_name": "threshold_sum",
+            "dataset_kwargs": {
+                "context_len": 5,
+                "train": false,
+                "train_val_ratio": 0.5,
+                "include_boundary": true,
+                "sequence_type": "iw"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "ic_pred",
+            "dataset_name": "threshold_sum",
+            "dataset_kwargs": {
+                "context_len": 5,
+                "train": false,
+                "train_val_ratio": 0.5,
+                "include_boundary": true,
+                "sequence_type": "ic"
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

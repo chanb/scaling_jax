@@ -33,6 +33,7 @@ class ThresholdSum(IterableDataset):
         context_len: int,
         train: bool,
         seed: int,
+        sequence_type: str="default",
         train_val_ratio: float=0.8,
         include_boundary: bool=True,
     ):
@@ -42,6 +43,7 @@ class ThresholdSum(IterableDataset):
         self.num_elements = int(2 ** context_len)
         self.train = train
         self.seed = seed
+        self.sequence_type = sequence_type
         self.train_val_ratio = train_val_ratio
         self.include_boundary = include_boundary
         self.threshold = self.num_elements // 2
@@ -100,8 +102,29 @@ class ThresholdSum(IterableDataset):
                 for token_id in bin_repr
             ] + [t]
 
-            target = sequence[:-1] + [int(t >= self.threshold) + self.num_elements]
+            exceeds_threshold = t >= self.threshold
 
+            if self.sequence_type == "iw":
+                new_t = (
+                    sample_rng.randint(0, self.threshold)
+                    if exceeds_threshold else
+                    sample_rng.randint(self.threshold, self.num_elements)
+                )
+                bin_repr = "{0:b}".format(new_t)
+                bin_repr = bin_repr.rjust(self.context_len, "0")
+                sequence[:-1] = [
+                    int(token_id) + self.num_elements
+                    for token_id in bin_repr
+                ]
+            elif self.sequence_type == "ic":
+                new_t = (
+                    sample_rng.randint(0, self.threshold)
+                    if exceeds_threshold else
+                    sample_rng.randint(self.threshold, self.num_elements)
+                )
+                sequence[-1] = new_t                
+
+            target = sequence[:-1] + [int(exceeds_threshold) + self.num_elements]
             yield {
                 "sequence": np.array(sequence),
                 "target": np.array(target),
