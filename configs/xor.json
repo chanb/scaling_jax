@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/threshold_sum",
-        "experiment_name": "context_len_5-ic_only",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/xor",
+        "experiment_name": "context_len_5-ic",
         "log_interval": 50,
         "checkpoint_interval": 10000,
         "validation_interval": 500
@@ -40,13 +40,13 @@
         "tensor": 1
     },
     "learner": "ICSL",
-    "dataset_name": "threshold_sum",
+    "dataset_name": "xor",
     "dataset_kwargs": {
         "context_len": 5,
         "train": true,
         "train_val_ratio": 0.5,
         "include_boundary": true,
-        "sequence_type": "ic"
+        "sequence_type": "default"
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -62,13 +62,13 @@
     "validate": [
         {
             "validation_name": "heldout",
-            "dataset_name": "threshold_sum",
+            "dataset_name": "xor",
             "dataset_kwargs": {
                 "context_len": 5,
                 "train": false,
                 "train_val_ratio": 0.5,
                 "include_boundary": true,
-                "sequence_type": "default"
+                "sequence_type": "ic"
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -79,7 +79,7 @@
         },
         {
             "validation_name": "iw_pred",
-            "dataset_name": "threshold_sum",
+            "dataset_name": "xor",
             "dataset_kwargs": {
                 "context_len": 5,
                 "train": false,
@@ -96,7 +96,7 @@
         },
         {
             "validation_name": "ic_pred",
-            "dataset_name": "threshold_sum",
+            "dataset_name": "xor",
             "dataset_kwargs": {
                 "context_len": 5,
                 "train": false,
