@@ -125,6 +125,15 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             dataset_kwargs.sequence_type,
             dataset_kwargs.train_val_ratio,
         )
+    elif dataset_name == "threshold_sum":
+        from src.datasets.sum import ThresholdSum
+        dataset = ThresholdSum(
+            dataset_kwargs.context_len,
+            dataset_kwargs.train,
+            seed,
+            dataset_kwargs.train_val_ratio,
+            dataset_kwargs.include_boundary,
+        )
     else:
         raise NotImplementedError
     

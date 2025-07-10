@@ -269,7 +269,7 @@ class UniformClassification(IterableDataset):
                     axis=-1,
                 )
 
-            targets[:-1] = np.random.default_rng(self.seed).permuted(targets[:-1])
+            targets[:-1] = rng.permutation(targets[:-1])
 
         if rng.uniform() < self.label_noise:
             # W.p. eps we sample uniformly from other classes instead of the target class

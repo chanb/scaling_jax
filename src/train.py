@@ -94,8 +94,8 @@ def train(
 
             if (
                 save_path
-                and logging_config.checkpoint_interval
-                and (true_epoch % logging_config.checkpoint_interval == 0)
+                and logging_config.validation_interval
+                and (true_epoch % logging_config.validation_interval == 0)
             ):
                 # Perform validation and save checkpoint
                 if hasattr(learner, "validation_step"):
@@ -104,6 +104,11 @@ def train(
                     for key, val in val_aux.items():
                         summary_writer.add_scalar(key, val, true_epoch)
 
+            if (
+                save_path
+                and logging_config.checkpoint_interval
+                and (true_epoch % logging_config.checkpoint_interval == 0)
+            ):
                 dill.dump(
                     learner.state,
                     open(
