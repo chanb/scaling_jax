@@ -17,6 +17,7 @@ from src.models.gpt import InContextGPT
 from src.models.icrl import (
     BanditADEncoder,
     RLDiscreteADEncoder,
+    RLContinuousADEncoder,
     ActionTokenLinearPredictor,
 )
 
@@ -53,6 +54,17 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
                 RLDiscreteADEncoder,
                 state_dim=dataset.observation_space.shape[0],
                 num_actions=dataset.action_space.n,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                decode=False,
+                dtype=dtype,
+                include_next_state=False,
+            )
+        elif encode_strategy == "continuous_ad":
+            dependency_cls["encoder_cls"] = partial(
+                RLContinuousADEncoder,
+                state_dim=dataset.observation_space.shape[0],
+                num_actions=dataset.action_space.shape[0],
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 decode=False,

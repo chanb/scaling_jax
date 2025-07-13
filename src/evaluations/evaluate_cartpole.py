@@ -72,8 +72,18 @@ class EvalConfig(NamedTuple):
 
 
 # Default
+# def sample_env_params(key, task_i, max_steps_in_episode):
+#     gravity = jax.random.uniform(key, shape=()) * 10.0
+
+#     return EnvParams(
+#         gravity=gravity,
+#         max_steps_in_episode=max_steps_in_episode,
+#     )
+
+
+# OOD
 def sample_env_params(key, task_i, max_steps_in_episode):
-    gravity = jax.random.uniform(key, shape=()) * 10.0
+    gravity = jax.random.uniform(key, shape=()) * 5 + 20.0
 
     return EnvParams(
         gravity=gravity,
@@ -321,9 +331,14 @@ def main(
 
 
 if __name__ == "__main__":
-    base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
-    algo_name = "cartpole_ad"
-    run_name = "default-07-02-25_12_10_37-c8198893-1827-4a30-abe6-ad8ca9078f5f"
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--learner_path", type=str, required=True)
+    args = parser.parse_args()
+
+    # base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
+    # algo_name = "cartpole_ad"
+    # run_name = "default-07-02-25_12_10_37-c8198893-1827-4a30-abe6-ad8ca9078f5f"
 
     # algo_name = "cartpole_stitch"
     # run_name = "default-07-03-25_14_10_38-9ac9cab7-fb92-40af-bd9b-c7eb4bd34fd6"
@@ -336,9 +351,10 @@ if __name__ == "__main__":
     use_autoregressive = False
 
     if use_autoregressive:
-        max_decode_len = eval_episodes
+        max_decode_len = eval_episodes * MAX_STEPS_IN_EPISODE
 
-    learner_path = os.path.join(base_path, algo_name, run_name)
+    # learner_path = os.path.join(base_path, algo_name, run_name)
+    learner_path = args.learner_path
 
     main(
         max_decode_len,

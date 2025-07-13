@@ -1,0 +1,64 @@
+{
+    "logging_config": {
+        "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/lqr",
+        "experiment_name": "ad",
+        "log_interval": 50,
+        "checkpoint_interval": 50000
+    },
+    "model_config": {
+        "architecture": "InContextGPT",
+        "model_kwargs": {
+            "output_dim": 3,
+            "num_blocks": 4,
+            "num_heads": 4,
+            "embed_dim": 32,
+            "widening_factor": 4,
+            "encode_strategy": "continuous_ad",
+            "predictor_strategy": "contiguous_action_token_linear",
+            "use_sink_token": false
+        }
+    },
+    "optimizer_config": {
+        "optimizer": "adamw",
+        "lr": {
+            "scheduler": "constant_schedule",
+            "scheduler_kwargs": {
+                "value": 1e-4
+            }
+        },
+        "opt_kwargs": {
+            "weight_decay": 1e-4
+        },
+        "max_grad_norm": false,
+        "mask_names": []
+    },
+    "half_precision": true,
+    "mesh": {
+        "data": 1,
+        "fsdp": 1,
+        "tensor": 1
+    },
+    "learner": "ICRL",
+    "dataset_name": "gymnax_ad",
+    "dataset_kwargs": {
+        "data_paths": [
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=0-ppo.pkl",
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=1-ppo.pkl",
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=2-ppo.pkl",
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=3-ppo.pkl",
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=4-ppo.pkl"
+        ],
+        "seq_len": 500
+    },
+    "shuffle_buffer_size": 100,
+    "num_workers": 4,
+    "batch_size": 64,
+    "objective": "mle",
+    "num_epochs": 300000,
+    "num_updates_per_epoch": 1,
+    "seeds": {
+        "seed": 0,
+        "learner_seed": 42,
+        "data_seed": 42
+    }
+}
