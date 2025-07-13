@@ -89,7 +89,7 @@ class DiscreteTimeLQR(environment.Environment[EnvState, EnvParams]):
         # Check number of steps in episode termination condition
         done_steps = state.time >= params.max_steps_in_episode
         done_threshold = jnp.all(jnp.abs(state.x) <= params.x_thres)
-        done_diverge = jnp.any(jnp.isnan(state.x))
+        done_diverge = jnp.any(jnp.abs(state.x) >= params.std_x * 10.0)
 
         done = jnp.logical_or(done_steps, done_threshold)
         done = jnp.logical_or(done, done_diverge)
@@ -106,7 +106,7 @@ class DiscreteTimeLQR(environment.Environment[EnvState, EnvParams]):
 
     def observation_space(self, params: EnvParams) -> spaces.Box:
         """Observation space of the environment."""
-        return spaces.Box(0.0, jnp.inf, (self.dim_x,), jnp.float32)
+        return spaces.Box(-jnp.inf, jnp.inf, (self.dim_x,), jnp.float32)
 
     def state_space(self, params: EnvParams) -> spaces.Dict:
         """State space of the environment."""

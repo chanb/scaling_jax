@@ -43,10 +43,7 @@
     "dataset_kwargs": {
         "data_paths": [
             "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=0-ppo.pkl",
-            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=1-ppo.pkl",
-            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=2-ppo.pkl",
-            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=3-ppo.pkl",
-            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=4-ppo.pkl"
+            "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=1-ppo.pkl"
         ],
         "seq_len": 500
     },
