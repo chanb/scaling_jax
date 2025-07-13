@@ -113,6 +113,9 @@ class GymnaxStitchDataset(IterableDataset):
             actions[replacement_idxes] = expert_data["actions"][task_id, expert_ep, :expert_ep_len]
             rewards[replacement_idxes] = expert_data["rewards"][task_id, expert_ep, :expert_ep_len]
 
+            if np.any(np.isnan(rewards)) or np.any(np.isnan(actions)):
+                continue
+
             # Only care about the last expert episode
             mask = np.ones_like(actions, dtype=np.float32)
             mask[:-expert_ep_len] = 0.0

@@ -11,6 +11,7 @@ import jax.numpy as jnp
 from flax import nnx
 from flax.training import train_state
 from functools import partial
+from gymnax.environments import spaces
 from typing import Any
 
 from src.models.gpt import InContextGPT
@@ -39,11 +40,17 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         "encode_strategy",
         False,
     )
+
+    act_dim = (
+        dataset.action_space.n
+        if isinstance(dataset.action_space, spaces.Discrete) else
+        dataset.action_space.shape[0]
+    )
     if encode_strategy:
         if encode_strategy == "bandit_ad":
             dependency_cls["encoder_cls"] = partial(
                 BanditADEncoder,
-                num_arms=dataset.action_space.n,
+                num_arms=act_dim,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 decode=False,
@@ -53,7 +60,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             dependency_cls["encoder_cls"] = partial(
                 RLDiscreteADEncoder,
                 state_dim=dataset.observation_space.shape[0],
-                num_actions=dataset.action_space.n,
+                num_actions=act_dim,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 decode=False,
@@ -64,7 +71,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             dependency_cls["encoder_cls"] = partial(
                 RLContinuousADEncoder,
                 state_dim=dataset.observation_space.shape[0],
-                num_actions=dataset.action_space.shape[0],
+                act_dim=act_dim,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 decode=False,
@@ -84,7 +91,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             dependency_cls["predictor_cls"] = partial(
                 ActionTokenLinearPredictor,
                 embed_dim=model_config.model_kwargs.embed_dim,
-                output_dim=dataset.action_space.n,
+                output_dim=act_dim,
                 skip_step=3,
                 rngs=rngs,
                 dtype=dtype,
@@ -93,7 +100,7 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             dependency_cls["predictor_cls"] = partial(
                 ActionTokenLinearPredictor,
                 embed_dim=model_config.model_kwargs.embed_dim,
-                output_dim=dataset.action_space.n,
+                output_dim=act_dim,
                 skip_step=4,
                 rngs=rngs,
                 dtype=dtype,

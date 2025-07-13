@@ -228,6 +228,9 @@ class GymnaxADDataset(IterableDataset):
                 start_idx : start_idx + self.seq_len
             ]
 
+            if np.any(np.isnan(rewards)) or np.any(np.isnan(actions)):
+                continue
+
             yield {
                 "state": states, # (seq_len,)
                 "action": actions, # (seq_len,)

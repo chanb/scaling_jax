@@ -53,7 +53,7 @@
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 64,
-    "objective": "mle",
+    "objective": "mse",
     "num_epochs": 300000,
     "num_updates_per_epoch": 1,
     "seeds": {

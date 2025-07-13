@@ -108,6 +108,9 @@ class GymnaxExPIDataset(IterableDataset):
             actions = buffer["action"][task_id][all_idxes]
             rewards = buffer["reward"][task_id][all_idxes]
 
+            if np.any(np.isnan(rewards)) or np.any(np.isnan(actions)):
+                continue
+
             yield {
                 "state": states, # (seq_len,)
                 "action": actions, # (seq_len,)

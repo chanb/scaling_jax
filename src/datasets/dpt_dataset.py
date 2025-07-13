@@ -193,6 +193,9 @@ class GymnaxDPTDataset(IterableDataset):
                 transition_idxes
             ]
 
+            if np.any(np.isnan(rewards)) or np.any(np.isnan(actions)):
+                continue
+
             # Only care about the last expert episode
             mask = np.ones_like(actions, dtype=np.float32)
 
