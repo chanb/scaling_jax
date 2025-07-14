@@ -30,8 +30,12 @@ from src.envs.lqr import (
 import src.evaluations.decoding as decoding
 
 
+X_THRES = 1e-2
+SIGMA_W = 0.0
+STD_X = 1.0
 MAX_STEPS_IN_EPISODE = 200
-NUM_ACTIONS = 2
+OBS_DIM = 3
+ACT_DIM = 3
 Dtype = Any
 Shape = tuple[int, ...]
 
@@ -43,8 +47,7 @@ class HasCache(Protocol):
 class EvalInfo(NamedTuple):
     episode_lengths: chex.Array
     episode_returns: chex.Array
-    action_counts: chex.Array
-    logits: chex.Array
+    act_means: chex.Array
 
 
 class StepState(NamedTuple):
@@ -53,11 +56,11 @@ class StepState(NamedTuple):
     env_params: EnvParams
     env_state: Any
     last_obs: chex.Array
-    logits: chex.Array
-    act_counts: chex.Array
+    act_means: chex.Array
     ep_done: bool = False
     ep_return: float = 0.0
     ep_length: int = 0
+
 
 class EvalState(NamedTuple):
     cache: Any
@@ -69,14 +72,11 @@ class EvalState(NamedTuple):
 class EvalConfig(NamedTuple):
     eval_episodes: int
     max_steps_in_episode: int
-    num_envs: int
-    sample_env_params: Callable
     deterministic_action: bool
     use_autoregressive: bool
     max_decode_len: int
 
 
-# TODO: Fix this
 def sample_env_params(key, dim_u, dim_x, num_seeds):
     env_params = {
         "A": [],
@@ -148,7 +148,7 @@ def make_model_funcs(
         model,
         eval_config.max_decode_len,
         observation_space.shape,
-        [],
+        [ACT_DIM,],
     )
 
 
@@ -156,9 +156,19 @@ def evaluate_single_env(
     rng: chex.PRNGKey,
     model: nnx.Module,
     env: environment.Environment,
+    env_params: EnvParams,
     eval_config: EvalConfig,
 ):
-    env_params = eval_config.sample_env_params(rng, 0)
+    env_params = EnvParams(
+        x_thres=X_THRES,
+        max_steps_in_episode=MAX_STEPS_IN_EPISODE,
+        sigma_w=SIGMA_W,
+        std_x=STD_X,
+        A=env_params["A"],
+        B=env_params["B"],
+        Q=env_params["Q"],
+        R=env_params["R"],
+    )
     decode, init_cache = make_model_funcs(
         model,
         env.observation_space(env_params),
@@ -169,15 +179,15 @@ def evaluate_single_env(
         def step(step_state: StepState):
             rng, rng_step = jax.random.split(step_state.rng, 2)
 
-            logits, cache = decode({"state": step_state.last_obs[None, None],}, step_state.cache)
-            logits = logits[:, -1]
+            act_mean, cache = decode({"state": step_state.last_obs[None, None],}, step_state.cache)
+            act_mean = act_mean[:, -1]
 
             action = jax.lax.cond(
                 eval_config.deterministic_action,
-                lambda rng_step, logits: jnp.argmax(logits, axis=-1),
-                jax.random.categorical,
+                lambda rng_step, act_mean: act_mean,
+                lambda rng_step, act_mean: act_mean + jax.random.normal(rng_step, shape=act_mean.shape) * 1e-5,
                 rng_step,
-                logits,
+                act_mean,
             )[0]
 
             obs, env_state, reward, done, _ = env.step(
@@ -192,11 +202,10 @@ def evaluate_single_env(
                 env_params=env_params,
                 env_state=env_state,
                 last_obs=obs,
-                logits=step_state.logits.at[step_state.ep_length].set(logits[0]),
+                act_means=step_state.act_means.at[step_state.ep_length].set(act_mean[0]),
                 ep_done=done,
                 ep_return=step_state.ep_return + reward.squeeze(),
                 ep_length=step_state.ep_length + 1,
-                act_counts=step_state.act_counts.at[action].set(step_state.act_counts[action] + 1),
             )
             return step_state
 
@@ -211,8 +220,7 @@ def evaluate_single_env(
             env_params=env_params,
             env_state=env_state,
             last_obs=obs,
-            logits=jnp.zeros((eval_config.max_steps_in_episode, NUM_ACTIONS)),
-            act_counts=jnp.zeros(NUM_ACTIONS),
+            act_means=jnp.zeros((eval_config.max_steps_in_episode, ACT_DIM)),
         )
         step_state = jax.lax.while_loop(
             lambda s: jnp.logical_and(
@@ -230,8 +238,7 @@ def evaluate_single_env(
             eval_info=EvalInfo(
                 episode_lengths=eval_state.eval_info.episode_lengths.at[ep_i].set(step_state.ep_length),
                 episode_returns=eval_state.eval_info.episode_returns.at[ep_i].set(step_state.ep_return),
-                action_counts=eval_state.eval_info.action_counts + step_state.act_counts,
-                logits=eval_state.eval_info.logits.at[ep_i].set(step_state.logits),
+                act_means=eval_state.eval_info.logits.at[ep_i].set(step_state.act_means),
             )
         )
 
@@ -246,11 +253,10 @@ def evaluate_single_env(
         eval_info=EvalInfo(
             episode_lengths=jnp.zeros(eval_episodes,),
             episode_returns=jnp.zeros(eval_episodes,),
-            action_counts=jnp.zeros(NUM_ACTIONS),
-            logits=jnp.zeros((
+            act_means=jnp.zeros((
                 eval_episodes,
                 eval_config.max_steps_in_episode,
-                NUM_ACTIONS,
+                ACT_DIM,
             )),
         )
     )
@@ -270,6 +276,7 @@ def evaluate(
     rng: chex.PRNGKey,
     model: nnx.Module,
     env: environment.Environment,
+    env_params: EnvParams,
     eval_config: EvalConfig,
 ) -> Tuple[chex.Array, chex.Array]:
     """
@@ -279,9 +286,9 @@ def evaluate(
     rngs = jax.random.split(rng, num_envs)
     vmap_evaluate_single_env = jax.vmap(
         evaluate_single_env,
-        in_axes=(0, None, None, None),
+        in_axes=(0, None, None, 0, None),
     )
-    return vmap_evaluate_single_env(rngs, model, env, eval_config)
+    return vmap_evaluate_single_env(rngs, model, env, env_params, eval_config)
 
 
 def main(
@@ -310,7 +317,7 @@ def main(
     rng = jax.random.PRNGKey(eval_seed)
     rng, _ = jax.random.split(rng)
 
-    env = DiscreteTimeLQR(dim_x=3, dim_u=3)
+    env = DiscreteTimeLQR(dim_x=OBS_DIM, dim_u=ACT_DIM)
 
     dtype = jnp.bfloat16 if half_precision else jnp.float32
 
@@ -330,11 +337,6 @@ def main(
     eval_config = EvalConfig(
         eval_episodes=eval_episodes,
         max_steps_in_episode=MAX_STEPS_IN_EPISODE,
-        num_envs=num_envs,
-        sample_env_params=partial(
-            sample_env_params,
-            max_steps_in_episode=MAX_STEPS_IN_EPISODE,
-        ),
         deterministic_action=deterministic_action,
         use_autoregressive=use_autoregressive,
         max_decode_len=max_decode_len,
@@ -344,6 +346,7 @@ def main(
         rng,
         model,
         env,
+        sample_env_params(rng, OBS_DIM, ACT_DIM, num_envs),
         eval_config,
     )
 
@@ -352,9 +355,8 @@ def main(
         {
             **{k: np.array(v) for k, v in eval_info._asdict().items()},
             "eval_config": {
-                k: v for k, v in eval_config._asdict().items() if k != "sample_env_params"
+                k: v for k, v in eval_config._asdict().items()
             },
-            "env_params": np.array(eval_state.env_params),
         },
         open(os.path.join(learner_path, "eval_info.dill"), "wb"),
     )
@@ -366,16 +368,9 @@ if __name__ == "__main__":
     parser.add_argument("--learner_path", type=str, required=True)
     args = parser.parse_args()
 
-    # base_path = "/home/bryanpu1/projects/aaai_2026/scaling_jax/results"
-    # algo_name = "cartpole_ad"
-    # run_name = "default-07-02-25_12_10_37-c8198893-1827-4a30-abe6-ad8ca9078f5f"
-
-    # algo_name = "cartpole_stitch"
-    # run_name = "default-07-03-25_14_10_38-9ac9cab7-fb92-40af-bd9b-c7eb4bd34fd6"
-
     eval_seed = 40
     num_envs = 5
-    eval_episodes = 500
+    eval_episodes = 100
     max_decode_len = 500
     deterministic_action = False
     use_autoregressive = False
