@@ -370,7 +370,7 @@ if __name__ == "__main__":
 
     eval_seed = 40
     num_envs = 5
-    eval_episodes = 100
+    eval_episodes = 500
     max_decode_len = 500
     deterministic_action = False
     use_autoregressive = False
