@@ -49,6 +49,7 @@ def make_decode_funcs(
     max_decode_len: int,
     obs_dim: chex.Array,
     act_dim: chex.Array,
+    act_dtype,
 ):
     def decode(batch, cache):
         new_cache = jax.lax.cond(
@@ -73,7 +74,7 @@ def make_decode_funcs(
             ),
             "action": jnp.zeros(
                 (1, max_decode_len, *act_dim),
-                dtype=int,
+                dtype=act_dtype,
             ),
             "reward": jnp.zeros(
                 (1, max_decode_len,)

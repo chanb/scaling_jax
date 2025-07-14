@@ -30,6 +30,7 @@ from src.envs.lqr import (
 import src.evaluations.decoding as decoding
 
 
+dtype = jnp.bfloat16
 X_THRES = 1e-2
 SIGMA_W = 0.0
 STD_X = 1.0
@@ -149,6 +150,7 @@ def make_model_funcs(
         eval_config.max_decode_len,
         observation_space.shape,
         [ACT_DIM,],
+        dtype,
     )
 
 
@@ -185,7 +187,7 @@ def evaluate_single_env(
             action = jax.lax.cond(
                 eval_config.deterministic_action,
                 lambda rng_step, act_mean: act_mean,
-                lambda rng_step, act_mean: act_mean + jax.random.normal(rng_step, shape=act_mean.shape) * 1e-5,
+                lambda rng_step, act_mean: (act_mean + jax.random.normal(rng_step, shape=act_mean.shape) * 1e-5).astype(dtype),
                 rng_step,
                 act_mean,
             )[0]
@@ -238,7 +240,7 @@ def evaluate_single_env(
             eval_info=EvalInfo(
                 episode_lengths=eval_state.eval_info.episode_lengths.at[ep_i].set(step_state.ep_length),
                 episode_returns=eval_state.eval_info.episode_returns.at[ep_i].set(step_state.ep_return),
-                act_means=eval_state.eval_info.logits.at[ep_i].set(step_state.act_means),
+                act_means=eval_state.eval_info.act_means.at[ep_i].set(step_state.act_means),
             )
         )
 
@@ -318,8 +320,6 @@ def main(
     rng, _ = jax.random.split(rng)
 
     env = DiscreteTimeLQR(dim_x=OBS_DIM, dim_u=ACT_DIM)
-
-    dtype = jnp.bfloat16 if half_precision else jnp.float32
 
     model.eval()
     model.set_attributes(deterministic=True, decode=use_autoregressive)

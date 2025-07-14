@@ -158,6 +158,7 @@ def make_model_funcs(
             jnp.zeros((eval_config.num_arms,))
         ).shape,
         [],
+        int,
     )
 
 

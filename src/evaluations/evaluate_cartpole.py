@@ -119,6 +119,7 @@ def make_model_funcs(
         eval_config.max_decode_len,
         observation_space.shape,
         [],
+        int,
     )
 
 
