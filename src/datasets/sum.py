@@ -231,6 +231,7 @@ class XOR(IterableDataset):
                     for token_id in bin_repr
                 ]
             elif self.sequence_type == "ic":
+                # XXX: The heldout here is bad mostly because it learned to flip the label of the query
                 while True:
                     new_t = sample_rng.randint(0, self.num_elements)
                     bin_repr = "{0:b}".format(new_t)
@@ -245,7 +246,7 @@ class XOR(IterableDataset):
 
                 sequence[-1] = new_t
 
-            target = sequence[:-1] + [xor_res + self.num_elements]
+            target = [xor_res + self.num_elements] * len(sequence)
             yield {
                 "sequence": np.array(sequence),
                 "target": np.array(target),

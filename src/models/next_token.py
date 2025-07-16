@@ -68,3 +68,51 @@ class TokenEmbedders(nnx.Module):
             outputs = output_seq @ self.token_unemb
 
         return outputs
+
+
+class VectoredEmbedders(nnx.Module):
+    def __init__(
+        self,
+        vec_dim: int,
+        embed_dim: int,
+        rngs: nnx.Rngs,
+        shared_decoding: bool = False,
+        decode: bool = False,
+        dtype=None,
+    ):
+        self.decode = decode
+        self.vec_dim = vec_dim
+        self.embed_dim = embed_dim
+        self.shared_decoding = shared_decoding
+
+        self.vec_emb = nnx.Param(
+            jrandom.uniform(rngs.params(), (vec_dim, embed_dim))
+        )
+
+        if not shared_decoding:
+            self.vec_unemb = nnx.Param(
+                jrandom.uniform(rngs.params(), (embed_dim, vec_dim))
+            )
+
+    def embed(
+        self,
+        batch: Any,
+        **kwargs,
+    ):
+        inputs = batch["sequence"]
+        input_tokens = inputs @ self.vec_emb
+        output_sequence = input_tokens
+
+        return output_sequence
+
+    def unembed(
+        self,
+        output_seq: chex.Array,
+        **kwargs
+    ):
+        if self.shared_decoding:
+            outputs = output_seq @ lax.stop_gradient(self.vec_emb.T)
+        else:
+            outputs = output_seq @ self.vec_unemb
+
+        return outputs

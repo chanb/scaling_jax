@@ -16,7 +16,8 @@ from typing import Any
 
 from src.models.gpt import InContextGPT
 from src.models.next_token import (
-    TokenEmbedders
+    TokenEmbedders,
+    VectoredEmbedders,
 )
 from src.models.rnn import InContextGRU
 from src.models.supervised import (
@@ -68,6 +69,16 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             dependency_cls["embedder_cls"] = partial(
                 TokenEmbedders,
                 num_tokens=dataset.output_space.n,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                rngs=rngs,
+                shared_decoding=model_config.model_kwargs.shared_decoding,
+                decode=False,
+                dtype=dtype,
+            )
+        elif embedder_strategy == "next_vector":
+            dependency_cls["embedder_cls"] = partial(
+                VectoredEmbedders,
+                vec_dim=dataset.output_space.shape[0],
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 shared_decoding=model_config.model_kwargs.shared_decoding,
