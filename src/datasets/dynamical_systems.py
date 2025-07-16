@@ -49,8 +49,9 @@ class LinearSystem(IterableDataset):
     def sample_dynamics(self):
         self.A = self._rng.randn(self.num_dims, self.num_dims)
 
-        if self.sequence_type == "heldout_A":
-            self.A = self._rng.randn(self.num_dims, self.num_dims)
+        if self.sequence_type.startswith("heldout_A"):
+            std = float(self.sequence_type.split(":")[-1])
+            self.A = self._rng.randn(self.num_dims, self.num_dims) * std
 
     def get_sequences(
         self,
@@ -65,10 +66,15 @@ class LinearSystem(IterableDataset):
                 shift = float(self.sequence_type.split(":")[1])
                 x_0 += shift
 
+            if self.sequence_type == "ic_only":
+                A = sample_rng.randn(self.num_dims, self.num_dims)
+            else:
+                A = self.A
+
             sequence = [x_0]
             for _ in range(self.context_len + 1):
                 sequence.append(
-                    self.A @ sequence[-1]
+                    A @ sequence[-1]
                 )
 
             yield {

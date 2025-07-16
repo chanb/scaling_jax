@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/linear_system_gpt",
-        "experiment_name": "linear_system",
+        "experiment_name": "linear_system-ic_only",
         "log_interval": 50,
         "checkpoint_interval": 50000,
         "validation_interval": 500
@@ -44,7 +44,7 @@
         "context_len": 1,
         "num_dims": 2,
         "train": true,
-        "sequence_type": "default"
+        "sequence_type": "ic_only"
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -75,13 +75,29 @@
             }
         },
         {
-            "validation_name": "heldout_A",
+            "validation_name": "heldout_A:1.0",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
                 "context_len": 1,
                 "num_dims": 2,
                 "train": true,
-                "sequence_type": "heldout_A"
+                "sequence_type": "heldout_A:1.0"
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "heldout_A:10.0",
+            "dataset_name": "linear_system",
+            "dataset_kwargs": {
+                "context_len": 1,
+                "num_dims": 2,
+                "train": true,
+                "sequence_type": "heldout_A:10.0"
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
