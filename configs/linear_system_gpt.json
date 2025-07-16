@@ -41,7 +41,7 @@
     "learner": "ICSL",
     "dataset_name": "linear_system",
     "dataset_kwargs": {
-        "context_len": 1,
+        "context_len": 2,
         "num_dims": 2,
         "train": true,
         "sequence_type": "ic_only"
@@ -62,7 +62,7 @@
             "validation_name": "heldout",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
-                "context_len": 1,
+                "context_len": 2,
                 "num_dims": 2,
                 "train": false,
                 "sequence_type": "default"
@@ -78,7 +78,7 @@
             "validation_name": "heldout_A:1.0",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
-                "context_len": 1,
+                "context_len": 2,
                 "num_dims": 2,
                 "train": true,
                 "sequence_type": "heldout_A:1.0"
@@ -94,7 +94,7 @@
             "validation_name": "heldout_A:10.0",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
-                "context_len": 1,
+                "context_len": 2,
                 "num_dims": 2,
                 "train": true,
                 "sequence_type": "heldout_A:10.0"
@@ -110,7 +110,7 @@
             "validation_name": "shifted_x:10.0",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
-                "context_len": 1,
+                "context_len": 2,
                 "num_dims": 2,
                 "train": true,
                 "sequence_type": "shifted_x:10.0"
@@ -126,7 +126,7 @@
             "validation_name": "shifted_x:1.0",
             "dataset_name": "linear_system",
             "dataset_kwargs": {
-                "context_len": 1,
+                "context_len": 2,
                 "num_dims": 2,
                 "train": true,
                 "sequence_type": "shifted_x:1.0"
