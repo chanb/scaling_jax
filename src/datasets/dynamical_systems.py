@@ -24,6 +24,7 @@ class LinearSystem(IterableDataset):
         train: bool,
         seed: int,
         sequence_type: str="default",
+        show_A: bool=False,
     ):
         assert context_len >= 0
         self.context_len = context_len
@@ -31,6 +32,7 @@ class LinearSystem(IterableDataset):
         self.train = train
         self.seed = seed
         self.sequence_type = sequence_type
+        self.show_A = show_A
 
         self._rng = np.random.RandomState(seed)
         self.sample_dynamics()
@@ -77,8 +79,11 @@ class LinearSystem(IterableDataset):
                     A @ sequence[-1]
                 )
 
+            if self.show_A:
+                sequence = list(A) + sequence
+
             yield {
                 "sequence": np.array(sequence[:-1]),
                 "target": np.array(sequence[1:]),
-                "mask": np.ones((len(sequence) - 1, self.num_dims)),
+                "mask": np.eye(len(sequence) - 1)[-1][:, None],
             }

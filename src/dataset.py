@@ -153,6 +153,7 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             dataset_kwargs.train,
             seed,
             dataset_kwargs.sequence_type,
+            dataset_kwargs.show_A,
         )
     else:
         raise NotImplementedError

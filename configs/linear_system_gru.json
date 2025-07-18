@@ -1,18 +1,15 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/linear_system",
-        "experiment_name": "gpt-contrastive",
+        "experiment_name": "gru-wd_1e-3",
         "log_interval": 50,
         "checkpoint_interval": 50000,
         "validation_interval": 500
     },
     "model_config": {
-        "architecture": "InContextGPT",
+        "architecture": "InContextGRU",
         "model_kwargs": {
-            "num_blocks": 2,
-            "num_heads": 2,
             "embed_dim": 64,
-            "widening_factor": 4,
             "embedder_strategy": "next_vector",
             "shared_decoding": true,
             "use_sink_token": false
@@ -27,7 +24,7 @@
             }
         },
         "opt_kwargs": {
-            "weight_decay": 0.0
+            "weight_decay": 1e-3
         },
         "max_grad_norm": false,
         "mask_names": []
@@ -50,7 +47,7 @@
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 32,
-    "objective": "contrastive",
+    "objective": "mse",
     "num_epochs": 500000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -58,7 +55,6 @@
         "learner_seed": 42,
         "data_seed": 42
     },
-    "val_objective": "mse",
     "validate": [
         {
             "validation_name": "heldout",

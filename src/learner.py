@@ -114,6 +114,28 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             }
 
         return mse
+    elif objective == "contrastive":
+        def mse(params, rest, batch):
+            targets = batch["target"][:, [-1]]
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            preds = model(batch)[:, [-1]]
+            contextless_preds = model({
+                "sequence": batch["sequence"][:, [-1]]
+            })
+
+            pos_loss = optax.squared_error(preds, targets)
+            neg_loss = -optax.squared_error(contextless_preds, targets)
+
+            return jnp.mean(pos_loss + neg_loss), {
+                CONST_TRAIN: {
+                    "pos_loss": jnp.mean(pos_loss),
+                    "neg_loss": jnp.mean(neg_loss),
+                },
+                CONST_HIST: {},
+            }
+
+        return mse
     else:
         raise NotImplementedError
 
@@ -301,9 +323,15 @@ class ICSL:
             for validation_config in self._config.validate
         }
 
+        self._val_loss = initialize_loss_fn(
+            self._config.val_objective,
+            self._state.graphdef,
+            getattr(self._config, "one_hot", False),
+        )
+
         @nnx.jit
         def _compute_metrics(state, batch):
-            agg_loss, aux = self._loss(
+            agg_loss, aux = self._val_loss(
                 state.params,
                 state.rest,
                 batch,
