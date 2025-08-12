@@ -24,14 +24,12 @@ class GymnaxStitchDataset(IterableDataset):
         data_paths: list[str],
         seq_len: int,
         seed: int,
-        use_dpt: bool = False,
         all_token_pred: bool = False,
     ):
         self.seq_len = seq_len
         self.data_paths = data_paths
         self.num_data_paths = len(data_paths)
         self.seed = seed
-        self.use_dpt = use_dpt
         self.all_token_pred = all_token_pred
         self._rng = np.random.RandomState(seed)
 
@@ -73,12 +71,12 @@ class GymnaxStitchDataset(IterableDataset):
 
     def get_sequences(self):
         if self.all_token_pred:
-            def generate_mask(actions):
+            def generate_mask(actions, expert_ep_len):
                 return np.ones_like(actions, dtype=np.float32)
         else:
-            def generate_mask(actions):
+            def generate_mask(actions, expert_ep_len):
                 mask = np.zeros_like(actions, dtype=np.float32)
-                mask[-1] = 1.0
+                mask[-expert_ep_len:] = 1.0
                 return mask
         while True:
 
@@ -99,14 +97,9 @@ class GymnaxStitchDataset(IterableDataset):
                 transition_idxes
             ]
 
-            if self.use_dpt:
-                actions = buffer["expert_action"][task_id][
-                    transition_idxes
-                ]
-            else:
-                actions = buffer["action"][task_id][
-                    transition_idxes
-                ]
+            actions = buffer["action"][task_id][
+                transition_idxes
+            ]
 
             rewards = buffer["reward"][task_id][
                 transition_idxes
@@ -133,7 +126,7 @@ class GymnaxStitchDataset(IterableDataset):
                 continue
 
             # Only care about the last expert episode
-            mask = generate_mask(actions)
+            mask = generate_mask(actions, expert_ep_len)
 
             yield {
                 "state": states, # (seq_len,)

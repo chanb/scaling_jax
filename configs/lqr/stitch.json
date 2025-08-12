@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/lqr",
-        "experiment_name": "stitch_predict_all",
+        "experiment_name": "stitch-predict_last_traj",
         "log_interval": 50,
         "checkpoint_interval": 50000
     },
@@ -45,7 +45,8 @@
             "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=0-ppo.pkl",
             "/home/bryanpu1/projects/aaai_2026/data/lqr/learning_hist-lqr-horizon=200-num_tasks=1000-seed=1-ppo.pkl"
         ],
-        "seq_len": 500
+        "seq_len": 500,
+        "all_token_pred": false
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
