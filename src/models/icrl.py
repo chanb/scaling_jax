@@ -308,6 +308,9 @@ class RLContinuousADEncoder(nnx.Module):
         return output_sequence
 
 
+# TODO: Combine S, A, R, S' for encoder to reduce tokens
+
+
 class ActionTokenLinearPredictor(nnx.Module):
     def __init__(
         self,

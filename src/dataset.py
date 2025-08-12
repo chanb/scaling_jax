@@ -77,6 +77,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.cut_off,
             dataset_kwargs.use_buffer,
             config.seeds.data_seed,
+            getattr(dataset_kwargs, "all_token_pred", False),
         )
     elif dataset_name == "gymnax_ad":
         dataset = GymnaxADDataset(
@@ -89,12 +90,15 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
             dataset_kwargs.data_paths,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,
+            getattr(dataset_kwargs, "use_dpt", False),
+            getattr(dataset_kwargs, "all_token_pred", False),
         )
     elif dataset_name == "gymnax_dpt":
         dataset = GymnaxDPTDataset(
             dataset_kwargs.data_paths,
             dataset_kwargs.seq_len,
             config.seeds.data_seed,
+            getattr(dataset_kwargs, "all_token_pred", False),
         )
     elif dataset_name == "gymnax_expi":
         dataset = GymnaxExPIDataset(

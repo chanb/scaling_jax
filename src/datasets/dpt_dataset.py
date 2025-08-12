@@ -27,12 +27,14 @@ class BanditDPTDataset(IterableDataset):
         cut_off: int,
         use_buffer: bool,
         seed: int,
+        all_token_pred: bool = False,
     ):
         self.seq_len = seq_len
         self.data_path = data_path
         self.cut_off = cut_off
         self.seed = seed
         self.use_buffer = use_buffer
+        self.all_token_pred = all_token_pred
         self._rng = np.random.RandomState(seed)
 
         with open(data_path, "rb") as f:
@@ -61,6 +63,15 @@ class BanditDPTDataset(IterableDataset):
         return iter(self.get_sequences())
 
     def make_sample_from_buffer(self):
+        if self.all_token_pred:
+            def generate_mask(actions):
+                return np.ones_like(actions, dtype=np.float32)
+        else:
+            def generate_mask(actions):
+                mask = np.zeros_like(actions, dtype=np.float32)
+                mask[-1] = 1.0
+                return mask
+
         def sample_from_buffer():
             while True:
                 task_id = self._rng.choice(self.task_ids)
@@ -78,7 +89,7 @@ class BanditDPTDataset(IterableDataset):
                         actions,
                         fill_value=self.best_actions[task_id]
                     ), # (seq_len,)
-                    "mask": np.ones_like(actions, dtype=np.float32),  # Mask for the sequence
+                    "mask": generate_mask(actions),  # Mask for the sequence
                 }
         return sample_from_buffer()
 
@@ -128,11 +139,13 @@ class GymnaxDPTDataset(IterableDataset):
         data_paths: list[str],
         seq_len: int,
         seed: int,
+        all_token_pred: bool = False,
     ):
         self.seq_len = seq_len
         self.data_paths = data_paths
         self.num_data_paths = len(data_paths)
         self.seed = seed
+        self.all_token_pred = all_token_pred
         self._rng = np.random.RandomState(seed)
 
         self.data_infos = []
@@ -171,6 +184,15 @@ class GymnaxDPTDataset(IterableDataset):
         return iter(self.get_sequences())
 
     def get_sequences(self):
+        if self.all_token_pred:
+            def generate_mask(actions):
+                return np.ones_like(actions, dtype=np.float32)
+        else:
+            def generate_mask(actions):
+                mask = np.zeros_like(actions, dtype=np.float32)
+                mask[-1] = 1.0
+                return mask
+
         while True:
             data_path_id = self._rng.randint(self.num_data_paths)
             data_info = self.data_infos[data_path_id]
@@ -197,7 +219,7 @@ class GymnaxDPTDataset(IterableDataset):
                 continue
 
             # Only care about the last expert episode
-            mask = np.ones_like(actions, dtype=np.float32)
+            mask = generate_mask(actions)
 
             yield {
                 "state": states, # (seq_len,)

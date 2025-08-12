@@ -24,11 +24,15 @@ class GymnaxStitchDataset(IterableDataset):
         data_paths: list[str],
         seq_len: int,
         seed: int,
+        use_dpt: bool = False,
+        all_token_pred: bool = False,
     ):
         self.seq_len = seq_len
         self.data_paths = data_paths
         self.num_data_paths = len(data_paths)
         self.seed = seed
+        self.use_dpt = use_dpt
+        self.all_token_pred = all_token_pred
         self._rng = np.random.RandomState(seed)
 
         self.data_infos = []
@@ -68,14 +72,19 @@ class GymnaxStitchDataset(IterableDataset):
         return iter(self.get_sequences())
 
     def get_sequences(self):
+        if self.all_token_pred:
+            def generate_mask(actions):
+                return np.ones_like(actions, dtype=np.float32)
+        else:
+            def generate_mask(actions):
+                mask = np.zeros_like(actions, dtype=np.float32)
+                mask[-1] = 1.0
+                return mask
         while True:
 
             """
             TODO:
             Include next state
-
-            TODO:
-            Eval for Gymnax env
             """
             data_path_id = self._rng.randint(self.num_data_paths)
             data_info = self.data_infos[data_path_id]
@@ -89,9 +98,16 @@ class GymnaxStitchDataset(IterableDataset):
             states = buffer["obs"][task_id][
                 transition_idxes
             ]
-            actions = buffer["action"][task_id][
-                transition_idxes
-            ]
+
+            if self.use_dpt:
+                actions = buffer["expert_action"][task_id][
+                    transition_idxes
+                ]
+            else:
+                actions = buffer["action"][task_id][
+                    transition_idxes
+                ]
+
             rewards = buffer["reward"][task_id][
                 transition_idxes
             ]
@@ -117,8 +133,7 @@ class GymnaxStitchDataset(IterableDataset):
                 continue
 
             # Only care about the last expert episode
-            mask = np.ones_like(actions, dtype=np.float32)
-            mask[:-expert_ep_len] = 0.0
+            mask = generate_mask(actions)
 
             yield {
                 "state": states, # (seq_len,)

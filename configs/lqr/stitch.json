@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/aaai_2026/scaling_jax/results/lqr",
-        "experiment_name": "stitch",
+        "experiment_name": "stitch_predict_all",
         "log_interval": 50,
         "checkpoint_interval": 50000
     },

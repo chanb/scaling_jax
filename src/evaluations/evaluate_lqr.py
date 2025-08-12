@@ -78,6 +78,7 @@ class EvalConfig(NamedTuple):
     max_decode_len: int
 
 
+# DEFAULT
 def sample_env_params(key, dim_u, dim_x, num_seeds):
     env_params = {
         "A": [],
@@ -342,11 +343,12 @@ def main(
         max_decode_len=max_decode_len,
     )
 
+    env_params = sample_env_params(rng, OBS_DIM, ACT_DIM, num_envs)
     eval_state = evaluate(
         rng,
         model,
         env,
-        sample_env_params(rng, OBS_DIM, ACT_DIM, num_envs),
+        env_params,
         eval_config,
     )
 
@@ -357,6 +359,7 @@ def main(
             "eval_config": {
                 k: v for k, v in eval_config._asdict().items()
             },
+            "env_params": env_params,
         },
         open(os.path.join(learner_path, "eval_info.dill"), "wb"),
     )
