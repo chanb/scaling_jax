@@ -118,6 +118,17 @@ class Addition(IterableDataset):
                     "target": np.array(sequence)[1:],
                     "mask": mask,
                 }
+            elif self.sequence_type == "cot":
+                sequence = sequence + [3] + soln_list_repr[::-1] + [3] + soln_list_repr
+                sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+                mask = np.zeros(len(sequence) - 1)
+                mask[question_len:] = 1
+        
+                yield {
+                    "sequence": np.array(sequence)[:-1],
+                    "target": np.array(sequence)[1:],
+                    "mask": mask,
+                }
             elif self.sequence_type == "question_only":
                 sequence = sequence + [3]
                 mask = np.ones(len(soln_list_repr))
