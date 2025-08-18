@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition",
-        "experiment_name": "max_int_8",
+        "experiment_name": "right_to_left-max_int_32",
         "log_interval": 50,
         "checkpoint_interval": 10000,
         "validation_interval": 500
@@ -43,10 +43,11 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 64,
-        "max_int": 8,
+        "max_int": 32,
         "train": true,
         "train_val_ratio": 0.5,
-        "sequence_type": "default"
+        "sequence_type": "default",
+        "right_to_left": true
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -66,10 +67,11 @@
             "dataset_name": "addition",
             "dataset_kwargs": {
                 "context_len": 64,
-                "max_int": 8,
+                "max_int": 32,
                 "train": false,
                 "train_val_ratio": 0.5,
-                "sequence_type": "default"
+                "sequence_type": "default",
+                "right_to_left": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -83,10 +85,11 @@
             "dataset_name": "addition",
             "dataset_kwargs": {
                 "context_len": 64,
-                "max_int": 16,
+                "max_int": 64,
                 "train": true,
                 "train_val_ratio": 0.9,
-                "sequence_type": "default"
+                "sequence_type": "default",
+                "right_to_left": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

@@ -22,6 +22,7 @@ class Addition(IterableDataset):
         seed: int,
         sequence_type: str="default",
         train_val_ratio: float=0.8,
+        right_to_left: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -32,6 +33,7 @@ class Addition(IterableDataset):
         self.seed = seed
         self.sequence_type = sequence_type
         self.train_val_ratio = train_val_ratio
+        self.right_to_left = right_to_left
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
@@ -83,21 +85,30 @@ class Addition(IterableDataset):
             first_bin_repr = first_bin_repr.rjust(max_len, "0")
             second_bin_repr = second_bin_repr.rjust(max_len, "0")
 
-            sequence = [
+            first_list_repr = [
                 int(token_id)
                 for token_id in first_bin_repr
-            ] + [2] + [
+            ]
+            second_list_repr = [
                 int(token_id)
                 for token_id in second_bin_repr
             ]
+            soln_list_repr = [
+                int(token_id)
+                for token_id in soln_bin_repr
+            ]
+
+            if self.right_to_left:
+                first_list_repr = first_list_repr[::-1]
+                second_list_repr = second_list_repr[::-1]
+                soln_list_repr = soln_list_repr[::-1]
+
+            sequence = first_list_repr + [2] + second_list_repr
 
             question_len = len(sequence)
             
             if self.sequence_type == "default":
-                sequence = sequence + [3] + [
-                    int(token_id)
-                    for token_id in soln_bin_repr
-                ]
+                sequence = sequence + [3] + soln_list_repr
                 sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
                 mask = np.zeros(len(sequence) - 1)
                 mask[question_len:] = 1
@@ -109,14 +120,10 @@ class Addition(IterableDataset):
                 }
             elif self.sequence_type == "question_only":
                 sequence = sequence + [3]
-                soln = [
-                    int(token_id)
-                    for token_id in soln_bin_repr
-                ]
-                mask = np.ones(len(soln))
+                mask = np.ones(len(soln_list_repr))
                 yield {
                     "sequence": np.array(sequence),
-                    "target": np.array(soln),
+                    "target": np.array(soln_list_repr),
                     "mask": mask,
                 }
 
