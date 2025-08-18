@@ -12,6 +12,115 @@ from torch.utils.data import IterableDataset
 
 import numpy as np
 
+
+class Addition(IterableDataset):
+    def __init__(
+        self,
+        context_len: int,
+        max_int: int,
+        train: bool,
+        seed: int,
+        sequence_type: str="default",
+        train_val_ratio: float=0.8,
+    ):
+        assert context_len > 0
+        assert max_int > 0
+        assert 0 < train_val_ratio < 1
+        self.context_len = context_len
+        self.max_int = max_int
+        self.train = train
+        self.seed = seed
+        self.sequence_type = sequence_type
+        self.train_val_ratio = train_val_ratio
+
+        self._rng = np.random.RandomState(seed)
+        self.get_train_sequences()
+
+    @property
+    def input_space(self):
+        # 0, 1, <PLUS>, <EQUAL>, <EOS>
+        return spaces.Discrete(5)
+
+    @property
+    def output_space(self):
+        return spaces.Discrete(5)
+
+    def __iter__(self):
+        return iter(self.get_sequences())
+
+    def get_train_sequences(self):
+        self.num_pairs = self.max_int ** 2
+
+        # Permute IDs, first partition is for train and second partition is for test
+        self.sequence_indices = self._rng.permutation(self.num_pairs)
+        num_train = int(np.floor(self.num_pairs * self.train_val_ratio))
+
+        if self.train:
+            self.sequence_indices = self.sequence_indices[:num_train]
+        else:
+            self.sequence_indices = self.sequence_indices[num_train:]
+
+    def get_sequences(
+        self,
+    ):
+        sample_rng = np.random.RandomState(
+            self._rng.randint(0, 2**16) + int(self.train)
+        )
+        while True:
+            t = sample_rng.choice(self.sequence_indices)
+
+            # Assume equal length for both integers for now
+            first_int = t // self.max_int
+            second_int = t % self.max_int
+            soln = first_int + second_int
+
+            first_bin_repr = "{0:b}".format(first_int)
+            second_bin_repr = "{0:b}".format(second_int)
+            soln_bin_repr = "{0:b}".format(soln)
+
+
+            max_len = max(len(first_bin_repr), len(second_bin_repr))
+            first_bin_repr = first_bin_repr.rjust(max_len, "0")
+            second_bin_repr = second_bin_repr.rjust(max_len, "0")
+
+            sequence = [
+                int(token_id)
+                for token_id in first_bin_repr
+            ] + [2] + [
+                int(token_id)
+                for token_id in second_bin_repr
+            ]
+
+            question_len = len(sequence)
+            
+            if self.sequence_type == "default":
+                sequence = sequence + [3] + [
+                    int(token_id)
+                    for token_id in soln_bin_repr
+                ]
+                sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+                mask = np.zeros(len(sequence) - 1)
+                mask[question_len:] = 1
+        
+                yield {
+                    "sequence": np.array(sequence)[:-1],
+                    "target": np.array(sequence)[1:],
+                    "mask": mask,
+                }
+            elif self.sequence_type == "question_only":
+                sequence = sequence + [3]
+                soln = [
+                    int(token_id)
+                    for token_id in soln_bin_repr
+                ]
+                mask = np.ones(len(soln))
+                yield {
+                    "sequence": np.array(sequence),
+                    "target": np.array(soln),
+                    "mask": mask,
+                }
+
+
 """
 TODO:
 Context sequence:

@@ -135,6 +135,16 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             dataset_kwargs.train_val_ratio,
             dataset_kwargs.include_boundary,
         )
+    elif dataset_name == "addition":
+        from src.datasets.sum import Addition
+        dataset = Addition(
+            dataset_kwargs.context_len,
+            dataset_kwargs.max_int,
+            dataset_kwargs.train,
+            seed,
+            dataset_kwargs.sequence_type,
+            dataset_kwargs.train_val_ratio,
+        )
     elif dataset_name == "xor":
         from src.datasets.sum import XOR
         dataset = XOR(

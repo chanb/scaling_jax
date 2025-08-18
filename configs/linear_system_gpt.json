@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/linear_system",
-        "experiment_name": "gpt-contrastive",
+        "experiment_name": "gpt-contrastive_clip",
         "log_interval": 50,
         "checkpoint_interval": 50000,
         "validation_interval": 500

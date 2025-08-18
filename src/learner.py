@@ -115,7 +115,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
 
         return mse
     elif objective == "contrastive":
-        def mse(params, rest, batch):
+        def contrastive(params, rest, batch):
             targets = batch["target"][:, [-1]]
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -125,7 +125,11 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             })
 
             pos_loss = optax.squared_error(preds, targets)
-            neg_loss = -optax.squared_error(contextless_preds, targets)
+            neg_loss = -jnp.clip(
+                optax.squared_error(contextless_preds, targets),
+                a_min=0.0,
+                a_max=1.0,
+            )
 
             return jnp.mean(pos_loss + neg_loss), {
                 CONST_TRAIN: {
@@ -135,7 +139,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
                 CONST_HIST: {},
             }
 
-        return mse
+        return contrastive   
     else:
         raise NotImplementedError
 

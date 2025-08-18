@@ -12,10 +12,6 @@ from torch.utils.data import IterableDataset
 
 import numpy as np
 
-"""
-TODO:
-- x' = Ax
-"""
 class LinearSystem(IterableDataset):
     def __init__(
         self,
