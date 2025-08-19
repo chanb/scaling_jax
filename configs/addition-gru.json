@@ -1,18 +1,15 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition",
-        "experiment_name": "cot-max_int_32",
+        "experiment_name": "gru-right_to_left-max_int_32",
         "log_interval": 50,
         "checkpoint_interval": 10000,
         "validation_interval": 500
     },
     "model_config": {
-        "architecture": "InContextGPT",
+        "architecture": "InContextGRU",
         "model_kwargs": {
-            "num_blocks": 2,
-            "num_heads": 2,
             "embed_dim": 64,
-            "widening_factor": 4,
             "embedder_strategy": "next_token",
             "shared_decoding": true,
             "use_sink_token": false
@@ -45,8 +42,8 @@
         "max_int": 32,
         "train": true,
         "train_val_ratio": 0.5,
-        "sequence_type": "cot",
-        "right_to_left": false
+        "sequence_type": "default",
+        "right_to_left": true
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
@@ -70,7 +67,7 @@
                 "train": false,
                 "train_val_ratio": 0.5,
                 "sequence_type": "cot",
-                "right_to_left": false
+                "right_to_left": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -88,7 +85,7 @@
                 "train": true,
                 "train_val_ratio": 0.9,
                 "sequence_type": "cot",
-                "right_to_left": false
+                "right_to_left": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
