@@ -149,6 +149,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             actions = batch["sequence"]
             returns = batch["returns"]
             mask = batch["mask"]
+            entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -160,9 +161,12 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
 
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
-            return -jnp.sum(lprobs * returns * mask) / jnp.sum(mask), {
+
+            reinforce_loss = -jnp.sum(lprobs * returns * mask) / jnp.sum(mask)
+            entropy_loss = -jnp.sum(entropy * mask) / jnp.sum(mask)
+            return reinforce_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
-                    "entropy": jnp.sum(entropy * mask) / jnp.sum(mask)
+                    "entropy": entropy_loss,
                 },
                 CONST_HIST: {},
             }
@@ -338,6 +342,7 @@ class ReinforcementLearner(Learner):
             batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             returns, successes, response_lengths = self.compute_returns(batch)
             batch["returns"] = returns
+            batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
