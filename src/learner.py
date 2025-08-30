@@ -450,6 +450,7 @@ class ReinforcementLearner(Learner):
         returns = np.zeros(batch["sequence"].shape)
         response_lengths = np.zeros(batch["sequence"].shape[0])
         successes = np.zeros(batch["sequence"].shape[0])
+
         for sample_i, (response, target, mask) in enumerate(
             zip(batch["sequence"], batch["target"], batch["mask"])
         ):
