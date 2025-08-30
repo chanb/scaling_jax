@@ -341,7 +341,12 @@ class ReinforcementLearner(Learner):
             batch["sequence"] = responses
             batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             returns, successes, response_lengths = self.compute_returns(batch)
-            batch["returns"] = returns
+
+            if getattr(self._config, "negative_reward", False):
+                batch["returns"] = returns - 1
+            else:
+                batch["returns"] = returns
+
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
 
