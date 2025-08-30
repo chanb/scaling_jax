@@ -420,7 +420,7 @@ class ReinforcementLearner(Learner):
                 )
 
                 batch["sequence"] = responses
-                batch["mask"] = np.logical_or(eos_mask, is_prompt_mask)
+                batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
                 _, successes, response_lengths = self.compute_returns(batch)
 
                 validation_time = timeit.default_timer() - tic
@@ -459,12 +459,12 @@ class ReinforcementLearner(Learner):
             else:
                 response = "".join(np.array(response).astype(str))
 
-            response_length = np.sum(1 - mask)
+            response_length = np.sum(mask)
             success = float(target in response)
 
             response_lengths[sample_i] = response_length
             successes[sample_i] = success
-            returns[sample_i][np.where(1 - mask)[0]] = (
+            returns[sample_i][np.where(mask)[0]] = (
                 self._config.gamma ** np.arange(response_length)[::-1] * success
             )
         return returns, successes, response_lengths
