@@ -12,6 +12,7 @@ from types import SimpleNamespace
 from typing import Any, Dict, Sequence
 
 import chex
+import dill
 import jax
 import jax.nn as nn
 import jax.numpy as jnp
@@ -197,6 +198,7 @@ class Learner:
             getattr(self._config, "one_hot", False),
         )
         self.train_step = nnx.jit(self.make_train_step())
+        self.make_validate_step()
 
     def close(self):
         del self.ds
@@ -244,6 +246,23 @@ class Learner:
             ),
             self._config.optimizer_config,
         )
+
+        if hasattr(self._config, "load_checkpoint"):
+            load_path, checkpoint_i = self._config.load_checkpoint.split(":")
+            all_steps = sorted(os.listdir(os.path.join(load_path, "models")))
+            if checkpoint_i == "latest":
+                step = all_steps[-1]
+            else:
+                step = np.argmin(
+                    np.abs(
+                        np.array([int(step.split(".")[0]) for step in all_steps])
+                        - int(checkpoint_i)
+                    )
+                )
+                step = all_steps[step]
+
+            print("Loading checkpoint {} at step {}".format(load_path, step))
+            self._state = dill.load(open(os.path.join(load_path, "models", step), "rb"))
 
     def get_batch(self):
         batch = next(self.ds)
@@ -364,6 +383,64 @@ class ReinforcementLearner(Learner):
         else:
             gather_learning_rate(aux, CONST_MODEL, self._state.opt_state)
         return log
+    
+    def make_validate_step(self):
+        if not hasattr(self._config, "validation"):
+            print("No validation")
+            return
+
+        self.val_dss = {
+            validation_config["validation_name"]: get_data_loader(
+                parse_dict(validation_config),
+                self.data_sharding,
+                self.dtype,
+            )[0]
+            for validation_config in self._config.validation
+        }
+
+        def validate_step(epoch: int):
+            log = dict()
+            curr_rng = jrandom.fold_in(self._rng, epoch)
+
+            for validation_name, val_ds in self.val_dss.items():
+                tic = timeit.default_timer()
+                batch = next(val_ds)
+                batch = jax.device_put(batch, self.data_sharding)
+
+                decode, init_cache = make_autoregressive(
+                    self.model,
+                    max_decode_len=batch["sequence"].shape[1],
+                    batch_size=batch["sequence"].shape[0],
+                    embed_dim=self._config.model_config.model_kwargs.embed_dim,
+                    dtype=self.dtype,
+                    eval_mode=False,
+                )
+                (responses, eos_mask, is_prompt_mask) = rollout(
+                    curr_rng,
+                    batch,
+                    decode,
+                    init_cache,
+                    eos_token=EOS_TOKEN,
+                )
+
+                batch["sequence"] = responses
+                batch["mask"] = np.logical_or(eos_mask, is_prompt_mask)
+                _, successes, response_lengths = self.compute_returns(batch)
+
+                validation_time = timeit.default_timer() - tic
+
+                log[f"time/validation-{validation_name}"] = validation_time
+                aux = {
+                    CONST_SUCCESS_RATE: np.mean(successes),
+                    CONST_RESPONSE_LENGTH: np.mean(response_lengths),
+                }
+                log.update({
+                    f"validation-{validation_name}/{k}": v for k, v in aux.items()
+                })
+
+            return log
+
+        self.validation_step = validate_step
 
     def compute_returns(self, batch):
         # Compute verifiable rewards
@@ -406,7 +483,6 @@ class ICSL(Learner):
         config: SimpleNamespace,
     ):
         super().__init__(config=config)
-        self.make_validate_step()
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         """

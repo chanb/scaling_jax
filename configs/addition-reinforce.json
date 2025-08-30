@@ -52,12 +52,51 @@
     "num_workers": 4,
     "objective": "reinforce",
     "gamma": 0.9999,
-    "batch_size": 2,
+    "batch_size": 32,
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
         "data_seed": 42
-    }
+    },
+    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition/gru-cot-max_int_32-08-19-25_11_14_35-c2cd8587-d274-449c-a72f-0020f183466e:latest",
+    "validation": [
+        {
+            "validation_name": "heldout",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 64,
+                "max_int": 32,
+                "train": false,
+                "train_val_ratio": 0.5,
+                "sequence_type": "question_only",
+                "right_to_left": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 64,
+                "max_int": 128,
+                "train": false,
+                "train_val_ratio": 0.5,
+                "sequence_type": "question_only",
+                "right_to_left": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 32,
+            "seeds": {
+                "data_seed": 42
+            }
+        }
+    ]
 }
