@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/test_rl",
-        "experiment_name": "rl",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition",
+        "experiment_name": "reinforce_finetuning",
         "log_interval": 50,
         "checkpoint_interval": 10000,
         "validation_interval": 50

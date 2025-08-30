@@ -157,9 +157,12 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             lprobs = jnp.sum(
                 nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
             ) - nn.logsumexp(logits, axis=-1)
+
+            probs = nn.softmax(logits, axis=-1)
+            entropy = optax.softmax_cross_entropy(logits, probs)
             return -jnp.sum(lprobs * returns * mask) / jnp.sum(mask), {
                 CONST_TRAIN: {
-
+                    "entropy": jnp.sum(entropy * mask) / jnp.sum(mask)
                 },
                 CONST_HIST: {},
             }
@@ -332,7 +335,7 @@ class ReinforcementLearner(Learner):
             )
 
             batch["sequence"] = responses
-            batch["mask"] = np.logical_or(eos_mask, is_prompt_mask)
+            batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             returns, successes, response_lengths = self.compute_returns(batch)
             batch["returns"] = returns
             total_rollout_time += timeit.default_timer() - tic
