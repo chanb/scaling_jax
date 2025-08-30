@@ -204,13 +204,6 @@ class Learner:
         del self.ds
 
     @property
-    def model(self):
-        """
-        Model
-        """
-        return self._model
-
-    @property
     def state(self):
         """
         Model states
@@ -235,7 +228,7 @@ class Learner:
             dtype=dtype,
         )
 
-        self._model, self._state, self._state_sharding = construct_sharded_model(
+        self._state, self._state_sharding = construct_sharded_model(
             self.data_mesh,
             model_cls,
             dict(
@@ -323,12 +316,12 @@ class ReinforcementLearner(Learner):
 
             tic = timeit.default_timer()
             decode, init_cache = make_autoregressive(
-                self.model,
+                nnx.merge(self.state.graphdef, self.state.params, self.state.rest),
                 max_decode_len=batch["sequence"].shape[1],
                 batch_size=batch["sequence"].shape[0],
                 embed_dim=self._config.model_config.model_kwargs.embed_dim,
                 dtype=self.dtype,
-                eval_mode=False,
+                eval_mode=True,
             )
             (responses, eos_mask, is_prompt_mask) = rollout(
                 curr_rng,
@@ -408,12 +401,12 @@ class ReinforcementLearner(Learner):
                 batch = jax.device_put(batch, self.data_sharding)
 
                 decode, init_cache = make_autoregressive(
-                    self.model,
+                    nnx.merge(self.state.graphdef, self.state.params, self.state.rest),
                     max_decode_len=batch["sequence"].shape[1],
                     batch_size=batch["sequence"].shape[0],
                     embed_dim=self._config.model_config.model_kwargs.embed_dim,
                     dtype=self.dtype,
-                    eval_mode=False,
+                    eval_mode=True,
                 )
                 (responses, eos_mask, is_prompt_mask) = rollout(
                     curr_rng,

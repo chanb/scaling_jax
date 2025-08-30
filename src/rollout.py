@@ -19,7 +19,7 @@ class StepState(NamedTuple):
     cache: Any
     rng: chex.PRNGKey
     sequence: chex.Array
-    take_prediction: chex.Array
+    is_prompt: chex.Array
     eos: chex.Array
     step_i: int = 0
 
@@ -51,12 +51,12 @@ def predict_step(
     output_tokens = jrandom.categorical(rng_step, logits)
 
     # Check for prompt boundary
-    take_prediction = step_state.take_prediction[:, step_i]
+    is_prompt = step_state.is_prompt[:, step_i]
 
     output_tokens = jnp.where(
-        take_prediction,
+        is_prompt,
         step_state.sequence[:, step_i + 1],
-        output_tokens
+        output_tokens,
     )
 
     # Check if the first EOS has been generated
@@ -73,7 +73,7 @@ def predict_step(
         cache=cache,
         rng=rng,
         sequence=sequence,
-        take_prediction=step_state.take_prediction,
+        is_prompt=step_state.is_prompt,
         eos=eos,
         step_i=step_i + 1,
     )
@@ -97,7 +97,7 @@ def rollout(
         cache=cache,
         rng=rng,
         sequence=questions,
-        take_prediction=1 - mask,
+        is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
     )
 
@@ -111,5 +111,5 @@ def rollout(
     return (
         step_state.sequence,
         step_state.eos,
-        step_state.take_prediction,
+        step_state.is_prompt,
     )
