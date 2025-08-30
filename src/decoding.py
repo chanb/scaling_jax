@@ -58,4 +58,4 @@ def make_autoregressive(
             cache = nnx.state(model, nnx.Cache)
         return cache
 
-    return model, decode, init_cache
+    return decode, init_cache

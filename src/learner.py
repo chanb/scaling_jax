@@ -13,6 +13,7 @@ from typing import Any, Dict, Sequence
 
 import chex
 import jax
+import jax.nn as nn
 import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
@@ -24,6 +25,8 @@ import src.models as models
 from src.constants import *
 from src.dataset import get_data_loader
 from src.mesh_utils import construct_mesh, construct_sharded_model
+from src.decoding import make_autoregressive
+from src.rollout import rollout
 from src.utils import parse_dict
 
 
@@ -139,16 +142,32 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
                 CONST_HIST: {},
             }
 
-        return contrastive   
+        return contrastive
+    elif objective == "reinforce":
+        def reinforce(params, rest, batch):
+            actions = batch["sequence"]
+            returns = batch["returns"]
+            mask = batch["mask"]
+
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            logits = model(batch)
+
+            lprobs = jnp.sum(
+                nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
+            ) - nn.logsumexp(logits, axis=-1)
+            return -jnp.sum(lprobs * returns * mask) / jnp.sum(mask), {
+                CONST_TRAIN: {
+
+                },
+                CONST_HIST: {},
+            }
+        return reinforce
     else:
         raise NotImplementedError
 
 
-class ICSL:
-    """
-    In-context Supervised Learning.
-    """
-
+class Learner:
     def __init__(
         self,
         config: SimpleNamespace,
@@ -171,13 +190,13 @@ class ICSL:
         )
 
         self._initialize_model_and_opt(self.dtype)
+
         self._loss = initialize_loss_fn(
             self._config.objective,
             self._state.graphdef,
             getattr(self._config, "one_hot", False),
         )
         self.train_step = nnx.jit(self.make_train_step())
-        self.make_validate_step()
 
     def close(self):
         del self.ds
@@ -214,7 +233,7 @@ class ICSL:
             dtype=dtype,
         )
 
-        self._state, self._state_sharding = construct_sharded_model(
+        self._model, self._state, self._state_sharding = construct_sharded_model(
             self.data_mesh,
             model_cls,
             dict(
@@ -225,6 +244,11 @@ class ICSL:
             ),
             self._config.optimizer_config,
         )
+
+    def get_batch(self):
+        batch = next(self.ds)
+        batch = jax.device_put(batch, self.data_sharding)
+        return batch
 
     def make_train_step(self):
         """
@@ -253,10 +277,136 @@ class ICSL:
 
         return _train_step
 
-    def get_batch(self):
-        batch = next(self.ds)
-        batch = jax.device_put(batch, self.data_sharding)
-        return batch
+
+EOS_TOKEN = 4
+class ReinforcementLearner(Learner):
+    def __init__(
+        self,
+        config: SimpleNamespace,
+    ):
+        super().__init__(config=config)
+        self._rng = jrandom.PRNGKey(self._config.seeds.learner_seed)
+
+    def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
+        curr_rng = jrandom.fold_in(self._rng, epoch)
+
+        auxes = []
+        total_sample_time = 0
+        total_update_time = 0
+        total_rollout_time = 0
+
+        for update_i in range(self._num_updates_per_epoch):
+            curr_rng = jrandom.fold_in(curr_rng, update_i)
+
+            tic = timeit.default_timer()
+            batch = self.get_batch()
+            total_sample_time += timeit.default_timer() - tic
+
+            tic = timeit.default_timer()
+            decode, init_cache = make_autoregressive(
+                self.model,
+                max_decode_len=batch["sequence"].shape[1],
+                batch_size=batch["sequence"].shape[0],
+                embed_dim=self._config.model_config.model_kwargs.embed_dim,
+                dtype=self.dtype,
+                eval_mode=False,
+            )
+            (responses, eos_mask, is_prompt_mask) = rollout(
+                curr_rng,
+                batch,
+                decode,
+                init_cache,
+                eos_token=EOS_TOKEN,
+            )
+
+            batch["sequence"] = responses
+            batch["mask"] = np.logical_or(eos_mask, is_prompt_mask)
+            returns, successes, response_lengths = self.compute_returns(batch)
+            batch["returns"] = returns
+            total_rollout_time += timeit.default_timer() - tic
+
+            tic = timeit.default_timer()
+            self._state, aux = self.train_step(
+                self._state,
+                batch,
+            )
+            total_update_time += timeit.default_timer() - tic
+            assert np.isfinite(aux[CONST_AGG_LOSS].item()), f"Loss became NaN\naux: {aux}"
+
+            aux[CONST_TRAIN][CONST_SUCCESS_RATE] = np.mean(successes)
+            aux[CONST_TRAIN][CONST_RESPONSE_LENGTH] = np.mean(response_lengths)
+
+            auxes.append(aux)
+
+        auxes = jax.tree_util.tree_map(
+            lambda *args: np.mean([np.asarray(el) for el in args]),
+            *auxes,
+        )
+
+        log = {
+            f"losses/{CONST_AGG_LOSS}": auxes[CONST_AGG_LOSS].item(),
+            f"time/{CONST_SAMPLE_TIME}": total_sample_time,
+            f"time/{CONST_UPDATE_TIME}": total_update_time,
+            f"time/{CONST_ROLLOUT_TIME}": total_rollout_time,
+            f"{CONST_GRAD_NORM}/model": auxes[CONST_GRAD_NORM][CONST_MODEL].item(),
+            f"{CONST_PARAM_NORM}/model": l2_norm(self._state.params).item(),
+            **{
+                f"train/{k}": v for k, v in auxes[CONST_TRAIN].items()
+            },
+            **{
+                f"hist/{k}": v for k, v in aux[CONST_HIST].items()
+            },
+        }
+
+        if isinstance(self._state.opt_state, dict):
+            for model_name, optimizer in self._state.opt_state:
+                gather_learning_rate(aux, model_name, optimizer)
+        else:
+            gather_learning_rate(aux, CONST_MODEL, self._state.opt_state)
+        return log
+
+    def compute_returns(self, batch):
+        # Compute verifiable rewards
+        # Assume each token is an action, the state is the sequence up to this point
+        # The reward is based on whether there is a regex match with the target
+
+        returns = np.zeros(batch["sequence"].shape)
+        response_lengths = np.zeros(batch["sequence"].shape[0])
+        successes = np.zeros(batch["sequence"].shape[0])
+        for sample_i, (response, target, mask) in enumerate(
+            zip(batch["sequence"], batch["target"], batch["mask"])
+        ):
+            target = "".join(np.array(target[target != EOS_TOKEN]).astype(str)) + "4"
+
+            if EOS_TOKEN in response:
+                response = "".join(np.array(
+                    response[:np.where(response == EOS_TOKEN)[0][0] + 1]
+                ).astype(str))
+            else:
+                response = "".join(np.array(response).astype(str))
+
+            response_length = np.sum(1 - mask)
+            success = float(target in response)
+
+            response_lengths[sample_i] = response_length
+            successes[sample_i] = success
+            returns[sample_i][np.where(1 - mask)[0]] = (
+                self._config.gamma ** np.arange(response_length)[::-1] * success
+            )
+        return returns, successes, response_lengths
+
+
+class ICSL(Learner):
+    """
+    In-context Supervised Learning.
+    """
+
+    def __init__(
+        self,
+        config: SimpleNamespace,
+    ):
+        super().__init__(config=config)
+        self.make_validate_step()
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         """

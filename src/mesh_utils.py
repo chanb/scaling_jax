@@ -84,9 +84,9 @@ def construct_sharded_model(
         state = jax.tree.map(_to_array, state)
         state_spec = nnx.get_partition_spec(state)
         state = jax.lax.with_sharding_constraint(state, state_spec)
-        return state
+        return model, state
     
     with mesh:
-        state = create_sharded_model()
+        model, state = create_sharded_model()
         state_sharding = nnx.get_named_sharding(state, mesh)
-        return state, state_sharding
+        return model, state, state_sharding
