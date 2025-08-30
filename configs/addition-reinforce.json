@@ -1,8 +1,8 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition",
-        "experiment_name": "reinforce_finetuning",
-        "log_interval": 50,
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/test_rl",
+        "experiment_name": "reinforce",
+        "log_interval": 1,
         "checkpoint_interval": 10000,
         "validation_interval": 50
     },
@@ -60,7 +60,6 @@
         "learner_seed": 42,
         "data_seed": 42
     },
-    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition/max_int_32-08-18-25_14_09_01-22351d80-4697-4c8e-bc1b-2095cd04f288:latest",
     "validation": [
         {
             "validation_name": "heldout",
