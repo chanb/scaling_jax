@@ -341,11 +341,7 @@ class ReinforcementLearner(Learner):
             batch["sequence"] = responses
             batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             returns, successes, response_lengths = self.compute_returns(batch)
-
-            if getattr(self._config, "negative_reward", False):
-                batch["returns"] = returns - 1
-            else:
-                batch["returns"] = returns
+            batch["returns"] = returns
 
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
@@ -470,12 +466,20 @@ class ReinforcementLearner(Learner):
                 response = "".join(np.array(response).astype(str))
 
             response_length = np.sum(mask)
+
             success = float(target in response)
+            reward = success
+
+            reward_type = getattr(self._config, "reward_type", "default")
+            if reward_type == "negative_on_failure":
+                reward = (-1) ** (1 - success)
+            elif reward_type == "negative_dense":
+                reward = 1 - reward
 
             response_lengths[sample_i] = response_length
             successes[sample_i] = success
             returns[sample_i][np.where(mask)[0]] = (
-                self._config.gamma ** np.arange(response_length)[::-1] * success
+                self._config.gamma ** np.arange(response_length)[::-1] * reward
             )
         return returns, successes, response_lengths
 
