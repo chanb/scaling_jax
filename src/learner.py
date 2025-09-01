@@ -1,6 +1,7 @@
 import inspect
 import os
 import sys
+from xml.parsers.expat import model
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -146,14 +147,16 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
         return contrastive
     elif objective == "reinforce":
         def reinforce(params, rest, batch):
-            actions = batch["sequence"]
-            returns = batch["returns"]
-            mask = batch["mask"]
+            # NOTE: Assume sequence contains both the state and action
+            observations = batch["sequence"][:, :-1]
+            actions = batch["sequence"][:, 1:]
+            returns = batch["returns"][:, :-1]
+            mask = batch["mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
-            logits = model(batch)
+            logits = model({"sequence": observations})
 
             lprobs = jnp.sum(
                 nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
@@ -457,6 +460,18 @@ class ReinforcementLearner(Learner):
         response_lengths = np.zeros(batch["sequence"].shape[0])
         successes = np.zeros(batch["sequence"].shape[0])
 
+        # TODO: Entropy regularization objective
+        # if getattr(self._config, "regularized_alpha", False):
+        #     model = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
+        #     model.set_attributes(deterministic=False, decode=False)
+        #     logits = model({
+        #         "sequence": batch["sequence"][:, :-1]
+        #     })
+
+        #     lprobs = jnp.sum(
+        #         nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
+        #     ) - nn.logsumexp(logits, axis=-1)
+
         for sample_i, (response, target, mask) in enumerate(
             zip(batch["sequence"], batch["target"], batch["mask"])
         ):
@@ -485,6 +500,9 @@ class ReinforcementLearner(Learner):
             returns[sample_i][np.where(mask)[0]] = (
                 (self._config.gamma ** np.arange(response_length)[::-1]) * reward
             )
+
+            # if getattr(self._config, "regularized_alpha", False):
+            #     returns[sample_i] = returns[sample_i] - lprobs * self._config.regularized_alpha
         return returns, successes, response_lengths
 
 
