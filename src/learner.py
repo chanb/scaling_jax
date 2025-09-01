@@ -161,12 +161,14 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
 
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
+            entropy = jnp.sum(entropy * mask) / jnp.sum(mask)
 
             reinforce_loss = -jnp.sum(lprobs * returns * mask) / jnp.sum(mask)
-            entropy_loss = -jnp.sum(entropy * mask) / jnp.sum(mask)
+            entropy_loss = -entropy
+
             return reinforce_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
-                    "entropy": entropy_loss,
+                    "entropy": entropy,
                 },
                 CONST_HIST: {},
             }
@@ -467,7 +469,7 @@ class ReinforcementLearner(Learner):
 
             response_length = np.sum(mask)
 
-            success = float(target in response)
+            success = float(target in (response + "4"))
             reward = success
 
             reward_type = getattr(self._config, "reward_type", "default")
