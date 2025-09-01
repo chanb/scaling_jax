@@ -474,12 +474,12 @@ class ReinforcementLearner(Learner):
             if reward_type == "negative_on_failure":
                 reward = (-1) ** (1 - success)
             elif reward_type == "negative_dense":
-                reward = 1 - reward
+                reward = reward - 1
 
             response_lengths[sample_i] = response_length
             successes[sample_i] = success
             returns[sample_i][np.where(mask)[0]] = (
-                self._config.gamma ** np.arange(response_length)[::-1] * reward
+                (self._config.gamma ** np.arange(response_length)[::-1]) * reward
             )
         return returns, successes, response_lengths
 
