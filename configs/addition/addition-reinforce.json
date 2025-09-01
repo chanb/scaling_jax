@@ -1,10 +1,10 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition",
-        "experiment_name": "cot-max_int_32",
-        "log_interval": 50,
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
+        "experiment_name": "reinforce-from_scratch",
+        "log_interval": 1,
         "checkpoint_interval": 10000,
-        "validation_interval": 500
+        "validation_interval": 50
     },
     "model_config": {
         "architecture": "InContextGPT",
@@ -38,21 +38,23 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "ICSL",
+    "learner": "ReinforcementLearner",
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 64,
-        "max_int": 32,
+        "max_int": 1024,
         "train": true,
-        "train_val_ratio": 0.5,
-        "sequence_type": "cot",
+        "train_val_ratio": 0.8,
+        "sequence_type": "question_only",
         "right_to_left": false
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
+    "objective": "reinforce",
+    "gamma": 0.99,
+    "negative_reward": false,
+    "entropy": 0.0,
     "batch_size": 32,
-    "objective": "ce",
-    "val_objective": "ce",
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -60,16 +62,16 @@
         "learner_seed": 42,
         "data_seed": 42
     },
-    "validate": [
+    "validation": [
         {
             "validation_name": "heldout",
             "dataset_name": "addition",
             "dataset_kwargs": {
                 "context_len": 64,
-                "max_int": 32,
+                "max_int": 1024,
                 "train": false,
-                "train_val_ratio": 0.5,
-                "sequence_type": "cot",
+                "train_val_ratio": 0.2,
+                "sequence_type": "question_only",
                 "right_to_left": false
             },
             "shuffle_buffer_size": 100,
@@ -84,10 +86,10 @@
             "dataset_name": "addition",
             "dataset_kwargs": {
                 "context_len": 64,
-                "max_int": 64,
+                "max_int": 4096,
                 "train": true,
                 "train_val_ratio": 0.9,
-                "sequence_type": "cot",
+                "sequence_type": "question_only",
                 "right_to_left": false
             },
             "shuffle_buffer_size": 100,
