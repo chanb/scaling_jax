@@ -53,7 +53,7 @@
     "objective": "reinforce",
     "gamma": 0.99,
     "reward_type": "negative_on_failure",
-    "entropy": 0.0,
+    "entropy": 0.2,
     "batch_size": 32,
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,

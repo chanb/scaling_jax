@@ -164,11 +164,13 @@ def initialize_loss_fn(objective, graphdef, one_hot=False):
             entropy = jnp.sum(entropy * mask) / jnp.sum(mask)
 
             reinforce_loss = -jnp.sum(lprobs * returns * mask) / jnp.sum(mask)
+
             entropy_loss = -entropy
 
             return reinforce_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
                     "entropy": entropy,
+                    "pi_loss": reinforce_loss,
                 },
                 CONST_HIST: {},
             }
