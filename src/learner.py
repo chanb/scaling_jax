@@ -477,6 +477,8 @@ class ReinforcementLearner(Learner):
         ):
             target = "".join(np.array(target[target != EOS_TOKEN]).astype(str)) + "4"
 
+            # XXX: Currently look at the first <EOS>
+            # TODO: Maybe we can look at all subsequences between <EQUAL> and <EOS>
             if EOS_TOKEN in response:
                 response = "".join(np.array(
                     response[:np.where(response == EOS_TOKEN)[0][0] + 1]
