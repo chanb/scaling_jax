@@ -324,10 +324,17 @@ class ReinforcementLearner(Learner):
         for update_i in range(self._num_updates_per_epoch):
             curr_rng = jrandom.fold_in(curr_rng, update_i)
 
+            # Sample batch of questions/prompts
             tic = timeit.default_timer()
             batch = self.get_batch()
+
+            num_rollouts_per_sample = getattr(self._config, "num_rollouts_per_sample", 1)
+            batch["sequence"] = np.repeat(batch["sequence"], num_rollouts_per_sample, axis=0)
+            batch["mask"] = np.repeat(batch["mask"], num_rollouts_per_sample, axis=0)
+
             total_sample_time += timeit.default_timer() - tic
 
+            # Sample rollouts
             tic = timeit.default_timer()
             decode, init_cache = make_autoregressive(
                 nnx.merge(self.state.graphdef, self.state.params, self.state.rest),
@@ -345,6 +352,7 @@ class ReinforcementLearner(Learner):
                 eos_token=EOS_TOKEN,
             )
 
+            # Compute return
             batch["sequence"] = responses
             batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             returns, successes, response_lengths = self.compute_returns(batch)
@@ -471,6 +479,8 @@ class ReinforcementLearner(Learner):
         #     lprobs = jnp.sum(
         #         nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
         #     ) - nn.logsumexp(logits, axis=-1)
+
+        # TODO: Compute group reward
 
         for sample_i, (response, target, mask) in enumerate(
             zip(batch["sequence"], batch["target"], batch["mask"])

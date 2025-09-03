@@ -24,15 +24,6 @@ class StepState(NamedTuple):
     step_i: int = 0
 
 
-# TODO: Rollout
-"""
-This should be autoregressive, from step 0
-1. At step i, we replace the i'th index if the entry is not part of the question
-2. Otherwise, continue generating
-
-This can be done using mask cond
-"""
-
 def predict_step(
     step_state: StepState,
     decode: callable,
