@@ -23,7 +23,7 @@
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 3e-4
+                "value": 5e-7
             }
         },
         "opt_kwargs": {
