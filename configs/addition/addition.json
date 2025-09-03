@@ -38,7 +38,7 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "ICSL",
+    "learner": "Supervised",
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 64,

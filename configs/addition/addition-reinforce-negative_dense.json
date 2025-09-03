@@ -38,7 +38,7 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "ReinforcementLearner",
+    "learner": "REINFORCE",
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 64,

@@ -14,7 +14,7 @@ import tqdm
 from torch.utils.tensorboard import SummaryWriter
 from types import SimpleNamespace
 
-import src.learner as learners
+import src.learners as learners
 
 from src.constants import *
 from src.utils import DummySummaryWriter
