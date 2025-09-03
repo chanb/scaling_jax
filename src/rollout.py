@@ -11,12 +11,15 @@ import jax
 import jax.numpy as jnp
 import jax.random as jrandom
 
-from functools import partial
+from flax import nnx
 from typing import Any, NamedTuple
 
 
 class StepState(NamedTuple):
+    graphdef: Any
+    rest: Any
     cache: Any
+    eos_token: int
     rng: chex.PRNGKey
     sequence: chex.Array
     is_prompt: chex.Array
@@ -26,17 +29,17 @@ class StepState(NamedTuple):
 
 def predict_step(
     step_state: StepState,
-    decode: callable,
-    eos_token: int,
 ):
     step_i = step_state.step_i
     rng, rng_step = jax.random.split(step_state.rng, 2)
 
     # Autoregressively decode
-    logits, cache = decode(
-        {"sequence": step_state.sequence[:, [step_i]],},
-        step_state.cache,
-    )
+    module = nnx.merge(step_state.graphdef, step_state.rest, step_state.cache)
+    module.eval()
+    module.set_attributes(deterministic=True, decode=True)
+    logits = module({"sequence": step_state.sequence[:, [step_i]],},)
+    cache = nnx.state(module, nnx.Cache)
+
     logits = logits[:, 0]
     
     output_tokens = jrandom.categorical(rng_step, logits)
@@ -52,7 +55,7 @@ def predict_step(
 
     # Check if the first EOS has been generated
     eos = jnp.logical_or(
-        output_tokens == eos_token,
+        output_tokens == step_state.eos_token,
         step_state.eos[:, step_i],
     )
 
@@ -61,7 +64,10 @@ def predict_step(
     eos = step_state.eos.at[:, step_i + 1].set(eos)
 
     step_state = StepState(
+        graphdef=step_state.graphdef,
+        rest=step_state.rest,
         cache=cache,
+        eos_token=step_state.eos_token,
         rng=rng,
         sequence=sequence,
         is_prompt=step_state.is_prompt,
@@ -72,32 +78,33 @@ def predict_step(
     return step_state
 
 
+@nnx.jit
 def rollout(
+    graphdef: Any,
+    cache: Any,
+    rest: Any,
     rng: chex.PRNGKey,
     batch: Any,
-    decode: callable,
-    init_cache: callable,
     eos_token: int,
 ):
     questions = batch["sequence"]
     mask = batch["mask"]
     num_questions, max_step = questions.shape
 
-    cache = init_cache()
     step_state = StepState(
+        graphdef=graphdef,
+        rest=rest,
         cache=cache,
+        eos_token=eos_token,
         rng=rng,
         sequence=questions,
         is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
     )
 
-    _predict_step = jax.jit(
-        partial(predict_step, decode=decode, eos_token=eos_token)
-    )
     step_state = jax.lax.while_loop(
         lambda state: state.step_i < max_step - 1,
-        _predict_step,
+        predict_step,
         step_state,
     )
 

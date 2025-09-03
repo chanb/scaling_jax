@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-test_gpu",
         "experiment_name": "reinforce-finetuning-no_cot-2_rollouts_per_sample",
         "log_interval": 1,
         "checkpoint_interval": 10000,

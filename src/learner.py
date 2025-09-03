@@ -336,19 +336,23 @@ class ReinforcementLearner(Learner):
 
             # Sample rollouts
             tic = timeit.default_timer()
-            decode, init_cache = make_autoregressive(
-                nnx.merge(self.state.graphdef, self.state.params, self.state.rest),
+            module = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
+            _, init_cache = make_autoregressive(
+                module,
                 max_decode_len=batch["sequence"].shape[1],
                 batch_size=batch["sequence"].shape[0],
                 embed_dim=self._config.model_config.model_kwargs.embed_dim,
                 dtype=self.dtype,
                 eval_mode=True,
             )
+            cache = init_cache()
+            graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
             (responses, eos_mask, is_prompt_mask) = rollout(
+                graphdef,
+                cache,
+                rest,
                 curr_rng,
                 batch,
-                decode,
-                init_cache,
                 eos_token=EOS_TOKEN,
             )
 
@@ -424,19 +428,23 @@ class ReinforcementLearner(Learner):
                 batch = next(val_ds)
                 batch = jax.device_put(batch, self.data_sharding)
 
-                decode, init_cache = make_autoregressive(
-                    nnx.merge(self.state.graphdef, self.state.params, self.state.rest),
+                module = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
+                _, init_cache = make_autoregressive(
+                    module,
                     max_decode_len=batch["sequence"].shape[1],
                     batch_size=batch["sequence"].shape[0],
                     embed_dim=self._config.model_config.model_kwargs.embed_dim,
                     dtype=self.dtype,
                     eval_mode=True,
                 )
+                cache = init_cache()
+                graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
                 (responses, eos_mask, is_prompt_mask) = rollout(
+                    graphdef,
+                    cache,
+                    rest,
                     curr_rng,
                     batch,
-                    decode,
-                    init_cache,
                     eos_token=EOS_TOKEN,
                 )
 
