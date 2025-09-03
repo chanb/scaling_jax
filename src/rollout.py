@@ -92,7 +92,9 @@ def rollout(
         eos=jnp.zeros((num_questions, max_step)),
     )
 
-    _predict_step = jax.jit(partial(predict_step, decode=decode, eos_token=eos_token))
+    _predict_step = jax.jit(
+        partial(predict_step, decode=decode, eos_token=eos_token)
+    )
     step_state = jax.lax.while_loop(
         lambda state: state.step_i < max_step - 1,
         _predict_step,
