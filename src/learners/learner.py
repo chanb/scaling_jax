@@ -219,6 +219,10 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
                 CONST_TRAIN: {
                     "entropy": entropy,
                     "pi_loss": ppo_loss,
+                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
+                    "is_ratio_max": is_ratio.max(),
+                    "is_ratio_min": is_ratio.min(),
+                    "is_ratio_mean": is_ratio.mean(),
                 },
                 CONST_HIST: {},
             }
