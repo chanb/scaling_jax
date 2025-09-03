@@ -210,7 +210,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
 
             surrogate_1 = is_ratio * returns
             surrogate_2 = clipped_is_ratio * returns
-            pi_surrogate = -jnp.minimum(surrogate_1, surrogate_2)
+            pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
 
             ppo_loss = -jnp.sum(pi_surrogate * mask) / jnp.sum(mask)
             entropy_loss = -entropy
