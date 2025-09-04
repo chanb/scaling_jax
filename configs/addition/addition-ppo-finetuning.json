@@ -23,7 +23,7 @@
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 5e-7
+                "value": 3e-4
             }
         },
         "opt_kwargs": {
@@ -54,10 +54,10 @@
     "loss_config": {
         "clip_param": 0.2
     },
-    "num_ppo_steps": 5,
+    "num_ppo_steps": 2,
     "gamma": 0.99,
     "negative_reward": "default",
-    "entropy": 0.0,
+    "entropy": 0.02,
     "num_rollouts_per_sample": 1,
     "batch_size": 32,
     "num_epochs": 100000,

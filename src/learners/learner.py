@@ -179,7 +179,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             # NOTE: Assume sequence contains both the state and action
             observations = batch["sequence"][:, :-1]
             actions = batch["sequence"][:, 1:]
-            old_lprobs = batch["sequence"][:, :-1]
+            old_lprobs = batch["old_lprobs"]
             returns = batch["returns"][:, :-1]
             mask = batch["mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
@@ -215,14 +215,30 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             ppo_loss = -jnp.sum(pi_surrogate * mask) / jnp.sum(mask)
             entropy_loss = -entropy
 
+            is_ratio_max = jax.lax.select(
+                mask,
+                is_ratio,
+                -jnp.full_like(is_ratio, jnp.inf),
+            ).max()
+            is_ratio_min = jax.lax.select(
+                mask,
+                is_ratio,
+                jnp.full_like(is_ratio, jnp.inf),
+            ).min()
+            is_ratio_mean = jnp.nanmean(jax.lax.select(
+                mask,
+                is_ratio,
+                jnp.full_like(is_ratio, jnp.nan),
+            ))
+
             return ppo_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
                     "entropy": entropy,
                     "pi_loss": ppo_loss,
-                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
-                    "is_ratio_max": is_ratio.max(),
-                    "is_ratio_min": is_ratio.min(),
-                    "is_ratio_mean": is_ratio.mean(),
+                    "num_clipped": ((clipped_is_ratio != is_ratio) * mask).sum(),
+                    "is_ratio_max": is_ratio_max,
+                    "is_ratio_min": is_ratio_min,
+                    "is_ratio_mean": is_ratio_mean,
                 },
                 CONST_HIST: {},
             }

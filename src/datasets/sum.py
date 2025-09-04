@@ -26,7 +26,7 @@ class Addition(IterableDataset):
     ):
         assert context_len > 0
         assert max_int > 0
-        assert 0 < train_val_ratio < 1
+        assert 0 < train_val_ratio <= 1
         self.context_len = context_len
         self.max_int = max_int
         self.train = train
