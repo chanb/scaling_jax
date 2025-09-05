@@ -23,6 +23,7 @@ class Addition(IterableDataset):
         sequence_type: str="default",
         train_val_ratio: float=0.8,
         right_to_left: bool=False,
+        shuffle: bool=True,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -34,6 +35,7 @@ class Addition(IterableDataset):
         self.sequence_type = sequence_type
         self.train_val_ratio = train_val_ratio
         self.right_to_left = right_to_left
+        self.shuffle = shuffle
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
@@ -68,8 +70,13 @@ class Addition(IterableDataset):
         sample_rng = np.random.RandomState(
             self._rng.randint(0, 2**16) + int(self.train)
         )
+        curr_idx = 0
         while True:
-            t = sample_rng.choice(self.sequence_indices)
+            if self.shuffle:
+                t = sample_rng.choice(self.sequence_indices)
+            else:
+                t = self.sequence_indices[curr_idx]
+                curr_idx = (curr_idx + 1) % len(self.sequence_indices)
 
             # Assume equal length for both integers for now
             first_int = t // self.max_int

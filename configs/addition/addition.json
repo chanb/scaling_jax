@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
-        "experiment_name": "pretrain-no_cot-right_to_left",
+        "experiment_name": "pretrain-right_to_left",
         "log_interval": 50,
         "checkpoint_interval": 100000,
         "validation_interval": 500
@@ -9,8 +9,8 @@
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "num_blocks": 2,
-            "num_heads": 2,
+            "num_blocks": 4,
+            "num_heads": 8,
             "embed_dim": 64,
             "widening_factor": 4,
             "embedder_strategy": "next_token",

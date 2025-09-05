@@ -146,23 +146,33 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             # NOTE: Assume sequence contains both the state and action
             observations = batch["sequence"][:, :-1]
             actions = batch["sequence"][:, 1:]
-            returns = batch["returns"][:, :-1]
-            mask = batch["mask"][:, :-1]
+            # returns = batch["returns"][:, :-1]
+            returns = batch["returns"]
+            pred_mask = batch["pred_mask"][:, :-1]
+            # first_eos_mask = batch["first_eos_mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             logits = model({"sequence": observations})
 
+            actions = nn.one_hot(actions, num_classes=logits.shape[-1])
             lprobs = jnp.sum(
-                nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
+                logits, axis=-1, where=actions,
             ) - nn.logsumexp(logits, axis=-1)
-
+            
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
-            entropy = jnp.sum(entropy * mask) / jnp.sum(mask)
+            entropy = jnp.mean(entropy, where=pred_mask)
 
-            reinforce_loss = -jnp.sum(lprobs * returns * mask) / jnp.sum(mask)
+            lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
+
+            # Objective: log pi(y|s) * R
+            reinforce_loss = -jnp.mean(
+                lprobs
+                * returns
+            )
+            # jax.debug.print("{x}", x=returns)
 
             entropy_loss = -entropy
 
@@ -180,21 +190,27 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             observations = batch["sequence"][:, :-1]
             actions = batch["sequence"][:, 1:]
             old_lprobs = batch["old_lprobs"]
-            returns = batch["returns"][:, :-1]
-            mask = batch["mask"][:, :-1]
+            # returns = batch["returns"][:, :-1]
+            returns = batch["returns"]
+            pred_mask = batch["pred_mask"][:, :-1]
+            # first_eos_mask = batch["first_eos_mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
             logits = model({"sequence": observations})
 
+            actions = nn.one_hot(actions, num_classes=logits.shape[-1])
             lprobs = jnp.sum(
-                nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
+                logits, axis=-1, where=actions,
             ) - nn.logsumexp(logits, axis=-1)
-
+            
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
-            entropy = jnp.sum(entropy * mask) / jnp.sum(mask)
+            entropy = jnp.mean(entropy, where=pred_mask)
+
+            lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
+            old_lprobs = jnp.sum(old_lprobs, axis=-1, where=pred_mask)
 
             is_ratio = jnp.exp(lprobs - old_lprobs)
             # XXX: Deal with inf values
@@ -208,34 +224,24 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
                 a_max=1 + loss_config.clip_param,
             )
 
+            # returns = jnp.sum(returns, axis=-1, where=first_eos_mask)
             surrogate_1 = is_ratio * returns
             surrogate_2 = clipped_is_ratio * returns
             pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
 
-            ppo_loss = -jnp.sum(pi_surrogate * mask) / jnp.sum(mask)
+            # jax.debug.print("{x}", x=returns)
+            ppo_loss = -jnp.mean(pi_surrogate)
             entropy_loss = -entropy
 
-            is_ratio_max = jax.lax.select(
-                mask,
-                is_ratio,
-                -jnp.full_like(is_ratio, jnp.inf),
-            ).max()
-            is_ratio_min = jax.lax.select(
-                mask,
-                is_ratio,
-                jnp.full_like(is_ratio, jnp.inf),
-            ).min()
-            is_ratio_mean = jnp.nanmean(jax.lax.select(
-                mask,
-                is_ratio,
-                jnp.full_like(is_ratio, jnp.nan),
-            ))
+            is_ratio_max = jnp.max(is_ratio)
+            is_ratio_min = jnp.min(is_ratio)
+            is_ratio_mean = jnp.nanmean(is_ratio)
 
             return ppo_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
                     "entropy": entropy,
                     "pi_loss": ppo_loss,
-                    "num_clipped": ((clipped_is_ratio != is_ratio) * mask).sum(),
+                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
                     "is_ratio_max": is_ratio_max,
                     "is_ratio_min": is_ratio_min,
                     "is_ratio_mean": is_ratio_mean,

@@ -81,7 +81,11 @@ class REINFORCE(Learner):
 
             # Compute return
             batch["sequence"] = responses
-            batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+
+            batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+            eos_mask = 1 - eos_mask
+            batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
+
             returns, successes, response_lengths = self.compute_returns(batch)
             batch["returns"] = returns
 
@@ -172,7 +176,9 @@ class REINFORCE(Learner):
                 )
 
                 batch["sequence"] = responses
-                batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+                batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+                eos_mask = 1 - eos_mask
+                batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
                 _, successes, response_lengths = self.compute_returns(batch)
 
                 validation_time = timeit.default_timer() - tic
@@ -195,7 +201,7 @@ class REINFORCE(Learner):
         # Assume each token is an action, the state is the sequence up to this point
         # The reward is based on whether there is a regex match with the target
 
-        returns = np.zeros(batch["sequence"].shape)
+        returns = np.zeros(batch["sequence"].shape[0])
         response_lengths = np.zeros(batch["sequence"].shape[0])
         successes = np.zeros(batch["sequence"].shape[0])
 
@@ -214,7 +220,7 @@ class REINFORCE(Learner):
         # TODO: Compute group reward
 
         for sample_i, (response, target, mask) in enumerate(
-            zip(batch["sequence"], batch["target"], batch["mask"])
+            zip(batch["sequence"], batch["target"], batch["pred_mask"])
         ):
             target = "".join(np.array(target[target != EOS_TOKEN]).astype(str)) + "4"
 
@@ -240,9 +246,11 @@ class REINFORCE(Learner):
 
             response_lengths[sample_i] = response_length
             successes[sample_i] = success
-            returns[sample_i][np.where(mask)[0]] = (
-                (self._config.gamma ** np.arange(response_length)[::-1]) * reward
-            )
+            # returns[sample_i][np.where(mask)[0]] = (
+            #     (self._config.gamma ** np.arange(response_length)[::-1]) * reward
+            # )
+
+            returns[sample_i] = self._config.gamma ** (response_length - 1) * reward
 
             # if getattr(self._config, "regularized_alpha", False):
             #     returns[sample_i] = returns[sample_i] - lprobs * self._config.regularized_alpha

@@ -95,7 +95,9 @@ class PPO(REINFORCE):
 
             # Compute return
             batch["sequence"] = responses
-            batch["mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+            batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+            eos_mask = 1 - eos_mask
+            batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
             returns, successes, response_lengths = self.compute_returns(batch)
             batch["returns"] = returns
 
