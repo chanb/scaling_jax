@@ -240,7 +240,7 @@ class REINFORCE(Learner):
 
             response_length = np.sum(mask)
 
-            success = float(target in (response + "4"))
+            success = float(target in response)
             reward = success
 
             reward_type = getattr(self._config, "reward_type", "default")

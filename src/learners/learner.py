@@ -164,10 +164,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             # NOTE: Assume sequence contains both the state and action
             observations = batch["sequence"][:, :-1]
             actions = batch["sequence"][:, 1:]
-            # returns = batch["returns"][:, :-1]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
-            # first_eos_mask = batch["first_eos_mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
@@ -249,8 +247,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                 surrogate_2 = clipped_is_ratio * returns
                 pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
 
-                is_ratio_max = jnp.max(is_ratio, where=pred_mask, initial=0,)
-                is_ratio_min = jnp.min(is_ratio, where=pred_mask, initial=0,)
+                is_ratio_max = jnp.max(is_ratio, where=pred_mask, initial=-jnp.inf,)
+                is_ratio_min = jnp.min(is_ratio, where=pred_mask, initial=jnp.inf,)
                 is_ratio_mean = jnp.nanmean(is_ratio, where=pred_mask)
 
                 return -jnp.sum(pi_surrogate * pred_mask) / jnp.sum(pred_mask), {
@@ -267,10 +265,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             observations = batch["sequence"][:, :-1]
             actions = batch["sequence"][:, 1:]
             old_lprobs = batch["old_lprobs"]
-            # returns = batch["returns"][:, :-1]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
-            # first_eos_mask = batch["first_eos_mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
