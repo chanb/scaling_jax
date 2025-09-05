@@ -202,7 +202,7 @@ class REINFORCE(Learner):
         # The reward is based on whether there is a regex match with the target
 
         if self._config.train_loss_config.mdp_type == "episodic":
-            returns = np.zeros(batch["sequence"])
+            returns = np.zeros(batch["sequence"].shape)
         elif self._config.train_loss_config.mdp_type == "bandit":
             returns = np.zeros(batch["sequence"].shape[0])
         else:
