@@ -53,7 +53,9 @@
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 128,
-    "objective": "mse",
+    "train_loss_config": {
+        "objective": "mse"
+    },
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {

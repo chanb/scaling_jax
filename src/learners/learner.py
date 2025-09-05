@@ -56,7 +56,8 @@ def gather_learning_rate(
             ].item()
 
 
-def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
+def initialize_loss_fn(loss_config, graphdef, one_hot=False):
+    objective = loss_config.objective
     if objective == "ce":
         if one_hot:
             def compute_target(targets):
@@ -142,6 +143,22 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
         return contrastive
     elif objective == "reinforce":
         # TODO: Add KL regularizer to reference model
+
+        if loss_config.mdp_type == "bandit":
+            def _compute_loss(lprobs, returns, pred_mask):
+                # Objective: log pi(y|s) * R
+                lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
+                return -jnp.mean(
+                    lprobs
+                    * returns
+                )
+        elif loss_config.mdp_type == "episodic":
+            def _compute_loss(lprobs, returns, pred_mask):
+                # Objective: log pi(a_t|s_t) * G_t
+                return -jnp.sum(lprobs * returns * pred_mask) / jnp.sum(pred_mask)
+        else:
+            raise NotImplementedError
+
         def reinforce(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
             observations = batch["sequence"][:, :-1]
@@ -165,14 +182,7 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             entropy = optax.softmax_cross_entropy(logits, probs)
             entropy = jnp.mean(entropy, where=pred_mask)
 
-            lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
-
-            # Objective: log pi(y|s) * R
-            reinforce_loss = -jnp.mean(
-                lprobs
-                * returns
-            )
-            # jax.debug.print("{x}", x=returns)
+            reinforce_loss = _compute_loss(lprobs, returns, pred_mask)
 
             entropy_loss = -entropy
 
@@ -185,6 +195,71 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             }
         return reinforce
     elif objective == "ppo":
+
+        if loss_config.mdp_type == "bandit":
+            def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
+                # Objective: log pi(y|s) * R
+                lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
+                old_lprobs = jnp.sum(old_lprobs, axis=-1, where=pred_mask)
+
+                is_ratio = jnp.exp(lprobs - old_lprobs)
+                # XXX: Deal with inf values
+                is_ratio = jax.lax.select(
+                    jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
+                )
+
+                clipped_is_ratio = jnp.clip(
+                    is_ratio,
+                    a_min=1 - loss_config.clip_param,
+                    a_max=1 + loss_config.clip_param,
+                )
+
+                surrogate_1 = is_ratio * returns
+                surrogate_2 = clipped_is_ratio * returns
+                pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
+
+                is_ratio_max = jnp.max(is_ratio)
+                is_ratio_min = jnp.min(is_ratio)
+                is_ratio_mean = jnp.nanmean(is_ratio)
+
+                return -jnp.mean(pi_surrogate), {
+                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
+                    "is_ratio_max": is_ratio_max,
+                    "is_ratio_min": is_ratio_min,
+                    "is_ratio_mean": is_ratio_mean,
+                }
+        elif loss_config.mdp_type == "episodic":
+            def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
+                # Objective: log pi(a_t|s_t) * G_t
+                is_ratio = jnp.exp(lprobs - old_lprobs)
+                # XXX: Deal with inf values
+                is_ratio = jax.lax.select(
+                    jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
+                )
+
+                clipped_is_ratio = jnp.clip(
+                    is_ratio,
+                    a_min=1 - loss_config.clip_param,
+                    a_max=1 + loss_config.clip_param,
+                )
+
+                surrogate_1 = is_ratio * returns
+                surrogate_2 = clipped_is_ratio * returns
+                pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
+
+                is_ratio_max = jnp.max(is_ratio, where=pred_mask)
+                is_ratio_min = jnp.min(is_ratio, where=pred_mask)
+                is_ratio_mean = jnp.nanmean(is_ratio, where=pred_mask)
+
+                return -jnp.sum(pi_surrogate * pred_mask) / jnp.sum(pred_mask), {
+                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
+                    "is_ratio_max": is_ratio_max,
+                    "is_ratio_min": is_ratio_min,
+                    "is_ratio_mean": is_ratio_mean,
+                }
+        else:
+            raise NotImplementedError
+
         def ppo(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
             observations = batch["sequence"][:, :-1]
@@ -209,42 +284,14 @@ def initialize_loss_fn(objective, graphdef, one_hot=False, loss_config=None):
             entropy = optax.softmax_cross_entropy(logits, probs)
             entropy = jnp.mean(entropy, where=pred_mask)
 
-            lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
-            old_lprobs = jnp.sum(old_lprobs, axis=-1, where=pred_mask)
-
-            is_ratio = jnp.exp(lprobs - old_lprobs)
-            # XXX: Deal with inf values
-            is_ratio = jax.lax.select(
-                jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
-            )
-
-            clipped_is_ratio = jnp.clip(
-                is_ratio,
-                a_min=1 - loss_config.clip_param,
-                a_max=1 + loss_config.clip_param,
-            )
-
-            # returns = jnp.sum(returns, axis=-1, where=first_eos_mask)
-            surrogate_1 = is_ratio * returns
-            surrogate_2 = clipped_is_ratio * returns
-            pi_surrogate = jnp.minimum(surrogate_1, surrogate_2)
-
-            # jax.debug.print("{x}", x=returns)
-            ppo_loss = -jnp.mean(pi_surrogate)
             entropy_loss = -entropy
-
-            is_ratio_max = jnp.max(is_ratio)
-            is_ratio_min = jnp.min(is_ratio)
-            is_ratio_mean = jnp.nanmean(is_ratio)
+            ppo_loss, aux = _compute_loss(lprobs, old_lprobs, returns, pred_mask)
 
             return ppo_loss + entropy_coef * entropy_loss, {
                 CONST_TRAIN: {
                     "entropy": entropy,
                     "pi_loss": ppo_loss,
-                    "num_clipped": (clipped_is_ratio != is_ratio).sum(),
-                    "is_ratio_max": is_ratio_max,
-                    "is_ratio_min": is_ratio_min,
-                    "is_ratio_mean": is_ratio_mean,
+                    **{k: v for k, v in aux.items()},
                 },
                 CONST_HIST: {},
             }
@@ -278,10 +325,9 @@ class Learner:
         self._initialize_model_and_opt(self.dtype)
 
         self._loss = initialize_loss_fn(
-            self._config.objective,
+            self._config.train_loss_config,
             self._state.graphdef,
             getattr(self._config, "one_hot", False),
-            getattr(self._config, "loss_config", None),
         )
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()

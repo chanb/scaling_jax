@@ -50,7 +50,10 @@
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "objective": "reinforce",
+    "train_loss_config": {
+        "objective": "reinforce",
+        "mdp_type": "bandit"
+    },
     "gamma": 0.99,
     "negative_reward": "default",
     "entropy": 0.0,

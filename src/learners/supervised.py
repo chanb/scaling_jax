@@ -107,7 +107,7 @@ class Supervised(Learner):
         }
 
         self._val_loss = initialize_loss_fn(
-            self._config.val_objective,
+            self._config.val_loss_config,
             self._state.graphdef,
             getattr(self._config, "one_hot", False),
         )

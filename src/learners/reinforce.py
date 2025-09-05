@@ -201,7 +201,12 @@ class REINFORCE(Learner):
         # Assume each token is an action, the state is the sequence up to this point
         # The reward is based on whether there is a regex match with the target
 
-        returns = np.zeros(batch["sequence"].shape[0])
+        if self._config.train_loss_config.mdp_type == "episodic":
+            returns = np.zeros(batch["sequence"])
+        elif self._config.train_loss_config.mdp_type == "bandit":
+            returns = np.zeros(batch["sequence"].shape[0])
+        else:
+            raise NotImplementedError
         response_lengths = np.zeros(batch["sequence"].shape[0])
         successes = np.zeros(batch["sequence"].shape[0])
 
@@ -246,11 +251,15 @@ class REINFORCE(Learner):
 
             response_lengths[sample_i] = response_length
             successes[sample_i] = success
-            # returns[sample_i][np.where(mask)[0]] = (
-            #     (self._config.gamma ** np.arange(response_length)[::-1]) * reward
-            # )
 
-            returns[sample_i] = self._config.gamma ** (response_length - 1) * reward
+            if self._config.train_loss_config.mdp_type == "episodic":
+                returns[sample_i][np.where(mask)[0]] = (
+                    (self._config.gamma ** np.arange(response_length)[::-1]) * reward
+                )
+            elif self._config.train_loss_config.mdp_type == "bandit":
+                returns[sample_i] = self._config.gamma ** (response_length - 1) * reward
+            else:
+                raise NotImplementedError
 
             # if getattr(self._config, "regularized_alpha", False):
             #     returns[sample_i] = returns[sample_i] - lprobs * self._config.regularized_alpha

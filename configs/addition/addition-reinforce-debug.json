@@ -50,7 +50,10 @@
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
-    "objective": "reinforce",
+    "train_loss_config": {
+        "objective": "reinforce",
+        "mdp_type": "episodic"
+    },
     "gamma": 0.99,
     "reward_type": "default",
     "entropy": 0.0,

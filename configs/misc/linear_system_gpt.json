@@ -50,7 +50,12 @@
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 32,
-    "objective": "contrastive",
+    "train_loss_config": {
+        "objective": "mse"
+    },
+    "val_loss_config": {
+        "objective": "mse"
+    },
     "num_epochs": 500000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -58,7 +63,6 @@
         "learner_seed": 42,
         "data_seed": 42
     },
-    "val_objective": "mse",
     "validate": [
         {
             "validation_name": "heldout",
