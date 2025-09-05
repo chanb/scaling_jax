@@ -155,6 +155,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif loss_config.mdp_type == "episodic":
             def _compute_loss(lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
+                returns = returns[:, :-1]
                 return -jnp.sum(lprobs * returns * pred_mask) / jnp.sum(pred_mask)
         else:
             raise NotImplementedError
@@ -231,6 +232,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif loss_config.mdp_type == "episodic":
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
+                returns = returns[:, :-1]
                 is_ratio = jnp.exp(lprobs - old_lprobs)
                 # XXX: Deal with inf values
                 is_ratio = jax.lax.select(
