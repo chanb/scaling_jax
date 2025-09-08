@@ -60,7 +60,7 @@
     "reward_type": "default",
     "entropy": 0.0,
     "num_rollouts_per_sample": 1,
-    "batch_size": 2,
+    "batch_size": 32,
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {

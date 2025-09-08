@@ -21,6 +21,7 @@ CONST_MASK_NAMES = "mask_names"
 
 # Scheduler
 CONST_LINEAR_WARMUP_SQRT_DECAY = "linear_warmup_sqrt_decay"
+CONST_CONSTANT_WARMUP = "constant_warmup"
 
 # Model
 CONST_GPT = "gpt"

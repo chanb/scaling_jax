@@ -92,6 +92,10 @@ class REINFORCE(Learner):
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
 
+            # if np.sum(successes) > 0:
+            #     import ipdb
+            #     ipdb.set_trace()
+
             tic = timeit.default_timer()
             self._state, aux = self.train_step(
                 self._state,

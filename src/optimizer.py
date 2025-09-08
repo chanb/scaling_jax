@@ -41,6 +41,21 @@ def linear_warmup_sqrt_decay(
     return schedule
 
 
+def constant_warmup(
+    max_lr: chex.Scalar,
+    warmup_steps: int,
+) -> optax.Schedule:
+    assert max_lr > 0, "maximum learning rate {} must be positive".format(max_lr)
+    assert warmup_steps > 0, "warm up steps {} must be positive".format(warmup_steps)
+
+    def schedule(count):
+        """Linear warmup and then an inverse square root decay of learning rate."""
+        linear_ratio = jnp.clip(count / warmup_steps, a_min=0, a_max=1) * max_lr
+        return linear_ratio
+
+    return schedule
+
+
 def get_scheduler(
     scheduler_config: SimpleNamespace,
 ) -> optax.Schedule:
@@ -55,6 +70,11 @@ def get_scheduler(
     kwargs = scheduler_config.scheduler_kwargs
     if scheduler_config.scheduler == CONST_LINEAR_WARMUP_SQRT_DECAY:
         return linear_warmup_sqrt_decay(
+            kwargs.max_lr,
+            kwargs.warmup_steps,
+        )
+    elif scheduler_config.scheduler == CONST_CONSTANT_WARMUP:
+        return constant_warmup(
             kwargs.max_lr,
             kwargs.warmup_steps,
         )

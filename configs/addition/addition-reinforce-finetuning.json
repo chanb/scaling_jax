@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
-        "experiment_name": "reinforce-finetuning-right_to_left",
+        "experiment_name": "reinforce-finetuning_100k-right_to_left-episodic-max_grad_norm_1.0-constant_warmup-64_rollouts",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 50
@@ -21,15 +21,16 @@
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
-            "scheduler": "constant_schedule",
+            "scheduler": "constant_warmup",
             "scheduler_kwargs": {
-                "value": 5e-7
+                "max_lr": 1e-5,
+                "warmup_steps": 50
             }
         },
         "opt_kwargs": {
             "weight_decay": 0.0
         },
-        "max_grad_norm": false,
+        "max_grad_norm": 1.0,
         "mask_names": []
     },
     "half_precision": false,
@@ -52,17 +53,17 @@
     "num_workers": 4,
     "train_loss_config": {
         "objective": "reinforce",
-        "mdp_type": "bandit"
+        "mdp_type": "episodic"
     },
     "gamma": 0.99,
     "negative_reward": "default",
     "entropy": 0.0,
-    "num_rollouts_per_sample": 1,
-    "batch_size": 32,
+    "num_rollouts_per_sample": 64,
+    "batch_size": 8,
     "num_epochs": 500000,
     "num_updates_per_epoch": 1,
     "seeds": {
-        "seed": 0,
+        "seed": 1,
         "learner_seed": 42,
         "data_seed": 42
     },
