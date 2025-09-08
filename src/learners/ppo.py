@@ -68,6 +68,7 @@ class PPO(REINFORCE):
             num_rollouts_per_sample = getattr(self._config, "num_rollouts_per_sample", 1)
             batch["sequence"] = np.repeat(batch["sequence"], num_rollouts_per_sample, axis=0)
             batch["mask"] = np.repeat(batch["mask"], num_rollouts_per_sample, axis=0)
+            batch["target"] = np.repeat(batch["target"], num_rollouts_per_sample, axis=0)
 
             total_sample_time += timeit.default_timer() - tic
 
@@ -98,7 +99,7 @@ class PPO(REINFORCE):
             batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
             eos_mask = 1 - eos_mask
             batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
-            returns, successes, response_lengths = self.compute_returns(batch)
+            returns, successes, response_lengths = self.compute_returns(batch, is_eval=False)
             batch["returns"] = returns
 
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
