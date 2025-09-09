@@ -10,6 +10,7 @@ from functools import reduce
 from gymnasium import spaces
 from torch.utils.data import IterableDataset
 
+import math
 import numpy as np
 
 
@@ -24,6 +25,7 @@ class Addition(IterableDataset):
         train_val_ratio: float=0.8,
         right_to_left: bool=False,
         shuffle: bool=True,
+        exact: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -36,6 +38,8 @@ class Addition(IterableDataset):
         self.train_val_ratio = train_val_ratio
         self.right_to_left = right_to_left
         self.shuffle = shuffle
+        self.exact = exact
+        self.max_bit_len = math.ceil(np.log2(max_int))
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
@@ -89,6 +93,9 @@ class Addition(IterableDataset):
 
 
             max_len = max(len(first_bin_repr), len(second_bin_repr))
+            if self.exact and max_len != self.max_bit_len:
+                continue
+
             first_bin_repr = first_bin_repr.rjust(max_len, "0")
             second_bin_repr = second_bin_repr.rjust(max_len, "0")
 

@@ -144,6 +144,14 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
     elif objective == "reinforce":
         # TODO: Add KL regularizer to reference model
 
+        variants = loss_config.mdp_type.split(":")
+        if len(variants) == 0 or variants[1] == "default":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / jnp.sum(pred_mask)
+        elif variants[1] == "length_bias_fix":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / pred_mask.shape[0]
+
         if loss_config.mdp_type == "bandit":
             def _compute_loss(lprobs, returns, pred_mask):
                 # Objective: log pi(y|s) * R
@@ -152,11 +160,11 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     lprobs
                     * returns
                 )
-        elif loss_config.mdp_type == "episodic":
+        elif loss_config.mdp_type.startswith("episodic"):
             def _compute_loss(lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
                 returns = returns[:, :-1]
-                return -jnp.sum(lprobs * returns * pred_mask) / jnp.sum(pred_mask)
+                return -_compute_mean(lprobs * returns * pred_mask, pred_mask)
         else:
             raise NotImplementedError
 
@@ -179,7 +187,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
-            entropy = jnp.mean(entropy, where=pred_mask)
+            entropy = _compute_mean(jnp.sum(entropy, where=pred_mask), pred_mask)
 
             reinforce_loss = _compute_loss(lprobs, returns, pred_mask)
 
@@ -194,6 +202,13 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             }
         return reinforce
     elif objective == "ppo":
+        variants = loss_config.mdp_type.split(":")
+        if len(variants) == 0 or variants[1] == "default":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / jnp.sum(pred_mask)
+        elif variants[1] == "length_bias_fix":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / pred_mask.shape[0]
 
         if loss_config.mdp_type == "bandit":
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
@@ -227,7 +242,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     "is_ratio_min": is_ratio_min,
                     "is_ratio_mean": is_ratio_mean,
                 }
-        elif loss_config.mdp_type == "episodic":
+        elif loss_config.mdp_type.startswith("episodic"):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
                 returns = returns[:, :-1]
@@ -251,7 +266,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                 is_ratio_min = jnp.min(is_ratio, where=pred_mask, initial=jnp.inf,)
                 is_ratio_mean = jnp.nanmean(is_ratio, where=pred_mask)
 
-                return -jnp.sum(pi_surrogate * pred_mask) / jnp.sum(pred_mask), {
+                return -_compute_mean(pi_surrogate * pred_mask, pred_mask), {
                     "num_clipped": (clipped_is_ratio != is_ratio).sum(),
                     "is_ratio_max": is_ratio_max,
                     "is_ratio_min": is_ratio_min,
@@ -280,7 +295,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             
             probs = nn.softmax(logits, axis=-1)
             entropy = optax.softmax_cross_entropy(logits, probs)
-            entropy = jnp.mean(entropy, where=pred_mask)
+            entropy = _compute_mean(jnp.sum(entropy, where=pred_mask), pred_mask)
 
             entropy_loss = -entropy
             ppo_loss, aux = _compute_loss(lprobs, old_lprobs, returns, pred_mask)

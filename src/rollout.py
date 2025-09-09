@@ -25,6 +25,7 @@ class StepState(NamedTuple):
     is_prompt: chex.Array
     eos: chex.Array
     step_i: int = 0
+    deterministic: int = 0
 
 
 def predict_step(
@@ -41,8 +42,14 @@ def predict_step(
     cache = nnx.state(module, nnx.Cache)
 
     logits = logits[:, 0]
-    
-    output_tokens = jrandom.categorical(rng_step, logits)
+
+    output_tokens = jax.lax.cond(
+        step_state.deterministic,
+        lambda rng_step, logits: jnp.argmax(logits, axis=-1),
+        jax.random.categorical,
+        rng_step,
+        logits,
+    )
 
     # Check for prompt boundary
     is_prompt = step_state.is_prompt[:, step_i]
@@ -73,6 +80,7 @@ def predict_step(
         is_prompt=step_state.is_prompt,
         eos=eos,
         step_i=step_i + 1,
+        deterministic=step_state.deterministic,
     )
 
     return step_state
@@ -86,6 +94,7 @@ def rollout(
     rng: chex.PRNGKey,
     batch: Any,
     eos_token: int,
+    deterministic: int = 0,
 ):
     questions = batch["sequence"]
     mask = batch["mask"]
@@ -100,6 +109,7 @@ def rollout(
         sequence=questions,
         is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
+        deterministic=deterministic,
     )
 
     step_state = jax.lax.while_loop(

@@ -93,6 +93,8 @@ class REINFORCE(Learner):
 
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
+            # import ipdb
+            # ipdb.set_trace()
 
             # if np.sum(successes) > 0:
             #     import ipdb
@@ -179,6 +181,7 @@ class REINFORCE(Learner):
                     curr_rng,
                     batch,
                     eos_token=EOS_TOKEN,
+                    deterministic=1,
                 )
 
                 batch["sequence"] = responses
@@ -213,6 +216,7 @@ class REINFORCE(Learner):
 
         response_lengths = np.zeros(batch["sequence"].shape[0])
         successes = np.zeros(batch["sequence"].shape[0])
+        has_eos = np.zeros(batch["sequence"].shape[0])
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
         for sample_i, (response, target, mask) in enumerate(
@@ -225,8 +229,10 @@ class REINFORCE(Learner):
                 response = "".join(np.array(
                     response[:np.where(response == EOS_TOKEN)[0][0] + 1]
                 ).astype(str))
+                has_eos[sample_i] = 1.0
             else:
                 response = "".join(np.array(response).astype(str))
+                has_eos[sample_i] = 0.0
 
             response_length = np.sum(mask)
 
@@ -256,16 +262,16 @@ class REINFORCE(Learner):
             rewards = rewards - group_means
     
         # MDP vs Bandit formulation
-        if self._config.train_loss_config.mdp_type == "episodic":
+        if self._config.train_loss_config.mdp_type.startswith("episodic"):
             returns = np.zeros(batch["sequence"].shape)
             for sample_i, (reward, mask, response_length) in enumerate(zip(
                 rewards, batch["pred_mask"], response_lengths
             )):
                 returns[sample_i][np.where(mask)[0]] = (
                     (self._config.gamma ** np.arange(response_length)[::-1]) * reward
-                )
+                ) - (1 - has_eos[sample_i])
         elif self._config.train_loss_config.mdp_type == "bandit":
-            returns = self._config.gamma ** (response_length - 1) * rewards
+            returns = self._config.gamma ** (response_length - 1) * (rewards - (1 - has_eos[sample_i]))
         else:
             raise NotImplementedError
 
