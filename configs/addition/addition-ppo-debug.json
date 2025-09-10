@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug",
-        "experiment_name": "ppo-test-lr_0.00005",
+        "experiment_name": "ppo-test-load_checkpoint",
         "log_interval": 1,
         "checkpoint_interval": 10000,
         "validation_interval": 50
@@ -22,9 +22,10 @@
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
-            "scheduler": "constant_schedule",
+            "scheduler": "constant_warmup",
             "scheduler_kwargs": {
-                "value": 1e-5
+                "max_lr": 1e-5,
+                "warmup_steps": 50
             }
         },
         "opt_kwargs": {
@@ -62,7 +63,7 @@
     "reward_type": "negative_on_failure",
     "entropy": 0.0,
     "num_rollouts_per_sample": 1,
-    "batch_size": 16,
+    "batch_size": 64,
     "num_epochs": 50000,
     "num_updates_per_epoch": 1,
     "seeds": {

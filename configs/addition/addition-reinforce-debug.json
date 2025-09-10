@@ -22,13 +22,14 @@
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
-            "scheduler": "constant_schedule",
+            "scheduler": "constant_warmup",
             "scheduler_kwargs": {
-                "value": 1e-4
+                "max_lr": 1e-5,
+                "warmup_steps": 50
             }
         },
         "opt_kwargs": {
-            "weight_decay": 1e-2
+            "weight_decay": 0.0
         },
         "max_grad_norm": 1.0,
         "mask_names": []
