@@ -96,10 +96,12 @@ class PPO(REINFORCE):
 
             # Compute return
             batch["sequence"] = responses
-            batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
-            eos_mask = 1 - eos_mask
-            batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
-            returns, successes, response_lengths = self.compute_returns(batch, is_eval=False)
+            returns, successes, response_lengths = self._compute_returns(
+                batch,
+                eos_mask,
+                is_prompt_mask,
+                is_eval=False,
+            )
             batch["returns"] = returns
 
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)

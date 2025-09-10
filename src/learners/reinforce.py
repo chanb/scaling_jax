@@ -25,6 +25,7 @@ from src.learners.learner import (
 )
 from src.rollout import rollout
 from src.utils import parse_dict
+from src.verifier import make_compute_returns
 
 
 EOS_TOKEN = 4
@@ -35,6 +36,7 @@ class REINFORCE(Learner):
     ):
         super().__init__(config=config)
         self._rng = jrandom.PRNGKey(self._config.seeds.learner_seed)
+        self._compute_returns = make_compute_returns(self._config, EOS_TOKEN)
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         curr_rng = jrandom.fold_in(self._rng, epoch)
@@ -83,22 +85,16 @@ class REINFORCE(Learner):
 
             # Compute return
             batch["sequence"] = responses
-
-            batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
-            eos_mask = 1 - eos_mask
-            batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
-
-            returns, successes, response_lengths = self.compute_returns(batch, is_eval=False)
+            returns, successes, response_lengths = self._compute_returns(
+                batch,
+                eos_mask,
+                is_prompt_mask,
+                is_eval=False,
+            )
             batch["returns"] = returns
 
             batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
-            # import ipdb
-            # ipdb.set_trace()
-
-            # if np.sum(successes) > 0:
-            #     import ipdb
-            #     ipdb.set_trace()
 
             tic = timeit.default_timer()
             self._state, aux = self.train_step(
@@ -185,10 +181,12 @@ class REINFORCE(Learner):
                 )
 
                 batch["sequence"] = responses
-                batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
-                eos_mask = 1 - eos_mask
-                batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
-                successes, response_lengths = self.compute_returns(batch, is_eval=True)
+                successes, response_lengths = self.compute_returns(
+                    batch,
+                    eos_mask,
+                    is_prompt_mask,
+                    is_eval=True,
+                )
 
                 validation_time = timeit.default_timer() - tic
 
@@ -204,75 +202,3 @@ class REINFORCE(Learner):
             return log
 
         self.validation_step = validate_step
-
-    def compute_returns(self, batch, is_eval):
-        """
-        Compute verifiable rewards
-        Assume each token is an action, the state is the sequence up to this point
-        The reward is based on whether there is a regex match with the target
-
-        TODO: Entropy regularization objective
-        """
-
-        response_lengths = np.zeros(batch["sequence"].shape[0])
-        successes = np.zeros(batch["sequence"].shape[0])
-        has_eos = np.zeros(batch["sequence"].shape[0])
-
-        # Get whether or not target is in the response---neglects everything after first <EOS>
-        for sample_i, (response, target, mask) in enumerate(
-            zip(batch["sequence"], batch["target"], batch["pred_mask"])
-        ):
-            target = "".join(np.array(target[target != EOS_TOKEN]).astype(str)) + "4"
-
-            # XXX: Currently look at the first <EOS>
-            if EOS_TOKEN in response:
-                response = "".join(np.array(
-                    response[:np.where(response == EOS_TOKEN)[0][0] + 1]
-                ).astype(str))
-                has_eos[sample_i] = 1.0
-            else:
-                response = "".join(np.array(response).astype(str))
-                has_eos[sample_i] = 0.0
-
-            response_length = np.sum(mask)
-
-            success = float(target in response)
-
-            response_lengths[sample_i] = response_length
-            successes[sample_i] = success
-
-        if is_eval:
-            return successes, response_lengths
-
-        # Reward shaping
-        reward_type = getattr(self._config, "reward_type", "default")
-        rewards = successes
-        if reward_type == "negative_on_failure":
-            rewards = (-1) ** (1 - successes)
-        elif reward_type == "negative_dense":
-            rewards = successes - 1
-
-        # Dr. GRPO
-        dr_grpo = getattr(self._config, "dr_grpo", False)
-        num_rollouts_per_sample = getattr(self._config, "num_rollouts_per_sample", 1)
-        if dr_grpo and num_rollouts_per_sample > 1:
-            group_changes = np.arange(0, len(batch["sequence"]), num_rollouts_per_sample)
-            group_means = np.add.reduceat(rewards, group_changes) / num_rollouts_per_sample
-            group_means = np.repeat(group_means, num_rollouts_per_sample, axis=0)
-            rewards = rewards - group_means
-    
-        # MDP vs Bandit formulation
-        if self._config.train_loss_config.mdp_type.startswith("episodic"):
-            returns = np.zeros(batch["sequence"].shape)
-            for sample_i, (reward, mask, response_length) in enumerate(zip(
-                rewards, batch["pred_mask"], response_lengths
-            )):
-                returns[sample_i][np.where(mask)[0]] = (
-                    (self._config.gamma ** np.arange(response_length)[::-1]) * reward
-                ) - (1 - has_eos[sample_i])
-        elif self._config.train_loss_config.mdp_type == "bandit":
-            returns = self._config.gamma ** (response_length - 1) * (rewards - (1 - has_eos[sample_i]))
-        else:
-            raise NotImplementedError
-
-        return returns, successes, response_lengths

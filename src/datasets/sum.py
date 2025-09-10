@@ -26,6 +26,7 @@ class Addition(IterableDataset):
         right_to_left: bool=False,
         shuffle: bool=True,
         exact: bool=False,
+        predict_eos: bool=True,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -40,6 +41,7 @@ class Addition(IterableDataset):
         self.shuffle = shuffle
         self.exact = exact
         self.max_bit_len = math.ceil(np.log2(max_int))
+        self.predict_eos = predict_eos
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
@@ -51,7 +53,7 @@ class Addition(IterableDataset):
 
     @property
     def output_space(self):
-        return spaces.Discrete(5)
+        return spaces.Discrete(4 + int(self.predict_eos))
 
     def __iter__(self):
         return iter(self.get_sequences())
