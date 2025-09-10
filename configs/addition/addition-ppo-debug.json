@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug",
-        "experiment_name": "ppo-test",
+        "experiment_name": "ppo-test-lr_0.00005",
         "log_interval": 1,
         "checkpoint_interval": 10000,
         "validation_interval": 50
@@ -18,6 +18,7 @@
             "use_sink_token": false
         }
     },
+    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug/ppo-test-09-09-25_17_17_15-e2d71f79-8e0b-471f-bdc6-7846092878df:latest",
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
@@ -42,12 +43,12 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 16,
-        "max_int": 4,
+        "max_int": 16,
         "train": true,
-        "train_val_ratio": 0.8,
+        "train_val_ratio": 1.0,
         "sequence_type": "question_only",
         "right_to_left": true,
-        "shuffle": false
+        "shuffle": true
     },
     "shuffle_buffer_size": 100,
     "num_workers": 1,
@@ -126,6 +127,66 @@
             "shuffle_buffer_size": 100,
             "num_workers": 1,
             "batch_size": 48,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "bit_length_4",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 64,
+                "max_int": 16,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 64,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "bit_length_5",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 64,
+                "max_int": 32,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 64,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "bit_length_6",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 64,
+                "max_int": 64,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 64,
             "seeds": {
                 "data_seed": 42
             }
