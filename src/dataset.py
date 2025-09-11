@@ -147,6 +147,7 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             getattr(dataset_kwargs, "right_to_left", False),
             getattr(dataset_kwargs, "shuffle", True),
             getattr(dataset_kwargs, "exact", False),
+            getattr(dataset_kwargs, "predict_eos", True),
         )
     elif dataset_name == "xor":
         from src.datasets.sum import XOR

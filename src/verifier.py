@@ -6,29 +6,14 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from flax import nnx
-from types import SimpleNamespace
-from typing import Any, Dict
 
-import jax
-import jax.random as jrandom
 import numpy as np
-import timeit
 
 from src.constants import *
-from src.dataset import get_data_loader
-from src.decoding import make_autoregressive
-from src.learners.learner import (
-    Learner,
-    l2_norm,
-    gather_learning_rate,
-)
-from src.rollout import rollout
-from src.utils import parse_dict
 
 
 def make_compute_returns(config, eos_token=4):
-    if getattr(config.dataset_kwargs, "predict_eos", False):
+    if getattr(config.dataset_kwargs, "predict_eos", True):
         def process_target(target):
             target = "".join(np.array(target[target != eos_token]).astype(str))
             return target + "4"
@@ -54,6 +39,7 @@ def make_compute_returns(config, eos_token=4):
         
         def get_success(response, target, mask):
             # XXX: Stop at first matching string
+            response = "".join(np.array(response).astype(str))
             success = float(target in response)
 
             assert "4" not in response

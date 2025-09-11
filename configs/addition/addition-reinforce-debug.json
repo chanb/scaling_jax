@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug",
-        "experiment_name": "reinforce-test-load_checkpoint",
+        "experiment_name": "reinforce-test-default_reward",
         "log_interval": 1,
         "checkpoint_interval": 10000,
         "validation_interval": 50
@@ -18,14 +18,12 @@
             "use_sink_token": false
         }
     },
-    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug/reinforce-test-09-09-25_09_33_02-482c0077-58e5-4079-be6b-f5e1864622e5:latest",
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
-            "scheduler": "constant_warmup",
+            "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "max_lr": 1e-5,
-                "warmup_steps": 50
+                "value": 0.0001
             }
         },
         "opt_kwargs": {
@@ -44,12 +42,12 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 16,
-        "max_int": 16,
+        "max_int": 4,
         "train": true,
         "train_val_ratio": 1.0,
         "sequence_type": "question_only",
         "right_to_left": true,
-        "shuffle": true
+        "shuffle": false
     },
     "shuffle_buffer_size": 100,
     "num_workers": 1,
@@ -58,11 +56,11 @@
         "mdp_type": "episodic:length_bias_fix"
     },
     "gamma": 0.99,
-    "reward_type": "negative_on_failure",
+    "reward_type": "default",
     "entropy": 0.0,
     "dr_grpo": false,
     "num_rollouts_per_sample": 1,
-    "batch_size": 64,
+    "batch_size": 16,
     "num_epochs": 50000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -127,66 +125,6 @@
             "shuffle_buffer_size": 100,
             "num_workers": 1,
             "batch_size": 48,
-            "seeds": {
-                "data_seed": 42
-            }
-        },
-        {
-            "validation_name": "bit_length_4",
-            "dataset_name": "addition",
-            "dataset_kwargs": {
-                "context_len": 64,
-                "max_int": 16,
-                "train": true,
-                "train_val_ratio": 1.0,
-                "sequence_type": "question_only",
-                "right_to_left": true,
-                "shuffle": false,
-                "exact": true
-            },
-            "shuffle_buffer_size": 100,
-            "num_workers": 1,
-            "batch_size": 64,
-            "seeds": {
-                "data_seed": 42
-            }
-        },
-        {
-            "validation_name": "bit_length_5",
-            "dataset_name": "addition",
-            "dataset_kwargs": {
-                "context_len": 64,
-                "max_int": 32,
-                "train": true,
-                "train_val_ratio": 1.0,
-                "sequence_type": "question_only",
-                "right_to_left": true,
-                "shuffle": false,
-                "exact": true
-            },
-            "shuffle_buffer_size": 100,
-            "num_workers": 1,
-            "batch_size": 64,
-            "seeds": {
-                "data_seed": 42
-            }
-        },
-        {
-            "validation_name": "bit_length_6",
-            "dataset_name": "addition",
-            "dataset_kwargs": {
-                "context_len": 64,
-                "max_int": 64,
-                "train": true,
-                "train_val_ratio": 1.0,
-                "sequence_type": "question_only",
-                "right_to_left": true,
-                "shuffle": false,
-                "exact": true
-            },
-            "shuffle_buffer_size": 100,
-            "num_workers": 1,
-            "batch_size": 64,
             "seeds": {
                 "data_seed": 42
             }

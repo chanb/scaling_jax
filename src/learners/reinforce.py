@@ -181,7 +181,7 @@ class REINFORCE(Learner):
                 )
 
                 batch["sequence"] = responses
-                successes, response_lengths = self.compute_returns(
+                successes, response_lengths = self._compute_returns(
                     batch,
                     eos_mask,
                     is_prompt_mask,
