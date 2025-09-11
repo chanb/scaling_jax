@@ -45,8 +45,9 @@ def make_compute_returns(config, eos_token=4):
             assert "4" not in response
 
             if success:
-                end_idx = response.find(target) + len(target)
+                end_idx = response.find(target) + len(target) - 1
                 mask[end_idx:] = 0
+
             response_length = np.sum(mask)
 
             has_eos = 1.0
@@ -112,8 +113,6 @@ def make_compute_returns(config, eos_token=4):
         has_eos = np.zeros(batch["sequence"].shape[0])
 
         batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
-        eos_mask = 1 - eos_mask
-        batch["first_eos_mask"] = eos_mask - np.roll(eos_mask, -1, axis=1) * eos_mask
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
         for sample_i, (response, target, mask) in enumerate(
