@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug_no_eos",
-        "experiment_name": "ppo-test-max_int_32-finetune_from_8-64_rollouts",
+        "experiment_name": "ppo-test-max_int_64-load_from_64-parallel_64",
         "log_interval": 1,
         "checkpoint_interval": 5000,
         "validation_interval": 50
@@ -18,7 +18,7 @@
             "use_sink_token": false
         }
     },
-    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug_no_eos/ppo-test-max_int_8-scratch-09-12-25_06_19_49-1f45789b-5a92-4d8c-85d5-d2b7b0aaa085:latest",
+    "load_checkpoint": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug_no_eos/ppo-test-max_int_64-scratch-64_rollouts-09-11-25_09_30_35-96129b62-66f9-4fbf-a96f-63e40b8977b5:latest",
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
@@ -43,7 +43,7 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 100,
-        "max_int": 32,
+        "max_int": 64,
         "train": true,
         "train_val_ratio": 0.9,
         "sequence_type": "question_only",
