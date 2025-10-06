@@ -127,11 +127,11 @@ class Parity(IterableDataset):
             question_len = len(sequence)
 
             # Construct sequence
-            sequence = sequence + [3]
-            sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+            sequence = sequence + [2]
+            sequence = sequence + [3] * (self.context_len - len(sequence) + 1)
 
-            soln_list_repr = [3, target]
-            soln_list_repr = soln_list_repr + [4] * (self.context_len - len(soln_list_repr) + 1)
+            soln_list_repr = [2, target]
+            soln_list_repr = soln_list_repr + [3] * (self.context_len - len(soln_list_repr) + 1)
 
             mask = np.zeros(len(sequence))
             mask[question_len:] = 1

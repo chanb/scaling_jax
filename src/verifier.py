@@ -16,7 +16,7 @@ def make_compute_returns(config, eos_token=4):
     if getattr(config.dataset_kwargs, "predict_eos", True):
         def process_target(target):
             target = "".join(np.array(target[target != eos_token]).astype(str))
-            return target + "4"
+            return target + str(eos_token)
         
         def get_success(response, target, mask):
             # XXX: Currently look at the first <EOS>
@@ -42,7 +42,7 @@ def make_compute_returns(config, eos_token=4):
             response = "".join(np.array(response).astype(str))
             success = float(target in response)
 
-            assert "4" not in response
+            assert str(eos_token) not in response
 
             if success:
                 end_idx = response.find(target) + len(target) - 1
