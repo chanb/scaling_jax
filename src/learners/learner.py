@@ -25,6 +25,7 @@ import src.models as models
 from src.constants import *
 from src.dataset import get_data_loader
 from src.mesh_utils import construct_mesh, construct_sharded_model
+from src.utils import EmptyDatasetError
 
 
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
@@ -145,7 +146,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         # TODO: Add KL regularizer to reference model
 
         variants = loss_config.mdp_type.split(":")
-        if len(variants) == 0 or variants[1] == "default":
+        if len(variants) == 1 or variants[1] == "default":
             def _compute_mean(values, pred_mask):
                 return jnp.sum(values) / jnp.sum(pred_mask)
         elif variants[1] == "length_bias_fix":
@@ -403,7 +404,10 @@ class Learner:
             self._state = dill.load(open(os.path.join(load_path, "models", step), "rb"))
 
     def get_batch(self):
-        batch = next(self.ds)
+        try:
+            batch = next(self.ds)
+        except StopIteration:
+            raise EmptyDatasetError()
         batch = jax.device_put(batch, self.data_sharding)
         return batch
 

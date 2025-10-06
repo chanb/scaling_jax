@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import src.learners as learners
 
 from src.constants import *
-from src.utils import DummySummaryWriter
+from src.utils import DummySummaryWriter, EmptyDatasetError
 
 
 def train(
@@ -121,6 +121,15 @@ def train(
                     ),
                 )
     except KeyboardInterrupt:
+        pass
+    except EmptyDatasetError:
+        print("Dataset is exhausted. Ending training.")
+        # Perform validation and save checkpoint
+        if hasattr(learner, "validation_step"):
+            val_aux = learner.validation_step(epoch)
+
+            for key, val in val_aux.items():
+                summary_writer.add_scalar(key, val, true_epoch)
         pass
 
     if save_path:
