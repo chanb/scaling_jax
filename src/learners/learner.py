@@ -25,7 +25,6 @@ import src.models as models
 from src.constants import *
 from src.dataset import get_data_loader
 from src.mesh_utils import construct_mesh, construct_sharded_model
-from src.utils import EmptyDatasetError
 
 
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
@@ -404,10 +403,7 @@ class Learner:
             self._state = dill.load(open(os.path.join(load_path, "models", step), "rb"))
 
     def get_batch(self):
-        try:
-            batch = next(self.ds)
-        except StopIteration:
-            raise EmptyDatasetError()
+        batch = next(self.ds)
         batch = jax.device_put(batch, self.data_sharding)
         return batch
 

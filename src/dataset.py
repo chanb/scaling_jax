@@ -13,10 +13,10 @@ from typing import Any
 
 import numpy as np
 
-from src.utils import parse_dict
+from src.utils import EmptyDatasetError, parse_dict
 
 
-def get_iter(data_loader, data_sharding, dtype):
+def get_iter(data_loader, data_sharding, dtype, stop_on_empty: bool=False):
     """
     Converts a DataLoader to an iterator that handles data sharding and dtype conversion.
     """
@@ -26,8 +26,11 @@ def get_iter(data_loader, data_sharding, dtype):
         try:
             batch = next(loader)
         except StopIteration:
-            loader = iter(data_loader)
-            batch = next(loader)
+            if stop_on_empty:
+                raise EmptyDatasetError()
+            else:
+                loader = iter(data_loader)
+                batch = next(loader)
 
         for k, v in batch.items():
             if hasattr(v, "numpy"):
@@ -96,7 +99,12 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         num_workers=num_workers,
     )
 
-    loader = get_iter(loader, data_sharding, dtype)
+    loader = get_iter(
+        loader,
+        data_sharding,
+        dtype,
+        stop_on_empty=not dataset.repeat,
+    )
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
 
     return loader, dataset

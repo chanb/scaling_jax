@@ -23,11 +23,9 @@ from src.learners.learner import (
     l2_norm,
     gather_learning_rate,
 )
-from src.learners.reinforce import REINFORCE
+from src.learners.reinforce import REINFORCE, EOS_TOKEN
 from src.rollout import rollout
 
-
-EOS_TOKEN = 4
 
 @nnx.jit
 def compute_log_probs(graphdef, params, rest, batch):
