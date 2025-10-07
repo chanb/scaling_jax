@@ -11,6 +11,7 @@ from torch.utils.data import IterableDataset
 import numpy as np
 
 
+# TODO: Make this a little bit easier to work with
 class Curriculum(IterableDataset):
     def __init__(
         self,
@@ -25,14 +26,15 @@ class Curriculum(IterableDataset):
         self.datasets_iters = [iter(dataset) for dataset in datasets]
         self.curriculum_schedule = curriculum_schedule
         self.curriculum_type = curriculum_type
+        self.curriculum_i = 0
 
     @property
     def input_space(self):
-        return self.datasets[0].input_space
+        return self.datasets[-1].input_space
 
     @property
     def output_space(self):
-        return self.datasets[0].output_space
+        return self.datasets[-1].output_space
 
     def __iter__(self):
         return iter(self.get_sequences())
@@ -48,18 +50,12 @@ class Curriculum(IterableDataset):
             raise NotImplementedError
         return next_dataset
 
+    def set_curriculum(self, curriculum_i: int):
+        self.curriculum_i = curriculum_i
+
     def get_sequences(self):
-        curriculum_i = 0
-        step = 0
         next_dataset_generator = self.get_dataset_to_sample()
 
         while True:
-            step += 1
-            dataset = next_dataset_generator(curriculum_i)
+            dataset = next_dataset_generator(self.curriculum_i)
             yield next(dataset)
-
-            if (
-                curriculum_i < len(self.curriculum_schedule)
-                and step >= self.curriculum_schedule[curriculum_i]
-            ):
-                curriculum_i = min(curriculum_i + 1, len(self.datasets) - 1)

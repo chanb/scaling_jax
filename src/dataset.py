@@ -13,15 +13,35 @@ from typing import Any
 
 import numpy as np
 
+from src.datasets.curriculum import Curriculum
 from src.utils import parse_dict, EmptyDatasetError
 
 
-def get_iter(data_loader, data_sharding, dtype, stop_on_empty: bool=False):
+def get_iter(data_loader, dataset, dtype, stop_on_empty: bool=False):
     """
     Converts a DataLoader to an iterator that handles data sharding and dtype conversion.
     """
 
     loader = iter(data_loader)
+    iter_i = 0
+
+    if isinstance(dataset, Curriculum):
+        def update_curriculum(iter_i):
+            if iter_i - dataset.curriculum_schedule[
+                dataset.curriculum_i
+            ] >= 0:
+                curr_curriculum = min(
+                    dataset.curriculum_i + 1,
+                    len(dataset.datasets) - 1,
+                )
+                print(
+                    "Updating curriculum to {}".format(curr_curriculum)
+                )
+                dataset.set_curriculum(curr_curriculum)
+    else:
+        def update_curriculum(iter_i):
+            pass
+
     while True:
         try:
             batch = next(loader)
@@ -38,6 +58,9 @@ def get_iter(data_loader, data_sharding, dtype, stop_on_empty: bool=False):
             if np.issubdtype(batch[k].dtype, np.floating):
                 batch[k] = batch[k].astype(dtype)
         yield batch
+        iter_i += 1
+
+        update_curriculum(iter_i)
 
 
 def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
@@ -105,7 +128,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
 
     loader = get_iter(
         loader,
-        data_sharding,
+        dataset,
         dtype,
         stop_on_empty=not getattr(config, "repeat", True),
     )
