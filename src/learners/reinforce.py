@@ -28,7 +28,7 @@ from src.utils import parse_dict
 from src.verifier import make_compute_returns
 
 
-EOS_TOKEN = 4
+EOS_TOKEN = 6
 class REINFORCE(Learner):
     def __init__(
         self,

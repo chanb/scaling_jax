@@ -28,6 +28,7 @@ class Addition(IterableDataset):
         shuffle: bool=True,
         exact: bool=False,
         predict_eos: bool=True,
+        num_cot_tokens: int=0,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -44,18 +45,20 @@ class Addition(IterableDataset):
         self.exact = exact
         self.max_bit_len = math.ceil(np.log2(max_int))
         self.predict_eos = predict_eos
+        self.num_cot_tokens = num_cot_tokens
+        self.eos_token_id = 4 + self.num_cot_tokens
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
 
     @property
     def input_space(self):
-        # 0, 1, <PLUS>, <EQUAL>, <EOS>
-        return spaces.Discrete(5)
+        # 0, 1, <PLUS>, <EQUAL>, <EOS>, <REG_1>, ..., <REG_K>
+        return spaces.Discrete(5 + self.num_cot_tokens)
 
     @property
     def output_space(self):
-        return spaces.Discrete(4 + int(self.predict_eos))
+        return spaces.Discrete(4 + int(self.predict_eos) + self.num_cot_tokens)
 
     def __iter__(self):
         return iter(self.get_sequences())
@@ -80,6 +83,7 @@ class Addition(IterableDataset):
         )
         curr_idx = 0
         repeated = 0
+        original_sequence_indices = self.sequence_indices[:]
         while True:
             if (
                 self.num_repeats is not None
@@ -88,6 +92,8 @@ class Addition(IterableDataset):
                 if repeated == self.num_repeats:
                     break
                 repeated += 1
+                self.sequence_indices = original_sequence_indices[:]
+                print("Repeating the dataset {}/{}".format(repeated, self.num_repeats))
 
             if self.shuffle:
                 t = sample_rng.choice(self.sequence_indices)
@@ -142,7 +148,7 @@ class Addition(IterableDataset):
             
             if self.sequence_type == "default":
                 sequence = sequence + [3] + soln_list_repr
-                sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
                 mask = np.zeros(len(sequence) - 1)
                 mask[question_len:] = 1
         
@@ -153,7 +159,7 @@ class Addition(IterableDataset):
                 }
             elif self.sequence_type == "cot":
                 sequence = sequence + [3] + soln_list_repr[::-1] + [3] + soln_list_repr
-                sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
                 mask = np.zeros(len(sequence) - 1)
                 mask[question_len:] = 1
         
@@ -172,9 +178,9 @@ class Addition(IterableDataset):
                 }
             elif self.sequence_type == "question_only":
                 sequence = sequence + [3]
-                sequence = sequence + [4] * (self.context_len - len(sequence) + 1)
+                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
                 soln_list_repr = [3] + soln_list_repr
-                soln_list_repr = soln_list_repr + [4] * (self.context_len - len(soln_list_repr) + 1)
+                soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
 
                 mask = np.zeros(len(sequence))
                 mask[question_len:] = 1

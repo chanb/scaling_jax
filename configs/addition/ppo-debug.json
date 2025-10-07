@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "ppo-scratch-8x8-stop_on_empty",
+        "experiment_name": "ppo-scratch-8x8-2_cot_tokens-stop_on_empty-max_int_8",
         "log_interval": 1,
         "checkpoint_interval": 5000,
         "validation_interval": 50
@@ -42,14 +42,15 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 100,
-        "max_int": 64,
+        "max_int": 8,
         "train": true,
         "train_val_ratio": 0.9,
         "sequence_type": "question_only",
-        "num_repeats": 0,
+        "num_repeats": 12500,
         "right_to_left": true,
         "shuffle": true,
-        "predict_eos": false
+        "predict_eos": false,
+        "num_cot_tokens": 2
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
@@ -86,7 +87,8 @@
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": false,
-                "predict_eos": false
+                "predict_eos": false,
+                "num_cot_tokens": 2
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -108,7 +110,8 @@
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": true,
-                "predict_eos": false
+                "predict_eos": false,
+                "num_cot_tokens": 2
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -130,7 +133,8 @@
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": true,
-                "predict_eos": false
+                "predict_eos": false,
+                "num_cot_tokens": 2
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
