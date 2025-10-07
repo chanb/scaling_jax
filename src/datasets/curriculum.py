@@ -58,6 +58,8 @@ class Curriculum(IterableDataset):
             dataset = next_dataset_generator(curriculum_i)
             yield next(dataset)
 
-            if step >= self.curriculum_schedule[curriculum_i]:
-                step = 0
+            if (
+                curriculum_i < len(self.curriculum_schedule)
+                and step >= self.curriculum_schedule[curriculum_i]
+            ):
                 curriculum_i = min(curriculum_i + 1, len(self.datasets) - 1)

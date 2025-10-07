@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-debug_no_eos",
-        "experiment_name": "ppo-test-max_int_64-scratch-bs_516",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
+        "experiment_name": "ppo-scratch-8x8-stop_on_empty",
         "log_interval": 1,
         "checkpoint_interval": 5000,
         "validation_interval": 50
@@ -46,10 +46,12 @@
         "train": true,
         "train_val_ratio": 0.9,
         "sequence_type": "question_only",
+        "repeat": false,
         "right_to_left": true,
         "shuffle": true,
         "predict_eos": false
     },
+    "repeat": false,
     "shuffle_buffer_size": 100,
     "num_workers": 1,
     "train_loss_config": {
@@ -61,8 +63,8 @@
     "gamma": 0.99,
     "reward_type": "negative_on_failure",
     "entropy": 0.0,
-    "num_rollouts_per_sample": 1,
-    "batch_size": 512,
+    "num_rollouts_per_sample": 8,
+    "batch_size": 8,
     "num_epochs": 100000,
     "num_updates_per_epoch": 1,
     "seeds": {
@@ -80,6 +82,7 @@
                 "train": false,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
+                "repeat": true,
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": false,
@@ -101,6 +104,7 @@
                 "train": true,
                 "train_val_ratio": 1.0,
                 "sequence_type": "question_only",
+                "repeat": true,
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": true,
@@ -122,6 +126,7 @@
                 "train": true,
                 "train_val_ratio": 1.0,
                 "sequence_type": "question_only",
+                "repeat": true,
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": true,

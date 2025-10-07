@@ -16,6 +16,10 @@ import random
 from src.constants import *
 
 
+class EmptyDatasetError(Exception):
+    pass
+
+
 def set_seed(seed: int = 0):
     """
     Sets the random number generators' seed.

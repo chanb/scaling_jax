@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/xor",
-        "experiment_name": "context_len_10-ic",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
+        "experiment_name": "pretrain-right_to_left",
         "log_interval": 50,
         "checkpoint_interval": 100000,
         "validation_interval": 500
@@ -9,13 +9,12 @@
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "output_dim": 1026,
-            "num_blocks": 2,
-            "num_heads": 2,
+            "num_blocks": 4,
+            "num_heads": 8,
             "embed_dim": 64,
             "widening_factor": 4,
             "embedder_strategy": "next_token",
-            "shared_decoding": false,
+            "shared_decoding": true,
             "use_sink_token": false
         }
     },
@@ -39,20 +38,28 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "ICSL",
-    "dataset_name": "xor",
+    "learner": "Supervised",
+    "dataset_name": "addition",
     "dataset_kwargs": {
-        "context_len": 10,
+        "context_len": 64,
+        "max_int": 1024,
         "train": true,
-        "train_val_ratio": 0.5,
-        "include_boundary": true,
-        "sequence_type": "default"
+        "train_val_ratio": 0.8,
+        "sequence_type": "default",
+        "repeat": true,
+        "right_to_left": true,
+        "shuffle": false,
+        "exact": false,
+        "predict_eos": true
     },
     "shuffle_buffer_size": 100,
     "num_workers": 4,
     "batch_size": 32,
     "train_loss_config": {
-        "objective": "ce"
+        "objective": "mse"
+    },
+    "val_loss_config": {
+        "objective": "mse"
     },
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
@@ -64,13 +71,18 @@
     "validate": [
         {
             "validation_name": "heldout",
-            "dataset_name": "xor",
+            "dataset_name": "addition",
             "dataset_kwargs": {
-                "context_len": 10,
+                "context_len": 64,
+                "max_int": 1024,
                 "train": false,
-                "train_val_ratio": 0.5,
-                "include_boundary": true,
-                "sequence_type": "default"
+                "train_val_ratio": 0.2,
+                "sequence_type": "default",
+                "repeat": true,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": false,
+                "predict_eos": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -80,31 +92,19 @@
             }
         },
         {
-            "validation_name": "iw_pred",
-            "dataset_name": "xor",
+            "validation_name": "length_generalization",
+            "dataset_name": "addition",
             "dataset_kwargs": {
-                "context_len": 10,
-                "train": false,
-                "train_val_ratio": 0.5,
-                "include_boundary": true,
-                "sequence_type": "iw"
-            },
-            "shuffle_buffer_size": 100,
-            "num_workers": 1,
-            "batch_size": 32,
-            "seeds": {
-                "data_seed": 42
-            }
-        },
-        {
-            "validation_name": "ic_pred",
-            "dataset_name": "xor",
-            "dataset_kwargs": {
-                "context_len": 10,
-                "train": false,
-                "train_val_ratio": 0.5,
-                "include_boundary": true,
-                "sequence_type": "ic"
+                "context_len": 64,
+                "max_int": 4096,
+                "train": true,
+                "train_val_ratio": 0.9,
+                "sequence_type": "default",
+                "repeat": true,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": false,
+                "predict_eos": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

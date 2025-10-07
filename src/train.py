@@ -17,7 +17,7 @@ from types import SimpleNamespace
 import src.learners as learners
 
 from src.constants import *
-from src.utils import DummySummaryWriter
+from src.utils import DummySummaryWriter, EmptyDatasetError
 
 
 def train(
@@ -37,6 +37,7 @@ def train(
     :type save_path: str: (Default value = None)
 
     """
+    learner = None
     logging_config = config.logging_config
 
     num_digits = int(math.log10(config.num_epochs)) + 1
@@ -122,16 +123,28 @@ def train(
                 )
     except KeyboardInterrupt:
         pass
+    except EmptyDatasetError:
+        print("Dataset is exhausted. Ending training.")
+        # Perform validation and save checkpoint
+        if hasattr(learner, "validation_step"):
+            val_aux = learner.validation_step(epoch)
 
-    if save_path:
-        dill.dump(
-            learner.state,
-            open(
-                os.path.join(
-                    save_path, "models", "{}.dill".format(pad_string(true_epoch))
+            for key, val in val_aux.items():
+                summary_writer.add_scalar(key, val, true_epoch)
+        pass
+
+    if learner:
+        if save_path:
+            dill.dump(
+                learner.state,
+                open(
+                    os.path.join(
+                        save_path,
+                        "models",
+                        "{}.dill".format(pad_string(true_epoch)),
+                    ),
+                    "wb",
                 ),
-                "wb",
-            ),
-        )
+            )
 
-    learner.close()
+        learner.close()
