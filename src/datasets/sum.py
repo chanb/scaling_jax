@@ -24,7 +24,7 @@ class Addition(IterableDataset):
         sequence_type: str="default",
         train_val_ratio: float=0.8,
         right_to_left: bool=False,
-        repeat: bool=True,
+        num_repeats: int=None,
         shuffle: bool=True,
         exact: bool=False,
         predict_eos: bool=True,
@@ -39,7 +39,7 @@ class Addition(IterableDataset):
         self.sequence_type = sequence_type
         self.train_val_ratio = train_val_ratio
         self.right_to_left = right_to_left
-        self.repeat = repeat
+        self.num_repeats = num_repeats
         self.shuffle = shuffle
         self.exact = exact
         self.max_bit_len = math.ceil(np.log2(max_int))
@@ -79,20 +79,26 @@ class Addition(IterableDataset):
             self._rng.randint(0, 2**16) + int(self.train)
         )
         curr_idx = 0
+        repeated = 0
         while True:
-            if not self.repeat and len(self.sequence_indices) == 0:
-                break
+            if (
+                self.num_repeats is not None
+                and len(self.sequence_indices) == 0
+            ):
+                if repeated == self.num_repeats:
+                    break
+                repeated += 1
 
             if self.shuffle:
                 t = sample_rng.choice(self.sequence_indices)
-                if not self.repeat:
+                if self.num_repeats is not None:
                     self.sequence_indices = self.sequence_indices[
                         self.sequence_indices != t
                     ]
             else:
                 t = self.sequence_indices[curr_idx]
 
-                if self.repeat:
+                if self.num_repeats is None:
                     curr_idx = (curr_idx + 1) % len(self.sequence_indices)
 
             # Assume equal length for both integers for now
