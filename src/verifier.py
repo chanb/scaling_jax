@@ -12,7 +12,7 @@ import numpy as np
 from src.constants import *
 
 
-def make_compute_returns(config, eos_token=4):
+def make_compute_returns(config, eos_token=4, end_on_eos=True):
     if getattr(config.dataset_kwargs, "predict_eos", True):
         def process_target(target):
             target = "".join(np.array(target[target != eos_token]).astype(str))
@@ -21,9 +21,10 @@ def make_compute_returns(config, eos_token=4):
         def get_success(response, target, mask):
             # XXX: Currently look at the first <EOS>
             if eos_token in response:
-                response = "".join(np.array(
-                    response[:np.where(response == eos_token)[0][0] + 1]
-                ).astype(str))
+                if end_on_eos:
+                    response = "".join(np.array(
+                        response[:np.where(response == eos_token)[0][0] + 1]
+                    ).astype(str))
                 has_eos = 1.0
             else:
                 response = "".join(np.array(response).astype(str))
@@ -112,7 +113,10 @@ def make_compute_returns(config, eos_token=4):
         successes = np.zeros(batch["sequence"].shape[0])
         has_eos = np.zeros(batch["sequence"].shape[0])
 
-        batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+        if end_on_eos:
+            batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+        else:
+            batch["pred_mask"] = 1 - np.array(is_prompt_mask)
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
         for sample_i, (response, target, mask) in enumerate(

@@ -23,6 +23,7 @@ class Parity(IterableDataset):
         exact: bool=False,
         num_cot_tokens: int=0,
         repeat: bool=True,
+        predict_eos: bool=True,
     ):
         assert context_len > max_level > 0
         assert 0 < train_val_ratio <= 1.0
@@ -37,6 +38,7 @@ class Parity(IterableDataset):
         self.exact = exact
         self.max_level = max_level
         self.repeat = repeat
+        self.predict_eos = predict_eos
 
         self.get_train_sequences()
 
@@ -47,7 +49,7 @@ class Parity(IterableDataset):
 
     @property
     def output_space(self):
-        return spaces.Discrete(4 + self.num_cot_tokens)
+        return spaces.Discrete(3 + int(self.predict_eos) + self.num_cot_tokens)
 
     def __iter__(self):
         return iter(self.get_sequences())

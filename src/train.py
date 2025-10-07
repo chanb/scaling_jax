@@ -37,6 +37,7 @@ def train(
     :type save_path: str: (Default value = None)
 
     """
+    learner = None
     logging_config = config.logging_config
 
     num_digits = int(math.log10(config.num_epochs)) + 1
@@ -132,15 +133,18 @@ def train(
                 summary_writer.add_scalar(key, val, true_epoch)
         pass
 
-    if save_path:
-        dill.dump(
-            learner.state,
-            open(
-                os.path.join(
-                    save_path, "models", "{}.dill".format(pad_string(true_epoch))
+    if learner:
+        if save_path:
+            dill.dump(
+                learner.state,
+                open(
+                    os.path.join(
+                        save_path,
+                        "models",
+                        "{}.dill".format(pad_string(true_epoch)),
+                    ),
+                    "wb",
                 ),
-                "wb",
-            ),
-        )
+            )
 
-    learner.close()
+        learner.close()

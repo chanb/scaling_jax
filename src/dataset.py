@@ -71,6 +71,7 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             getattr(dataset_kwargs, "exact", False),
             getattr(dataset_kwargs, "num_cot_tokens", 0),
             getattr(dataset_kwargs, "repeat", True),
+            getattr(dataset_kwargs, "predict_eos", True),
         )
     else:
         raise NotImplementedError
@@ -103,7 +104,7 @@ def get_data_loader(config: SimpleNamespace, data_sharding, dtype) -> Any:
         loader,
         data_sharding,
         dtype,
-        stop_on_empty=not dataset.repeat,
+        stop_on_empty=not getattr(config, "repeat", True),
     )
     loader = BackgroundGenerator(loader, max_prefetch=num_workers)
 

@@ -36,7 +36,11 @@ class REINFORCE(Learner):
     ):
         super().__init__(config=config)
         self._rng = jrandom.PRNGKey(self._config.seeds.learner_seed)
-        self._compute_returns = make_compute_returns(self._config, EOS_TOKEN)
+        self._compute_returns = make_compute_returns(
+            self._config,
+            EOS_TOKEN,
+            getattr(self._config, "end_on_eos", True),
+        )
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         curr_rng = jrandom.fold_in(self._rng, epoch)
