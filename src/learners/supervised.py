@@ -6,7 +6,6 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from flax import nnx
 from types import SimpleNamespace
 from typing import Any, Dict
 
@@ -16,14 +15,12 @@ import timeit
 
 
 from src.constants import *
-from src.dataset import get_data_loader
 from src.learners.learner import (
     Learner,
     l2_norm,
     gather_learning_rate,
-    initialize_loss_fn,
+    EOS_TOKEN,
 )
-from src.utils import parse_dict
 
 
 class Supervised(Learner):
@@ -91,55 +88,3 @@ class Supervised(Learner):
         else:
             gather_learning_rate(aux, CONST_MODEL, self._state.opt_state)
         return log
-
-    def make_validate_step(self):
-        if not hasattr(self._config, "validate"):
-            print("No validation")
-            return
-
-        self.val_dss = {
-            validation_config["validation_name"]: get_data_loader(
-                parse_dict(validation_config),
-                self.data_sharding,
-                self.dtype,
-            )[0]
-            for validation_config in self._config.validate
-        }
-
-        self._val_loss = initialize_loss_fn(
-            self._config.val_loss_config,
-            self._state.graphdef,
-            getattr(self._config, "one_hot", False),
-        )
-
-        @nnx.jit
-        def _compute_metrics(state, batch):
-            agg_loss, aux = self._val_loss(
-                state.params,
-                state.rest,
-                batch,
-            )
-            return agg_loss, aux
-
-        def validate_step(epoch: int):
-            log = dict()
-            for validation_name, val_ds in self.val_dss.items():
-                tic = timeit.default_timer()
-                batch = next(val_ds)
-                batch = jax.device_put(batch, self.data_sharding)
-                agg_loss, aux = _compute_metrics(
-                    self._state,
-                    batch,
-                )
-                validation_time = timeit.default_timer() - tic
-
-                aux = jax.tree_util.tree_map(lambda v: np.mean(v).item(), aux)
-                log[f"losses/validation-{validation_name}"] = agg_loss.item()
-                log[f"time/validation-{validation_name}"] = validation_time
-                log.update({
-                    f"validation-{validation_name}/{k}": v for k, v in aux[CONST_TRAIN].items()
-                })
-
-            return log
-
-        self.validation_step = validate_step

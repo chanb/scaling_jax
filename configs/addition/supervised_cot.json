@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_1024",
-        "experiment_name": "pretrain-right_to_left",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
+        "experiment_name": "supervised-scratch-8-stop_on_empty",
         "log_interval": 50,
         "checkpoint_interval": 100000,
         "validation_interval": 500
@@ -41,26 +41,24 @@
     "learner": "Supervised",
     "dataset_name": "addition",
     "dataset_kwargs": {
-        "context_len": 64,
-        "max_int": 1024,
+        "context_len": 20,
+        "max_int": 64,
         "train": true,
-        "train_val_ratio": 0.8,
+        "train_val_ratio": 0.9,
         "sequence_type": "default",
         "num_repeats": null,
         "right_to_left": true,
-        "shuffle": false,
-        "exact": false,
-        "predict_eos": true
+        "shuffle": true,
+        "predict_eos": false,
+        "num_cot_tokens": 2
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
-    "num_workers": 4,
-    "batch_size": 32,
+    "num_workers": 1,
+    "batch_size": 2,
     "train_loss_config": {
-        "objective": "mse"
-    },
-    "val_loss_config": {
-        "objective": "mse"
+        "objective": "ce",
+        "mdp_type": "episodic:length_bias_fix"
     },
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
@@ -69,47 +67,72 @@
         "learner_seed": 42,
         "data_seed": 42
     },
-    "validate": [
+    "validation": [
         {
             "validation_name": "heldout",
             "dataset_name": "addition",
             "dataset_kwargs": {
-                "context_len": 64,
-                "max_int": 1024,
+                "context_len": 100,
+                "max_int": 64,
                 "train": false,
-                "train_val_ratio": 0.2,
-                "sequence_type": "default",
+                "train_val_ratio": 0.9,
+                "sequence_type": "question_only",
                 "num_repeats": null,
                 "right_to_left": true,
                 "shuffle": false,
                 "exact": false,
-                "predict_eos": true
+                "predict_eos": false,
+                "num_cot_tokens": 2
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "batch_size": 32,
+            "batch_size": 100,
             "seeds": {
                 "data_seed": 42
             }
         },
         {
-            "validation_name": "length_generalization",
+            "validation_name": "length_generalization-max_int_128",
             "dataset_name": "addition",
             "dataset_kwargs": {
-                "context_len": 64,
-                "max_int": 4096,
+                "context_len": 100,
+                "max_int": 128,
                 "train": true,
-                "train_val_ratio": 0.9,
-                "sequence_type": "default",
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
                 "num_repeats": null,
                 "right_to_left": true,
                 "shuffle": false,
-                "exact": false,
-                "predict_eos": true
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 2
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "batch_size": 32,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_256",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 256,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 2
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
             "seeds": {
                 "data_seed": 42
             }

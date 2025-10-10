@@ -22,8 +22,9 @@ from src.decoding import make_autoregressive
 from src.learners.learner import (
     l2_norm,
     gather_learning_rate,
+    EOS_TOKEN,
 )
-from src.learners.reinforce import REINFORCE, EOS_TOKEN
+from src.learners.reinforce import REINFORCE
 from src.rollout import rollout
 
 

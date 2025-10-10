@@ -27,13 +27,13 @@ def get_iter(data_loader, dataset, dtype, stop_on_empty: bool=False):
 
     if isinstance(dataset, Curriculum):
         def update_curriculum(iter_i):
+            if dataset.curriculum_i + 1 >= len(dataset.curriculum_schedule):
+                return
+
             if iter_i - dataset.curriculum_schedule[
                 dataset.curriculum_i
             ] >= 0:
-                curr_curriculum = min(
-                    dataset.curriculum_i + 1,
-                    len(dataset.datasets) - 1,
-                )
+                curr_curriculum = dataset.curriculum_i + 1
                 print(
                     "Updating curriculum to {}".format(curr_curriculum)
                 )

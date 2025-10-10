@@ -148,7 +148,7 @@ class Addition(IterableDataset):
             
             if self.sequence_type == "default":
                 sequence = sequence + [3] + soln_list_repr
-                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
+                sequence = sequence + [self.eos_token_id - int(not self.predict_eos)] * (self.context_len - len(sequence) + 1)
                 mask = np.zeros(len(sequence) - 1)
                 mask[question_len:] = 1
         
@@ -159,7 +159,7 @@ class Addition(IterableDataset):
                 }
             elif self.sequence_type == "cot":
                 sequence = sequence + [3] + soln_list_repr[::-1] + [3] + soln_list_repr
-                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
+                sequence = sequence + [self.eos_token_id - int(not self.predict_eos)] * (self.context_len - len(sequence) + 1)
                 mask = np.zeros(len(sequence) - 1)
                 mask[question_len:] = 1
         

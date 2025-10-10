@@ -19,12 +19,20 @@ import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
 import optax
+import timeit
 
 import src.models as models
 
 from src.constants import *
 from src.dataset import get_data_loader
+from src.decoding import make_autoregressive
 from src.mesh_utils import construct_mesh, construct_sharded_model
+from src.rollout import rollout
+from src.utils import parse_dict
+from src.verifier import make_compute_returns
+
+
+EOS_TOKEN = 6
 
 
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
@@ -335,6 +343,7 @@ class Learner:
             self.dtype,
         )
 
+        self._rng = jrandom.PRNGKey(self._config.seeds.learner_seed)
         self._initialize_model_and_opt(self.dtype)
 
         self._loss = initialize_loss_fn(
@@ -342,6 +351,7 @@ class Learner:
             self._state.graphdef,
             getattr(self._config, "one_hot", False),
         )
+        self._compute_returns = make_compute_returns(self._config, EOS_TOKEN)
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()
 
@@ -433,3 +443,70 @@ class Learner:
             return new_state, aux
 
         return _train_step
+
+    def make_validate_step(self):
+        if not hasattr(self._config, "validation"):
+            print("No validation")
+            return
+
+        self.val_dss = {
+            validation_config["validation_name"]: get_data_loader(
+                parse_dict(validation_config),
+                self.data_sharding,
+                self.dtype,
+            )[0]
+            for validation_config in self._config.validation
+        }
+
+        def validate_step(epoch: int):
+            log = dict()
+            curr_rng = jrandom.fold_in(self._rng, epoch)
+
+            for validation_name, val_ds in self.val_dss.items():
+                tic = timeit.default_timer()
+                batch = next(val_ds)
+                batch = jax.device_put(batch, self.data_sharding)
+
+                module = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
+                _, init_cache = make_autoregressive(
+                    module,
+                    max_decode_len=batch["sequence"].shape[1],
+                    batch_size=batch["sequence"].shape[0],
+                    embed_dim=self._config.model_config.model_kwargs.embed_dim,
+                    dtype=self.dtype,
+                    eval_mode=True,
+                )
+                cache = init_cache()
+                graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
+                (responses, eos_mask, is_prompt_mask) = rollout(
+                    graphdef,
+                    cache,
+                    rest,
+                    curr_rng,
+                    batch,
+                    eos_token=EOS_TOKEN,
+                    deterministic=1,
+                )
+
+                batch["sequence"] = responses
+                successes, response_lengths = self._compute_returns(
+                    batch,
+                    eos_mask,
+                    is_prompt_mask,
+                    is_eval=True,
+                )
+
+                validation_time = timeit.default_timer() - tic
+
+                log[f"time/validation-{validation_name}"] = validation_time
+                aux = {
+                    CONST_SUCCESS_RATE: np.mean(successes),
+                    CONST_RESPONSE_LENGTH: np.mean(response_lengths),
+                }
+                log.update({
+                    f"validation-{validation_name}/{k}": v for k, v in aux.items()
+                })
+
+            return log
+
+        self.validation_step = validate_step
