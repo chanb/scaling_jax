@@ -23,6 +23,8 @@ from src.models.rnn import InContextGRU
 from src.models.supervised import (
     SupervisedEmbedders,
 )
+from src.models.nope import NoPE
+from src.models.sinusoidal_pe import SinusoidalPE
 
 class TrainState(train_state.TrainState):
     """
@@ -36,6 +38,25 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
     Builds the model and dependency closures based on the dataset and model configuration.
     """
     dependency_cls = {}
+
+    pos_enc_strategy = getattr(
+        model_config.model_kwargs,
+        "pos_enc_strategy",
+        False,
+    )
+
+    dependency_cls["pos_enc_cls"] = partial(
+        NoPE
+    )
+    if pos_enc_strategy:
+        if pos_enc_strategy == "sinusoidal":
+            dependency_cls["pos_enc_cls"] = partial(
+                SinusoidalPE,
+                embed_dim=model_config.model_kwargs.embed_dim,
+                max_len=model_config.model_kwargs.max_decode_len,
+                rngs=rngs,
+                dtype=dtype,
+            )
 
     embedder_strategy = getattr(
         model_config.model_kwargs,

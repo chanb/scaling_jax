@@ -140,15 +140,17 @@ class InContextGPT(nnx.Module):
         embed_dim: int,
         widening_factor: int,
         embedder_cls: Callable,
+        pos_enc_cls: Callable,
         rngs: nnx.Rngs,
         decode: bool = False,
-        dtype=None,
+        dtype = None,
         use_sink_token: bool = True,
         **kwargs,
     ) -> None:
         self.decode = decode
         self.use_sink_token = use_sink_token
         self.embedders = embedder_cls()
+        self.pos_enc = pos_enc_cls()
 
         if use_sink_token:
             self.sink_token = nnx.Embed(
@@ -157,6 +159,7 @@ class InContextGPT(nnx.Module):
                 rngs=rngs,
                 dtype=dtype,
             )
+
         self.gpt = GPT(
             num_blocks=num_blocks,
             num_heads=num_heads,
@@ -191,6 +194,7 @@ class InContextGPT(nnx.Module):
                     (sink_token, token_seq),
                     axis=1,
                 )
+        token_seq = self.pos_enc(token_seq)
         token_seq = self.gpt(token_seq)
         outputs = self.embedders.unembed(
             token_seq[:, int(self.use_sink_token):]
