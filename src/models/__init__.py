@@ -20,6 +20,7 @@ from src.models.next_token import (
     VectoredEmbedders,
 )
 from src.models.rnn import InContextGRU
+from src.models.roformer import InContextRoformer
 from src.models.supervised import (
     SupervisedEmbedders,
 )
