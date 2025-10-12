@@ -36,8 +36,12 @@ def apply_rotary_position_embeddings(
         (bs, seq_len, 1, embed_dim_per_head // 2)
     )
 
-    sin_pos = jnp.concatenate([sin, sin], axis=-1)
-    cos_pos = jnp.concatenate([cos, cos], axis=-1)
+    sin_pos = jnp.stack([sin, sin], axis=-1).reshape(
+        (bs, seq_len, 1, embed_dim_per_head)
+    )
+    cos_pos = jnp.stack([cos, cos], axis=-1).reshape(
+        (bs, seq_len, 1, embed_dim_per_head)
+    )
 
     queries = queries.reshape(
         (bs, seq_len, num_heads, embed_dim_per_head)
@@ -46,13 +50,13 @@ def apply_rotary_position_embeddings(
         (bs, seq_len, num_heads, embed_dim_per_head)
     )
 
-    rotate_half_queries = jnp.concatenate(
+    rotate_half_queries = jnp.stack(
         (-queries[..., 1::2], queries[..., ::2]),
         axis=-1,
     ).reshape(queries.shape)
     queries = queries * cos_pos + rotate_half_queries * sin_pos
 
-    rotate_half_keys = jnp.concatenate(
+    rotate_half_keys = jnp.stack(
         (-keys[..., 1::2], keys[..., ::2]),
         axis=-1,
     ).reshape(keys.shape)
