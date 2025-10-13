@@ -31,6 +31,7 @@ class Addition(IterableDataset):
         num_cot_tokens: int=0,
         p_inject_noop: float=0.0,
         max_noops: int=0,
+        noop_as_pad: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -52,6 +53,7 @@ class Addition(IterableDataset):
         self.num_cot_tokens = num_cot_tokens
         self.p_inject_noop = p_inject_noop
         self.max_noops = max_noops
+        self.noop_as_pad = noop_as_pad
         self.eos_token_id = 4 + self.num_cot_tokens
 
         self._rng = np.random.RandomState(seed)
@@ -158,15 +160,28 @@ class Addition(IterableDataset):
             ):
                 num_noops = sample_rng.binomial(self.max_noops, self.p_inject_noop)
                 for _ in range(num_noops):
-                    noop_position = sample_rng.randint(question_len + 1)
                     token_to_add = [4 + sample_rng.choice(self.num_cot_tokens)]
 
-                    if noop_position == question_len:
-                        sequence = sequence + token_to_add
+                    if self.noop_as_pad:
+                        noop_position = sample_rng.randint(max_len + 1)
+                        if noop_position == max_len:
+                            sequence = first_list_repr + token_to_add + [2] + second_list_repr + token_to_add
+                        else:
+                            sequence = (
+                                first_list_repr[:noop_position]
+                                + token_to_add + first_list_repr[noop_position:]
+                                + [2]
+                                + second_list_repr[:noop_position]
+                                + token_to_add + second_list_repr[noop_position:]
+                            )
+                        question_len += 2
                     else:
-                        sequence = sequence[:noop_position] + token_to_add + sequence[noop_position:]
-
-                    question_len += 1
+                        noop_position = sample_rng.randint(question_len + 1)
+                        if noop_position == question_len:
+                            sequence = sequence + token_to_add
+                        else:
+                            sequence = sequence[:noop_position] + token_to_add + sequence[noop_position:]
+                        question_len += 1
             
             if self.sequence_type == "default":
                 sequence = sequence + [3] + soln_list_repr
