@@ -1,9 +1,9 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "ppo-scratch-8x8-2_cot_tokens-stop_on_empty-max_int_64-curriculum",
+        "experiment_name": "ppo-scratch_1M-8x8-2_cot_tokens-stop_on_empty-max_int_64",
         "log_interval": 1,
-        "checkpoint_interval": 5000,
+        "checkpoint_interval": 50000,
         "validation_interval": 50
     },
     "model_config": {
@@ -39,73 +39,18 @@
         "tensor": 1
     },
     "learner": "PPO",
-    "dataset_name": "curriculum",
+    "dataset_name": "addition",
     "dataset_kwargs": {
+        "context_len": 100,
+        "max_int": 64,
+        "train": true,
+        "train_val_ratio": 0.9,
+        "sequence_type": "question_only",
+        "num_repeats": 1000000,
+        "right_to_left": true,
+        "shuffle": true,
         "predict_eos": false,
-        "curriculum_schedule": [100, 5000, 10000],
-        "curriculum_type": "hard_switch",
-        "datasets": [
-            {
-                "dataset_name": "addition",
-                "dataset_kwargs": {
-                    "context_len": 100,
-                    "max_int": 4,
-                    "train": true,
-                    "train_val_ratio": 0.9,
-                    "sequence_type": "question_only",
-                    "num_repeats": 100000,
-                    "right_to_left": true,
-                    "shuffle": true,
-                    "predict_eos": false,
-                    "num_cot_tokens": 2
-                }
-            },
-            {
-                "dataset_name": "addition",
-                "dataset_kwargs": {
-                    "context_len": 100,
-                    "max_int": 8,
-                    "train": true,
-                    "train_val_ratio": 0.9,
-                    "sequence_type": "question_only",
-                    "num_repeats": 100000,
-                    "right_to_left": true,
-                    "shuffle": true,
-                    "predict_eos": false,
-                    "num_cot_tokens": 2
-                }
-            },
-            {
-                "dataset_name": "addition",
-                "dataset_kwargs": {
-                    "context_len": 100,
-                    "max_int": 16,
-                    "train": true,
-                    "train_val_ratio": 0.9,
-                    "sequence_type": "question_only",
-                    "num_repeats": 100000,
-                    "right_to_left": true,
-                    "shuffle": true,
-                    "predict_eos": false,
-                    "num_cot_tokens": 2
-                }
-            },
-            {
-                "dataset_name": "addition",
-                "dataset_kwargs": {
-                    "context_len": 100,
-                    "max_int": 64,
-                    "train": true,
-                    "train_val_ratio": 0.9,
-                    "sequence_type": "question_only",
-                    "num_repeats": 100000,
-                    "right_to_left": true,
-                    "shuffle": true,
-                    "predict_eos": false,
-                    "num_cot_tokens": 2
-                }
-            }
-        ]
+        "num_cot_tokens": 2
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
@@ -121,7 +66,7 @@
     "entropy": 0.0,
     "num_rollouts_per_sample": 8,
     "batch_size": 8,
-    "num_epochs": 100000,
+    "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {
         "seed": 0,

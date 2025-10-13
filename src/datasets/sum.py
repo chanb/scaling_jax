@@ -29,10 +29,14 @@ class Addition(IterableDataset):
         exact: bool=False,
         predict_eos: bool=True,
         num_cot_tokens: int=0,
+        p_inject_noop: float=0.0,
+        max_noops: int=0,
     ):
         assert context_len > 0
         assert max_int > 0
         assert 0 < train_val_ratio <= 1
+        assert 0.0 <= p_inject_noop < 1.0
+        assert max_noops >= 0
         self.context_len = context_len
         self.max_int = max_int
         self.train = train
@@ -46,6 +50,8 @@ class Addition(IterableDataset):
         self.max_bit_len = math.ceil(np.log2(max_int))
         self.predict_eos = predict_eos
         self.num_cot_tokens = num_cot_tokens
+        self.p_inject_noop = p_inject_noop
+        self.max_noops = max_noops
         self.eos_token_id = 4 + self.num_cot_tokens
 
         self._rng = np.random.RandomState(seed)
@@ -143,8 +149,24 @@ class Addition(IterableDataset):
                 soln_list_repr = soln_list_repr[::-1]
 
             sequence = first_list_repr + [2] + second_list_repr
-
             question_len = len(sequence)
+
+            if (
+                self.num_cot_tokens > 0
+                and self.p_inject_noop > 0.0
+                and self.max_noops > 0
+            ):
+                num_noops = sample_rng.binomial(self.max_noops, self.p_inject_noop)
+                for _ in range(num_noops):
+                    noop_position = sample_rng.randint(question_len + 1)
+                    token_to_add = [4 + sample_rng.choice(self.num_cot_tokens)]
+
+                    if noop_position == question_len:
+                        sequence = sequence + token_to_add
+                    else:
+                        sequence = sequence[:noop_position] + token_to_add + sequence[noop_position:]
+
+                    question_len += 1
             
             if self.sequence_type == "default":
                 sequence = sequence + [3] + soln_list_repr
