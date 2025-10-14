@@ -234,7 +234,7 @@ class Addition(IterableDataset):
                 sequence = sequence + [3] + soln_list_repr[:extended_idx]
                 sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
 
-                soln_list_repr = [3] + soln_list_repr[extended_idx:]
+                soln_list_repr = [3] + soln_list_repr
                 soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
 
                 mask = np.zeros(len(sequence))
