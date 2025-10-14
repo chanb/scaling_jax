@@ -153,6 +153,7 @@ class Addition(IterableDataset):
             sequence = first_list_repr + [2] + second_list_repr
             question_len = len(sequence)
 
+            # TODO: Write this outside so don't need to recheck if's
             if (
                 self.num_cot_tokens > 0
                 and self.p_inject_noop > 0.0
@@ -220,6 +221,24 @@ class Addition(IterableDataset):
                 soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
 
                 mask = np.zeros(len(sequence))
+                mask[question_len:] = 1
+                
+                yield {
+                    "sequence": np.array(sequence),
+                    "target": np.array(soln_list_repr),
+                    "mask": mask,
+                }
+            elif self.sequence_type == "question_reverse_curriculum":
+                extended_idx = sample_rng.randint(len(soln_list_repr))
+
+                sequence = sequence + [3] + soln_list_repr[:extended_idx]
+                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
+
+                soln_list_repr = [3] + soln_list_repr[:extended_idx]
+                soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
+
+                mask = np.zeros(len(sequence))
+                question_len += extended_idx
                 mask[question_len:] = 1
                 
                 yield {
