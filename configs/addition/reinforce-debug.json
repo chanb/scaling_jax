@@ -56,11 +56,11 @@
     "num_workers": 1,
     "train_loss_config": {
         "objective": "reinforce",
-        "mdp_type": "episodic:length_bias_fix"
+        "mdp_type": "episodic:length_bias_fix",
+        "entropy": 0.0
     },
     "gamma": 0.99,
     "reward_type": "default",
-    "entropy": 0.0,
     "dr_grpo": false,
     "num_rollouts_per_sample": 8,
     "batch_size": 8,

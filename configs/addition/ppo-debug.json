@@ -58,12 +58,12 @@
     "train_loss_config": {
         "objective": "ppo",
         "mdp_type": "episodic:length_bias_fix",
-        "clip_param": 0.2
+        "clip_param": 0.2,
+        "entropy": 0.0
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,
     "reward_type": "negative_on_failure",
-    "entropy": 0.0,
     "num_rollouts_per_sample": 8,
     "batch_size": 8,
     "num_epochs": 1000000,

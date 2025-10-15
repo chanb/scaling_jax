@@ -103,8 +103,6 @@ class PPO(REINFORCE):
             )
             batch["returns"] = returns
 
-            batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
-
             # Compute log probs
             batch["old_lprobs"] = compute_log_probs(
                 self.state.graphdef,

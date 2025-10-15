@@ -152,6 +152,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
     elif objective == "reinforce":
         # TODO: Add KL regularizer to reference model
 
+        entropy_coef = loss_config.entropy
         variants = loss_config.mdp_type.split(":")
         if len(variants) == 0 or variants[1] == "default":
             def _compute_mean(values, pred_mask):
@@ -182,7 +183,6 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             actions = batch["sequence"][:, 1:]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
-            entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -211,6 +211,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         return reinforce
     elif objective == "ppo":
         variants = loss_config.mdp_type.split(":")
+        entropy_coef = loss_config.entropy
         if len(variants) == 0 or variants[1] == "default":
             def _compute_mean(values, pred_mask):
                 return jnp.sum(values) / jnp.sum(pred_mask)
@@ -290,7 +291,6 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             old_lprobs = batch["old_lprobs"]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
-            entropy_coef = batch["entropy_coef"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -312,6 +312,104 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                 CONST_TRAIN: {
                     "entropy": entropy,
                     "pi_loss": ppo_loss,
+                    **{k: v for k, v in aux.items()},
+                },
+                CONST_HIST: {},
+            }
+        return ppo
+    elif objective == "ppo_kl":
+        variants = loss_config.mdp_type.split(":")
+        entropy_coef = loss_config.entropy
+        kl_beta = loss_config.kl_beta
+        if len(variants) == 0 or variants[1] == "default":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / jnp.sum(pred_mask)
+        elif variants[1] == "length_bias_fix":
+            def _compute_mean(values, pred_mask):
+                return jnp.sum(values) / pred_mask.shape[0]
+
+        if loss_config.mdp_type == "bandit":
+            def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
+                # Objective: log pi(y|s) * R
+                lprobs = jnp.sum(lprobs, axis=-1, where=pred_mask)
+                old_lprobs = jnp.sum(old_lprobs, axis=-1, where=pred_mask)
+
+                is_ratio = jnp.exp(lprobs - old_lprobs)
+                # XXX: Deal with inf values
+                is_ratio = jax.lax.select(
+                    jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
+                )
+
+                pi_surrogate = is_ratio * returns
+
+                is_ratio_max = jnp.max(is_ratio)
+                is_ratio_min = jnp.min(is_ratio)
+                is_ratio_mean = jnp.nanmean(is_ratio)
+
+                return -jnp.mean(pi_surrogate), {
+                    "is_ratio_max": is_ratio_max,
+                    "is_ratio_min": is_ratio_min,
+                    "is_ratio_mean": is_ratio_mean,
+                }
+        elif loss_config.mdp_type.startswith("episodic"):
+            def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
+                # Objective: log pi(a_t|s_t) * G_t
+                returns = returns[:, :-1]
+                is_ratio = jnp.exp(lprobs - old_lprobs)
+                # XXX: Deal with inf values
+                is_ratio = jax.lax.select(
+                    jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
+                )
+
+                pi_surrogate = is_ratio * returns
+
+                is_ratio_max = jnp.max(is_ratio, where=pred_mask, initial=-jnp.inf,)
+                is_ratio_min = jnp.min(is_ratio, where=pred_mask, initial=jnp.inf,)
+                is_ratio_mean = jnp.nanmean(is_ratio, where=pred_mask)
+
+                return -_compute_mean(pi_surrogate * pred_mask, pred_mask), {
+                    "is_ratio_max": is_ratio_max,
+                    "is_ratio_min": is_ratio_min,
+                    "is_ratio_mean": is_ratio_mean,
+                }
+        else:
+            raise NotImplementedError
+
+        def ppo(params, rest, batch):
+            # NOTE: Assume sequence contains both the state and action
+            observations = batch["sequence"][:, :-1]
+            actions = batch["sequence"][:, 1:]
+            old_lprobs = batch["old_lprobs"]
+            returns = batch["returns"]
+            pred_mask = batch["pred_mask"][:, :-1]
+
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            logits = model({"sequence": observations})
+
+            actions = nn.one_hot(actions, num_classes=logits.shape[-1])
+            lprobs = jnp.sum(
+                logits, axis=-1, where=actions,
+            ) - nn.logsumexp(logits, axis=-1)
+            
+            probs = nn.softmax(logits, axis=-1)
+            entropy = optax.softmax_cross_entropy(logits, probs)
+            entropy = _compute_mean(jnp.sum(entropy, where=pred_mask), pred_mask)
+
+            log_ratio = old_lprobs - lprobs
+            kl_reg = _compute_mean(
+                jnp.sum((jnp.exp(log_ratio) - 1) - log_ratio, where=pred_mask),
+                pred_mask,
+            )
+
+            entropy_loss = -entropy
+            ppo_loss, aux = _compute_loss(lprobs, old_lprobs, returns, pred_mask)
+
+            return ppo_loss + entropy_coef * entropy_loss + kl_beta * kl_reg, {
+                CONST_TRAIN: {
+                    "entropy": entropy,
+                    "pi_loss": ppo_loss,
+                    "kl_reg": kl_reg,
                     **{k: v for k, v in aux.items()},
                 },
                 CONST_HIST: {},
