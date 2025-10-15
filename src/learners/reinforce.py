@@ -90,8 +90,6 @@ class REINFORCE(Learner):
                 is_eval=False,
             )
             batch["returns"] = returns
-
-            batch["entropy_coef"] = getattr(self._config, "entropy", 0.0)
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
