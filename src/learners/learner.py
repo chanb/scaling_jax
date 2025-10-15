@@ -377,8 +377,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
         def ppo(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["sequence"][:, :-1]
-            actions = batch["sequence"][:, 1:]
+            observations = batch["observations"][:, :-1]
+            actions = batch["actions"][:, 1:]
             old_lprobs = batch["old_lprobs"]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
