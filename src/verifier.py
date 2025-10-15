@@ -71,7 +71,7 @@ def make_compute_returns(config, eos_token=4):
     num_rollouts_per_sample = getattr(config, "num_rollouts_per_sample", 1)
     if dr_grpo and num_rollouts_per_sample > 1:
         def normalize_reward(batch, rewards):
-            group_changes = np.arange(0, len(batch["sequence"]), num_rollouts_per_sample)
+            group_changes = np.arange(0, len(batch["observations"]), num_rollouts_per_sample)
             group_means = np.add.reduceat(rewards, group_changes) / num_rollouts_per_sample
             group_means = np.repeat(group_means, num_rollouts_per_sample, axis=0)
             rewards = rewards - group_means
@@ -83,7 +83,7 @@ def make_compute_returns(config, eos_token=4):
     # MDP vs Bandit formulation
     if config.train_loss_config.mdp_type.startswith("episodic"):
         def process_reward(batch, rewards, response_lengths, has_eos):
-            returns = np.zeros(batch["sequence"].shape)
+            returns = np.zeros(batch["observations"].shape)
             for sample_i, (reward, mask, response_length) in enumerate(zip(
                 rewards, batch["pred_mask"], response_lengths
             )):
@@ -115,11 +115,11 @@ def make_compute_returns(config, eos_token=4):
         batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
-        for sample_i, (response, target, mask) in enumerate(
-            zip(batch["sequence"], batch["target"], batch["pred_mask"])
+        for sample_i, (obs, act, target, mask) in enumerate(
+            zip(batch["observations"], batch["actions"], batch["target"], batch["pred_mask"])
         ):
             target = process_target(target)
-
+            response = np.concatenate((obs[np.where(1 - mask)], act[np.where(mask)]))
             success, response_length, curr_has_eos, mask = get_success(
                 response,
                 target,

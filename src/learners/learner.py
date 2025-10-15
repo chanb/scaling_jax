@@ -178,8 +178,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
         def reinforce(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["sequence"][:, :-1]
-            actions = batch["sequence"][:, 1:]
+            observations = batch["observations"][:, :-1]
+            actions = batch["actions"][:, 1:]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
             entropy_coef = batch["entropy_coef"]
@@ -285,8 +285,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
         def ppo(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["sequence"][:, :-1]
-            actions = batch["sequence"][:, 1:]
+            observations = batch["observations"][:, :-1]
+            actions = batch["actions"][:, 1:]
             old_lprobs = batch["old_lprobs"]
             returns = batch["returns"]
             pred_mask = batch["pred_mask"][:, :-1]
@@ -478,7 +478,7 @@ class Learner:
                 )
                 cache = init_cache()
                 graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-                (responses, eos_mask, is_prompt_mask) = rollout(
+                (observations, actions, eos_mask, is_prompt_mask) = rollout(
                     graphdef,
                     cache,
                     rest,
@@ -486,9 +486,12 @@ class Learner:
                     batch,
                     eos_token=EOS_TOKEN,
                     deterministic=1,
+                    correct_aware_shift=getattr(self._config, "correctness_aware_tokens_offset", 0),
+                    max_token_id_to_shift=getattr(self._config, "max_token_id_to_shift", 0),
                 )
 
-                batch["sequence"] = responses
+                batch["observations"] = observations
+                batch["actions"] = actions
                 successes, response_lengths = self._compute_returns(
                     batch,
                     eos_mask,

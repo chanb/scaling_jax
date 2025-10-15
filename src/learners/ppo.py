@@ -30,8 +30,9 @@ from src.rollout import rollout
 
 @nnx.jit
 def compute_log_probs(graphdef, params, rest, batch):
-    observations = batch["sequence"][:, :-1]
-    actions = batch["sequence"][:, 1:]
+    observations = batch["observations"][:, :-1]
+    actions = batch["actions"][:, 1:]
+
     model = nnx.merge(graphdef, params, rest)
     model.set_attributes(deterministic=False, decode=False)
     logits = model({"sequence": observations})
@@ -84,17 +85,20 @@ class PPO(REINFORCE):
             )
             cache = init_cache()
             graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-            (responses, eos_mask, is_prompt_mask) = rollout(
+            (observations, actions, eos_mask, is_prompt_mask) = rollout(
                 graphdef,
                 cache,
                 rest,
                 curr_rng,
                 batch,
                 eos_token=EOS_TOKEN,
+                correct_aware_shift=getattr(self._config, "correctness_aware_tokens_offset", 0),
+                max_token_id_to_shift=getattr(self._config, "max_token_id_to_shift", 0),
             )
 
             # Compute return
-            batch["sequence"] = responses
+            batch["observations"] = observations
+            batch["actions"] = actions
             returns, successes, response_lengths = self._compute_returns(
                 batch,
                 eos_mask,

@@ -69,17 +69,20 @@ class REINFORCE(Learner):
             )
             cache = init_cache()
             graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-            (responses, eos_mask, is_prompt_mask) = rollout(
+            (observations, actions, eos_mask, is_prompt_mask) = rollout(
                 graphdef,
                 cache,
                 rest,
                 curr_rng,
                 batch,
                 eos_token=EOS_TOKEN,
+                correct_aware_shift=getattr(self._config, "correctness_aware_tokens_offset", 0),
+                max_token_id_to_shift=getattr(self._config, "max_token_id_to_shift", 0),
             )
 
             # Compute return
-            batch["sequence"] = responses
+            batch["observations"] = observations
+            batch["actions"] = actions
             returns, successes, response_lengths = self._compute_returns(
                 batch,
                 eos_mask,

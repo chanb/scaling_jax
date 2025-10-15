@@ -21,11 +21,22 @@ class StepState(NamedTuple):
     cache: Any
     eos_token: int
     rng: chex.PRNGKey
-    sequence: chex.Array
+    observations: chex.Array
+    actions: chex.Array
+    answers: chex.Array
+    pointer_correct: chex.Array
     is_prompt: chex.Array
     eos: chex.Array
     step_i: int = 0
     deterministic: int = 0
+    """
+    XXX: Set both to zero if we're using CoT tokens or predicting <EOS>
+
+    XXX: Assume that all possible responses contain tokens with ID up to max_token_id_to_shift
+         - You will have to include max_token_id_to_shift + 1 CoT tokens to get the code to run
+    """
+    correct_aware_shift: int = 0
+    max_token_id_to_shift: int = 0
 
 
 def predict_step(
@@ -38,12 +49,13 @@ def predict_step(
     module = nnx.merge(step_state.graphdef, step_state.rest, step_state.cache)
     module.eval()
     module.set_attributes(deterministic=True, decode=True)
-    logits = module({"sequence": step_state.sequence[:, [step_i]],},)
+    logits = module({"sequence": step_state.observations[:, [step_i]],},)
     cache = nnx.state(module, nnx.Cache)
 
     logits = logits[:, 0]
 
-    output_tokens = jax.lax.cond(
+    # Actual action taken, but output_tokens can be different
+    action = jax.lax.cond(
         step_state.deterministic,
         lambda rng_step, logits: jnp.argmax(logits, axis=-1),
         jax.random.categorical,
@@ -51,12 +63,35 @@ def predict_step(
         logits,
     )
 
-    # Check for prompt boundary
     is_prompt = step_state.is_prompt[:, step_i]
+    pointer_correct = step_state.pointer_correct
 
+    # Shift token by some amount if we know the steps are wrong
+    curr_answers = step_state.answers[
+        jnp.arange(len(pointer_correct)), pointer_correct
+    ]
+
+    pointer_correct = jnp.where(
+        jnp.logical_and(
+            curr_answers == action,
+            jnp.logical_not(is_prompt),
+        ),
+        pointer_correct + 1,
+        0
+    )
+    output_tokens = jnp.where(
+        jnp.logical_and(
+            curr_answers != action,
+            action <= step_state.max_token_id_to_shift,
+        ),
+        action + step_state.correct_aware_shift,
+        action,
+    )
+
+    # Check for prompt boundary
     output_tokens = jnp.where(
         is_prompt,
-        step_state.sequence[:, step_i + 1],
+        step_state.observations[:, step_i + 1],
         output_tokens,
     )
 
@@ -67,7 +102,8 @@ def predict_step(
     )
 
     # Update the entries on the i'th step
-    sequence = step_state.sequence.at[:, step_i + 1].set(output_tokens)
+    observations = step_state.observations.at[:, step_i + 1].set(output_tokens)
+    actions = step_state.actions.at[:, step_i + 1].set(action)
     eos = step_state.eos.at[:, step_i + 1].set(eos)
 
     step_state = StepState(
@@ -76,11 +112,16 @@ def predict_step(
         cache=cache,
         eos_token=step_state.eos_token,
         rng=rng,
-        sequence=sequence,
+        observations=observations,
+        actions=actions,
+        answers=step_state.answers,
+        pointer_correct=pointer_correct,
         is_prompt=step_state.is_prompt,
         eos=eos,
         step_i=step_i + 1,
         deterministic=step_state.deterministic,
+        correct_aware_shift=step_state.correct_aware_shift,
+        max_token_id_to_shift=step_state.max_token_id_to_shift,
     )
 
     return step_state
@@ -95,8 +136,11 @@ def rollout(
     batch: Any,
     eos_token: int,
     deterministic: int = 0,
+    correct_aware_shift: int = 0,
+    max_token_id_to_shift: int = 0,
 ):
     questions = batch["sequence"]
+    answers = batch["target"]
     mask = batch["mask"]
     num_questions, max_step = questions.shape
 
@@ -106,10 +150,15 @@ def rollout(
         cache=cache,
         eos_token=eos_token,
         rng=rng,
-        sequence=questions,
+        observations=questions,
+        actions=jnp.zeros_like(questions, dtype=int),
+        answers=answers,
+        pointer_correct=jnp.zeros((num_questions,), dtype=int),
         is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
         deterministic=deterministic,
+        correct_aware_shift=correct_aware_shift,
+        max_token_id_to_shift=max_token_id_to_shift,
     )
 
     step_state = jax.lax.while_loop(
@@ -119,7 +168,8 @@ def rollout(
     )
 
     return (
-        step_state.sequence,
+        step_state.observations,
+        step_state.actions,
         step_state.eos,
         step_state.is_prompt,
     )
