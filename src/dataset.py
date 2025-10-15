@@ -98,9 +98,11 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             getattr(dataset_kwargs, "exact", False),
             getattr(dataset_kwargs, "predict_eos", True),
             getattr(dataset_kwargs, "num_cot_tokens", 0),
+            getattr(dataset_kwargs, "p_curriculum", 0.0),
             getattr(dataset_kwargs, "p_inject_noop", 0.0),
             getattr(dataset_kwargs, "max_noops", 0),
             getattr(dataset_kwargs, "noop_as_pad", False),
+            getattr(dataset_kwargs, "reverse_curriculum", False),
         )
     else:
         raise NotImplementedError

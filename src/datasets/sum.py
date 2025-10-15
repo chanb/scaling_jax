@@ -29,14 +29,17 @@ class Addition(IterableDataset):
         exact: bool=False,
         predict_eos: bool=True,
         num_cot_tokens: int=0,
+        p_curriculum: float=0.0,
         p_inject_noop: float=0.0,
         max_noops: int=0,
         noop_as_pad: bool=False,
+        reverse_curriculum: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
         assert 0 < train_val_ratio <= 1
         assert 0.0 <= p_inject_noop < 1.0
+        assert 0.0 <= p_curriculum < 1.0
         assert max_noops >= 0
         self.context_len = context_len
         self.max_int = max_int
@@ -51,9 +54,11 @@ class Addition(IterableDataset):
         self.max_bit_len = math.ceil(np.log2(max_int))
         self.predict_eos = predict_eos
         self.num_cot_tokens = num_cot_tokens
+        self.p_curriculum = p_curriculum
         self.p_inject_noop = p_inject_noop
         self.max_noops = max_noops
         self.noop_as_pad = noop_as_pad
+        self.reverse_curriculum = reverse_curriculum
         self.eos_token_id = 4 + self.num_cot_tokens
 
         self._rng = np.random.RandomState(seed)
@@ -215,30 +220,25 @@ class Addition(IterableDataset):
                     "mask": mask,
                 }
             elif self.sequence_type == "question_only":
-                sequence = sequence + [3]
+                question_idx = answer_idx = 0
+                if (
+                    len(soln_list_repr) > 1
+                    and sample_rng.rand() < self.p_curriculum
+                ):
+                    sampled_idx = sample_rng.randint(1, len(soln_list_repr))
+                    if self.reverse_curriculum:
+                        question_idx = sampled_idx
+                    else:
+                        answer_idx = sampled_idx
+
+                sequence = sequence + [3] + soln_list_repr[:question_idx]
+                soln_list_repr = [3] + soln_list_repr[:len(soln_list_repr) - answer_idx]
+
                 sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
-                soln_list_repr = [3] + soln_list_repr
                 soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
 
+                question_len += question_idx
                 mask = np.zeros(len(sequence))
-                mask[question_len:] = 1
-                
-                yield {
-                    "sequence": np.array(sequence),
-                    "target": np.array(soln_list_repr),
-                    "mask": mask,
-                }
-            elif self.sequence_type == "question_reverse_curriculum":
-                extended_idx = sample_rng.randint(len(soln_list_repr))
-
-                sequence = sequence + [3] + soln_list_repr[:extended_idx]
-                sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
-
-                soln_list_repr = [3] + soln_list_repr
-                soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
-
-                mask = np.zeros(len(sequence))
-                question_len += extended_idx
                 mask[question_len:] = 1
                 
                 yield {

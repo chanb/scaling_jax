@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "supervised-nope-scratch-32-noop_p0.1_m5_pad-stop_on_empty",
+        "experiment_name": "supervised-nope-scratch-32-noop_p0.1_m20-stop_on_empty",
         "log_interval": 50,
         "checkpoint_interval": 100000,
         "validation_interval": 500
@@ -54,8 +54,8 @@
         "predict_eos": false,
         "num_cot_tokens": 2,
         "p_inject_noop": 0.1,
-        "max_noops": 5,
-        "noop_as_pad": true
+        "max_noops": 20,
+        "noop_as_pad": false
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
