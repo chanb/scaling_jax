@@ -72,18 +72,19 @@ def predict_step(
     ]
 
     pointer_correct = jnp.where(
-        curr_answers == action,
-        pointer_correct + 1,
-        0
-    )
-
-    pointer_correct = jnp.where(
         jnp.logical_and(
             jnp.logical_not(is_prompt),
-            pointer_correct == 0,
+            curr_answers == action,
         ),
-        0,
-        1,
+        pointer_correct + 1,
+        jnp.where(
+            jnp.logical_and(
+                step_state.answers[:, 0] != action,
+                jnp.logical_not(is_prompt),
+            ),
+            0,
+            1,
+        )
     )
     output_tokens = jnp.where(
         jnp.logical_and(
