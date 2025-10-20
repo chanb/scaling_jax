@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "ppo-scratch_1M-bug_fix_correctness_aware-01_reward-8x8-stop_on_empty",
+        "experiment_name": "ppo-scratch_1M-bug_fix_correctness_aware-8x8-stop_on_empty",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 50
@@ -67,7 +67,7 @@
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,
-    "reward_type": "default",
+    "reward_type": "negative_on_failure",
     "num_rollouts_per_sample": 8,
     "batch_size": 8,
     "num_epochs": 1000000,
