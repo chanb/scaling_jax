@@ -72,12 +72,18 @@ def predict_step(
     ]
 
     pointer_correct = jnp.where(
-        jnp.logical_and(
-            curr_answers == action,
-            jnp.logical_not(is_prompt),
-        ),
+        curr_answers == action,
         pointer_correct + 1,
         0
+    )
+
+    pointer_correct = jnp.where(
+        jnp.logical_and(
+            jnp.logical_not(is_prompt),
+            pointer_correct == 0,
+        ),
+        0,
+        1,
     )
     output_tokens = jnp.where(
         jnp.logical_and(
@@ -153,7 +159,7 @@ def rollout(
         observations=questions,
         actions=jnp.zeros_like(questions, dtype=int),
         answers=answers,
-        pointer_correct=jnp.zeros((num_questions,), dtype=int),
+        pointer_correct=jnp.ones((num_questions,), dtype=int),
         is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
         deterministic=deterministic,
