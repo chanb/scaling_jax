@@ -19,7 +19,6 @@ from src.learners.learner import (
     Learner,
     l2_norm,
     gather_learning_rate,
-    EOS_TOKEN,
 )
 
 

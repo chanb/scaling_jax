@@ -34,6 +34,7 @@ class Addition(IterableDataset):
         max_noops: int=0,
         noop_as_pad: bool=False,
         reverse_curriculum: bool=False,
+        correctness_aware: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -59,15 +60,30 @@ class Addition(IterableDataset):
         self.max_noops = max_noops
         self.noop_as_pad = noop_as_pad
         self.reverse_curriculum = reverse_curriculum
-        self.eos_token_id = 4 + self.num_cot_tokens
+        self.correctness_aware = correctness_aware
+        self._eos_token_id = 4 + self.num_cot_tokens + 2 * int(correctness_aware)
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
 
     @property
+    def eos_token_id(self):
+        return self._eos_token_id
+
+    @property
+    def max_token_id_to_shift(self):
+        if self.correctness_aware:
+            return 1
+        return -1
+
+    @property
+    def correctness_aware_tokens_offset(self):
+        return 4 + self.num_cot_tokens
+
+    @property
     def input_space(self):
-        # 0, 1, <PLUS>, <EQUAL>, <EOS>, <REG_1>, ..., <REG_K>
-        return spaces.Discrete(5 + self.num_cot_tokens)
+        # 0, 1, <PLUS>, <EQUAL>, <EOS>, <REG_1>, ..., <REG_K>, 0', 1'
+        return spaces.Discrete(5 + 2 * int(self.correctness_aware) + self.num_cot_tokens)
 
     @property
     def output_space(self):

@@ -20,20 +20,23 @@ from src.constants import *
 class TokenEmbedders(nnx.Module):
     def __init__(
         self,
-        num_tokens: int,
+        num_input_tokens: int,
+        num_output_tokens: int,
         embed_dim: int,
         rngs: nnx.Rngs,
         shared_decoding: bool = False,
         decode: bool = False,
         dtype=None,
     ):
+        assert not shared_decoding or num_output_tokens <= num_input_tokens
         self.decode = decode
-        self.num_tokens = num_tokens
+        self.num_input_tokens = num_input_tokens
+        self.num_output_tokens = num_output_tokens
         self.embed_dim = embed_dim
         self.shared_decoding = shared_decoding
 
         self.token_emb = nnx.Embed(
-            num_tokens,
+            num_input_tokens,
             embed_dim,
             rngs=rngs,
             dtype=dtype,
@@ -41,7 +44,10 @@ class TokenEmbedders(nnx.Module):
 
         if not shared_decoding:
             self.token_unemb = nnx.Param(
-                jrandom.uniform(rngs.params(), (embed_dim, num_tokens))
+                jrandom.uniform(
+                    rngs.params(),
+                    (embed_dim, num_output_tokens),
+                )
             )
 
     def embed(
@@ -63,7 +69,9 @@ class TokenEmbedders(nnx.Module):
         **kwargs
     ):
         if self.shared_decoding:
-            outputs = output_seq @ lax.stop_gradient(self.token_emb.embedding.T)
+            outputs = output_seq @ lax.stop_gradient(
+                self.token_emb.embedding[:self.num_output_tokens].T
+            )
         else:
             outputs = output_seq @ self.token_unemb
 

@@ -32,9 +32,6 @@ from src.utils import parse_dict
 from src.verifier import make_compute_returns
 
 
-EOS_TOKEN = 6
-
-
 def l2_norm(params: chex.PyTreeDef) -> chex.Array:
     """
     Computes the L2 norm of a complete PyTree.
@@ -449,7 +446,10 @@ class Learner:
             self._state.graphdef,
             getattr(self._config, "one_hot", False),
         )
-        self._compute_returns = make_compute_returns(self._config, EOS_TOKEN)
+        self._compute_returns = make_compute_returns(
+            self._config,
+            self._dataset.eos_token_id,
+        )
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()
 
@@ -582,10 +582,10 @@ class Learner:
                     rest,
                     curr_rng,
                     batch,
-                    eos_token=EOS_TOKEN,
+                    eos_token=self._dataset.eos_token_id,
                     deterministic=1,
-                    correct_aware_shift=getattr(self._config, "correctness_aware_tokens_offset", 0),
-                    max_token_id_to_shift=getattr(self._config, "max_token_id_to_shift", 0),
+                    correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
+                    max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
                 )
 
                 batch["observations"] = observations

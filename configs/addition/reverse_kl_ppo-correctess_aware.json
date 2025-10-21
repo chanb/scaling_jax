@@ -1,7 +1,7 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "reverse_kl_ppo-scratch_1M-correctness_aware-8x8-stop_on_empty",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos-correctness_aware",
+        "experiment_name": "reverse_kl_ppo-scratch_1M-no_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 50
@@ -50,12 +50,11 @@
         "right_to_left": true,
         "shuffle": true,
         "predict_eos": false,
-        "num_cot_tokens": 2,
+        "num_cot_tokens": 0,
         "p_curriculum": 0,
-        "reverse_curriculum": false
+        "reverse_curriculum": false,
+        "correctness_aware": true
     },
-    "max_token_id_to_shift": 1,
-    "correctness_aware_tokens_offset": 4,
     "repeat": false,
     "shuffle_buffer_size": 100,
     "num_workers": 1,
@@ -92,7 +91,8 @@
                 "shuffle": false,
                 "exact": false,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -115,7 +115,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -138,7 +139,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -161,7 +163,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -184,7 +187,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -207,7 +211,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

@@ -90,7 +90,8 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         elif embedder_strategy == "next_token":
             dependency_cls["embedder_cls"] = partial(
                 TokenEmbedders,
-                num_tokens=dataset.output_space.n,
+                num_input_tokens=dataset.input_space.n,
+                num_output_tokens=dataset.output_space.n,
                 embed_dim=model_config.model_kwargs.embed_dim,
                 rngs=rngs,
                 shared_decoding=model_config.model_kwargs.shared_decoding,

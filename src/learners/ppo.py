@@ -22,7 +22,6 @@ from src.decoding import make_autoregressive
 from src.learners.learner import (
     l2_norm,
     gather_learning_rate,
-    EOS_TOKEN,
 )
 from src.learners.reinforce import REINFORCE
 from src.rollout import rollout
@@ -91,9 +90,9 @@ class PPO(REINFORCE):
                 rest,
                 curr_rng,
                 batch,
-                eos_token=EOS_TOKEN,
-                correct_aware_shift=getattr(self._config, "correctness_aware_tokens_offset", 0),
-                max_token_id_to_shift=getattr(self._config, "max_token_id_to_shift", 0),
+                eos_token=self._dataset.eos_token_id,
+                correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
+                max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
 
             # Compute return
