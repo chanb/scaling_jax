@@ -119,7 +119,15 @@ def make_compute_returns(config, eos_token=4):
             zip(batch["observations"], batch["actions"], batch["target"], batch["pred_mask"])
         ):
             target = process_target(target)
-            response = np.concatenate((obs[np.where(1 - mask)], act[np.where(mask)]))
+            question_mask = np.ones_like(mask)
+            question_mask[np.argmax(mask) + 1:] = 0
+
+            answer_mask = mask[:]
+            answer_mask[-1] = 0
+            response = np.concatenate((
+                obs[np.where(question_mask)],
+                act[np.where(answer_mask)],
+            ))
             success, response_length, curr_has_eos, mask = get_success(
                 response,
                 target,
