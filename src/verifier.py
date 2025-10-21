@@ -45,7 +45,7 @@ def make_compute_returns(config, eos_token=4):
             assert str(eos_token) not in response
 
             if success:
-                end_idx = response.find(target) + len(target) - 1
+                end_idx = response.find(target) + len(target) - 2
                 mask[end_idx:] = 0
 
             response_length = np.sum(mask)

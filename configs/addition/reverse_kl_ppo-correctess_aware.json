@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "reverse_kl_ppo-scratch_1M-bug_fix_correctness_aware-8x8-stop_on_empty",
+        "experiment_name": "reverse_kl_ppo-scratch_1M-correctness_aware-8x8-stop_on_empty",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 50
