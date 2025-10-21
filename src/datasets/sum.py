@@ -61,7 +61,7 @@ class Addition(IterableDataset):
         self.noop_as_pad = noop_as_pad
         self.reverse_curriculum = reverse_curriculum
         self.correctness_aware = correctness_aware
-        self._eos_token_id = 4 + self.num_cot_tokens + 2 * int(correctness_aware)
+        self._eos_token_id = 4 + self.num_cot_tokens
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
@@ -78,15 +78,16 @@ class Addition(IterableDataset):
 
     @property
     def correctness_aware_tokens_offset(self):
-        return 4 + self.num_cot_tokens
+        return 4 + self.num_cot_tokens + int(self.predict_eos)
 
     @property
     def input_space(self):
-        # 0, 1, <PLUS>, <EQUAL>, <EOS>, <REG_1>, ..., <REG_K>, 0', 1'
+        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], [0', 1'], <EOS>
         return spaces.Discrete(5 + 2 * int(self.correctness_aware) + self.num_cot_tokens)
 
     @property
     def output_space(self):
+        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], <EOS>
         return spaces.Discrete(4 + int(self.predict_eos) + self.num_cot_tokens)
 
     def __iter__(self):
