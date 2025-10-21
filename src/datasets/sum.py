@@ -264,4 +264,5 @@ class Addition(IterableDataset):
                     "sequence": np.array(sequence),
                     "target": np.array(soln_list_repr),
                     "mask": mask,
+                    "pointer_correct": question_idx + 1,
                 }

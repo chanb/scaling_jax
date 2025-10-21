@@ -64,10 +64,26 @@ class PPO(REINFORCE):
             tic = timeit.default_timer()
             batch = self.get_batch()
 
-            num_rollouts_per_sample = getattr(self._config, "num_rollouts_per_sample", 1)
-            batch["sequence"] = np.repeat(batch["sequence"], num_rollouts_per_sample, axis=0)
-            batch["mask"] = np.repeat(batch["mask"], num_rollouts_per_sample, axis=0)
-            batch["target"] = np.repeat(batch["target"], num_rollouts_per_sample, axis=0)
+            batch["sequence"] = np.repeat(
+                batch["sequence"],
+                self.num_rollouts_per_sample,
+                axis=0,
+            )
+            batch["mask"] = np.repeat(
+                batch["mask"],
+                self.num_rollouts_per_sample,
+                axis=0,
+            )
+            batch["target"] = np.repeat(
+                batch["target"],
+                self.num_rollouts_per_sample,
+                axis=0,
+            )
+            batch["pointer_correct"] = np.repeat(
+                batch["pointer_correct"],
+                self.num_rollouts_per_sample,
+                axis=0,
+            )
 
             total_sample_time += timeit.default_timer() - tic
 

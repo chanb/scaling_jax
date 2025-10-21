@@ -149,6 +149,7 @@ def rollout(
     questions = batch["sequence"]
     answers = batch["target"]
     mask = batch["mask"]
+    pointer_correct = batch["pointer_correct"]
     num_questions, max_step = questions.shape
 
     step_state = StepState(
@@ -160,7 +161,7 @@ def rollout(
         observations=questions,
         actions=jnp.zeros_like(questions, dtype=int),
         answers=answers,
-        pointer_correct=jnp.ones((num_questions,), dtype=int),
+        pointer_correct=pointer_correct,
         is_prompt=1 - mask,
         eos=jnp.zeros((num_questions, max_step)),
         deterministic=deterministic,
