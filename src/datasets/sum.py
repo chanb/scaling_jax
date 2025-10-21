@@ -254,7 +254,9 @@ class Addition(IterableDataset):
                 sequence = sequence + [self.eos_token_id] * (self.context_len - len(sequence) + 1)
                 soln_list_repr = soln_list_repr + [self.eos_token_id] * (self.context_len - len(soln_list_repr) + 1)
 
-                question_len += question_idx
+                # XXX: This disallows RL to update provided ground-truth tokens
+                # question_len += question_idx
+
                 mask = np.zeros(len(sequence))
                 mask[question_len:] = 1
                 
