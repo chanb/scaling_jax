@@ -100,7 +100,7 @@ def make_compute_returns(config, eos_token=4):
         raise NotImplementedError
     
 
-    def compute_returns(batch, eos_mask, question_mask, last_prompt_idxes, is_eval):
+    def compute_returns(batch, last_prompt_idxes, is_eval):
         """
         Compute verifiable rewards
         Assume each token is an action, the state is the sequence up to this point
@@ -113,20 +113,22 @@ def make_compute_returns(config, eos_token=4):
         successes = np.zeros(batch["sequence"].shape[0])
         has_eos = np.zeros(batch["sequence"].shape[0])
 
-        batch["pred_mask"] = 1 - np.logical_or(eos_mask, question_mask)
+        batch["pred_mask"] = np.zeros_like(batch["sequence"])
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
-        for sample_i, (obs, act, target, mask, last_prompt_idx) in enumerate(zip(
+        for sample_i, (obs, act, target, last_prompt_idx) in enumerate(zip(
             batch["observations"],
             batch["actions"],
             batch["target"],
-            batch["pred_mask"],
             last_prompt_idxes,
         )):
             target = process_target(target)
-            question_mask = np.ones_like(mask)
+            question_mask = np.ones(batch["sequence"].shape[-1])
             question_mask[last_prompt_idx + 1:] = 0
             answer_mask = 1 - question_mask
+
+            pred_mask = np.zeros(batch["sequence"].shape[-1])
+            pred_mask[last_prompt_idx:] = 1
 
             response = np.concatenate((
                 obs[np.where(question_mask)],
@@ -139,12 +141,12 @@ def make_compute_returns(config, eos_token=4):
             # print(answer_mask)
             # print(act)
             # print(response)
-            success, response_length, curr_has_eos, mask = get_success(
+            success, response_length, curr_has_eos, pred_mask = get_success(
                 response,
                 target,
-                mask,
+                pred_mask,
             )
-            batch["pred_mask"][sample_i] = mask
+            batch["pred_mask"][sample_i] = pred_mask
             successes[sample_i] = success
             response_lengths[sample_i] = response_length
             has_eos[sample_i] = curr_has_eos

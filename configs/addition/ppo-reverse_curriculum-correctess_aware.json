@@ -1,10 +1,10 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
-        "experiment_name": "ppo-scratch_1M-forward_curriculum-8x8-2_cot_tokens-stop_on_empty",
+        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos-correctness_aware",
+        "experiment_name": "ppo-scratch_1M-reverse_curriculum-no_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
-        "validation_interval": 50
+        "validation_interval": 500
     },
     "model_config": {
         "architecture": "InContextGPT",
@@ -50,10 +50,13 @@
         "right_to_left": true,
         "shuffle": true,
         "predict_eos": false,
-        "num_cot_tokens": 2,
+        "num_cot_tokens": 0,
         "p_curriculum": 0.5,
-        "reverse_curriculum": false
+        "reverse_curriculum": true,
+        "correctness_aware": true
     },
+    "max_token_id_to_shift": 1,
+    "correctness_aware_tokens_offset": 4,
     "repeat": false,
     "shuffle_buffer_size": 100,
     "num_workers": 1,
@@ -90,7 +93,8 @@
                 "shuffle": false,
                 "exact": false,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -113,7 +117,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -136,7 +141,80 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "correctness_aware": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_512",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 512,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_1024",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 1024,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_2048",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 2048,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

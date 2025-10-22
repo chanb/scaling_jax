@@ -576,7 +576,7 @@ class Learner:
                 )
                 cache = init_cache()
                 graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-                (observations, actions, eos_mask, question_mask, last_prompt_idxes) = rollout(
+                (observations, actions, _, _, last_prompt_idxes) = rollout(
                     graphdef,
                     cache,
                     rest,
@@ -592,8 +592,6 @@ class Learner:
                 batch["actions"] = actions
                 successes, response_lengths = self._compute_returns(
                     batch,
-                    eos_mask,
-                    question_mask,
                     last_prompt_idxes,
                     is_eval=True,
                 )
