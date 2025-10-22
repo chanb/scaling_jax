@@ -78,7 +78,7 @@ class Addition(IterableDataset):
 
     @property
     def correctness_aware_tokens_offset(self):
-        return 4 + self.num_cot_tokens + int(self.predict_eos)
+        return 5 + self.num_cot_tokens
 
     @property
     def input_space(self):

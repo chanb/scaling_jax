@@ -25,7 +25,7 @@ class StepState(NamedTuple):
     actions: chex.Array
     answers: chex.Array
     pointer_correct: chex.Array
-    is_prompt: chex.Array
+    last_prompt_idx: int
     eos: chex.Array
     step_i: int = 0
     deterministic: int = 0
@@ -63,7 +63,7 @@ def predict_step(
         logits,
     )
 
-    is_prompt = step_state.is_prompt[:, step_i]
+    is_prompt = step_i < step_state.last_prompt_idx
     pointer_correct = step_state.pointer_correct
 
     # Shift token by some amount if we know the steps are wrong
@@ -71,21 +71,27 @@ def predict_step(
         jnp.arange(len(pointer_correct)), pointer_correct
     ]
 
-    pointer_correct = jnp.where(
-        jnp.logical_and(
-            jnp.logical_not(is_prompt),
-            curr_answers == action,
-        ),
-        pointer_correct + 1,
-        jnp.where(
-            jnp.logical_and(
-                step_state.answers[:, 0] != action,
-                jnp.logical_not(is_prompt),
-            ),
-            0,
-            1,
-        )
+    # jax.debug.print(
+    #     "pointer {x}",
+    #     x=pointer_correct,
+    # )
+
+    reset_pointer = jnp.where(
+        step_state.answers[:, 0] == action,
+        1,
+        0,
     )
+    not_prompt_pointer = jax.lax.select(
+        curr_answers == action,
+        pointer_correct + 1,
+        reset_pointer,
+    )
+    pointer_correct = jax.lax.select(
+        is_prompt > 0.0,
+        pointer_correct,
+        not_prompt_pointer,
+    )
+
     output_tokens = jnp.where(
         jnp.logical_and(
             curr_answers != action,
@@ -101,6 +107,16 @@ def predict_step(
         step_state.observations[:, step_i + 1],
         output_tokens,
     )
+
+    # jax.debug.print(
+    #     "step {w} is_prompt {v}: pointer {x} answer {y} pred {u} transition {z}",
+    #     w=step_i,
+    #     v=is_prompt.astype(int),
+    #     x=pointer_correct,
+    #     y=curr_answers,
+    #     u=action,
+    #     z=output_tokens,
+    # )
 
     # Check if the first EOS has been generated
     eos = jnp.logical_or(
@@ -123,7 +139,7 @@ def predict_step(
         actions=actions,
         answers=step_state.answers,
         pointer_correct=pointer_correct,
-        is_prompt=step_state.is_prompt,
+        last_prompt_idx=step_state.last_prompt_idx,
         eos=eos,
         step_i=step_i + 1,
         deterministic=step_state.deterministic,
@@ -148,10 +164,21 @@ def rollout(
 ):
     questions = batch["sequence"]
     answers = batch["target"]
-    mask = batch["mask"]
     pointer_correct = batch["pointer_correct"]
+    question_mask = 1 - batch["mask"]
+    last_prompt_idx = (
+        jnp.sum(question_mask, axis=-1) + pointer_correct - 1
+    ).astype(int)
     num_questions, max_step = questions.shape
 
+    # jax.debug.print(
+    #     "obs={x}",
+    #     x=questions
+    # )
+    # jax.debug.print(
+    #     "last_prompt_idx={x}",
+    #     x=last_prompt_idx,
+    # )
     step_state = StepState(
         graphdef=graphdef,
         rest=rest,
@@ -162,7 +189,7 @@ def rollout(
         actions=jnp.zeros_like(questions, dtype=int),
         answers=answers,
         pointer_correct=pointer_correct,
-        is_prompt=1 - mask,
+        last_prompt_idx=last_prompt_idx,
         eos=jnp.zeros((num_questions, max_step)),
         deterministic=deterministic,
         correct_aware_shift=correct_aware_shift,
@@ -179,5 +206,6 @@ def rollout(
         step_state.observations,
         step_state.actions,
         step_state.eos,
-        step_state.is_prompt,
+        question_mask,
+        last_prompt_idx,
     )

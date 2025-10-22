@@ -100,7 +100,7 @@ class PPO(REINFORCE):
             )
             cache = init_cache()
             graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-            (observations, actions, eos_mask, is_prompt_mask) = rollout(
+            (observations, actions, eos_mask, question_mask, last_prompt_idxes) = rollout(
                 graphdef,
                 cache,
                 rest,
@@ -117,7 +117,8 @@ class PPO(REINFORCE):
             returns, successes, response_lengths = self._compute_returns(
                 batch,
                 eos_mask,
-                is_prompt_mask,
+                question_mask,
+                last_prompt_idxes,
                 is_eval=False,
             )
             batch["returns"] = returns

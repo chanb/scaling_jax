@@ -48,6 +48,7 @@ def make_compute_returns(config, eos_token=4):
                 end_idx = response.find(target) + len(target) - 2
                 mask[end_idx:] = 0
 
+            # print(success, target, response)
             response_length = np.sum(mask)
 
             has_eos = 1.0
@@ -99,7 +100,7 @@ def make_compute_returns(config, eos_token=4):
         raise NotImplementedError
     
 
-    def compute_returns(batch, eos_mask, is_prompt_mask, is_eval):
+    def compute_returns(batch, eos_mask, question_mask, last_prompt_idxes, is_eval):
         """
         Compute verifiable rewards
         Assume each token is an action, the state is the sequence up to this point
@@ -112,22 +113,32 @@ def make_compute_returns(config, eos_token=4):
         successes = np.zeros(batch["sequence"].shape[0])
         has_eos = np.zeros(batch["sequence"].shape[0])
 
-        batch["pred_mask"] = 1 - np.logical_or(eos_mask, is_prompt_mask)
+        batch["pred_mask"] = 1 - np.logical_or(eos_mask, question_mask)
 
         # Get whether or not target is in the response---neglects everything after first <EOS>
-        for sample_i, (obs, act, target, mask) in enumerate(
-            zip(batch["observations"], batch["actions"], batch["target"], batch["pred_mask"])
-        ):
+        for sample_i, (obs, act, target, mask, last_prompt_idx) in enumerate(zip(
+            batch["observations"],
+            batch["actions"],
+            batch["target"],
+            batch["pred_mask"],
+            last_prompt_idxes,
+        )):
             target = process_target(target)
             question_mask = np.ones_like(mask)
-            question_mask[np.argmax(mask) + 1:] = 0
+            question_mask[last_prompt_idx + 1:] = 0
+            answer_mask = 1 - question_mask
 
-            answer_mask = mask[:]
-            answer_mask[-1] = 0
             response = np.concatenate((
                 obs[np.where(question_mask)],
                 act[np.where(answer_mask)],
             ))
+            # print("=" * 50)
+            # print(last_prompt_idx)
+            # print(question_mask)
+            # print(obs)
+            # print(answer_mask)
+            # print(act)
+            # print(response)
             success, response_length, curr_has_eos, mask = get_success(
                 response,
                 target,
