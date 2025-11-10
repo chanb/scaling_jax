@@ -64,7 +64,12 @@ class Addition(IterableDataset):
         self.reverse_curriculum = reverse_curriculum
         self.correctness_aware = correctness_aware
         self.carry_registers = carry_registers
-        self._eos_token_id = 4 + self.num_cot_tokens + 2 * int(carry_registers)
+        self._eos_token_id = (
+            4
+            + self.num_cot_tokens
+            + 2 * int(carry_registers)
+            + 2 * int(correctness_aware)
+        )
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
