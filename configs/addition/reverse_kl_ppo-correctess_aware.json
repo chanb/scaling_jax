@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos-correctness_aware",
+        "save_path": "./results/addition-max_int_64-no_eos-correctness_aware",
         "experiment_name": "reverse_kl_ppo-scratch_1M-no_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
@@ -53,7 +53,8 @@
         "num_cot_tokens": 0,
         "p_curriculum": 0,
         "reverse_curriculum": false,
-        "correctness_aware": true
+        "correctness_aware": true,
+        "carry_registers": false
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
@@ -92,7 +93,8 @@
                 "exact": false,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -116,7 +118,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -140,7 +143,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -164,7 +168,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -188,7 +193,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -212,7 +218,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true
+                "correctness_aware": true,
+                "carry_registers": false
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,

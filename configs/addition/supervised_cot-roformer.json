@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "/home/bryanpu1/projects/iclr_2026/icl_architecture/scaling_jax/results/addition-max_int_64-no_eos",
+        "save_path": "./results/addition-max_int_64-no_eos",
         "experiment_name": "supervised-roformer-scratch-8-stop_on_empty",
         "log_interval": 50,
         "checkpoint_interval": 100000,

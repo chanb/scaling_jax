@@ -449,6 +449,7 @@ class Learner:
         self._compute_returns = make_compute_returns(
             self._config,
             self._dataset.eos_token_id,
+            self._dataset.token_map,
         )
         self.train_step = nnx.jit(self.make_train_step())
         self.make_validate_step()

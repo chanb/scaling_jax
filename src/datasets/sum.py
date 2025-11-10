@@ -35,6 +35,7 @@ class Addition(IterableDataset):
         noop_as_pad: bool=False,
         reverse_curriculum: bool=False,
         correctness_aware: bool=False,
+        carry_registers: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -42,6 +43,7 @@ class Addition(IterableDataset):
         assert 0.0 <= p_inject_noop < 1.0
         assert 0.0 <= p_curriculum < 1.0
         assert max_noops >= 0
+        assert not (correctness_aware and carry_registers)
         self.context_len = context_len
         self.max_int = max_int
         self.train = train
@@ -61,10 +63,14 @@ class Addition(IterableDataset):
         self.noop_as_pad = noop_as_pad
         self.reverse_curriculum = reverse_curriculum
         self.correctness_aware = correctness_aware
-        self._eos_token_id = 4 + self.num_cot_tokens
+        self.carry_registers = carry_registers
+        self._eos_token_id = 4 + self.num_cot_tokens + 2 * int(carry_registers)
 
         self._rng = np.random.RandomState(seed)
         self.get_train_sequences()
+
+        print("EOS TOKEN: {}".format(self.eos_token_id))
+        print("TOKEN MAP: {}".format(self.token_map))
 
     @property
     def eos_token_id(self):
@@ -78,17 +84,38 @@ class Addition(IterableDataset):
 
     @property
     def correctness_aware_tokens_offset(self):
-        return 5 + self.num_cot_tokens
+        return 4 + self.num_cot_tokens
+
+    @property
+    def token_map(self):
+        base_token_map = {
+            0: 0,
+            1: 1,
+            2: 2,
+            3: 3,
+            **{
+                cot_token_id + 4: cot_token_id + 4 for cot_token_id in range(self.num_cot_tokens)
+            },
+            self._eos_token_id: self._eos_token_id,
+            self.correctness_aware_tokens_offset: self.correctness_aware_tokens_offset,
+            self.correctness_aware_tokens_offset + 1: self.correctness_aware_tokens_offset + 1,
+        }
+
+        if self.carry_registers:
+            base_token_map[self.correctness_aware_tokens_offset] = 0
+            base_token_map[self.correctness_aware_tokens_offset + 1] = 1
+
+        return base_token_map
 
     @property
     def input_space(self):
-        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], [0', 1'], <EOS>
-        return spaces.Discrete(5 + 2 * int(self.correctness_aware) + self.num_cot_tokens)
+        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], <EOS>, [0', 1']
+        return spaces.Discrete(5 + 2 * int(self.correctness_aware) + self.num_cot_tokens + 2 * int(self.carry_registers))
 
     @property
     def output_space(self):
-        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], <EOS>
-        return spaces.Discrete(4 + int(self.predict_eos) + self.num_cot_tokens)
+        # 0, 1, <PLUS>, <EQUAL>, [<REG_1>, ..., <REG_K>], <EOS>, [0', 1']
+        return spaces.Discrete(4 + int(self.predict_eos) + self.num_cot_tokens + 2 * int(self.carry_registers))
 
     def __iter__(self):
         return iter(self.get_sequences())

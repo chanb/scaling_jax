@@ -12,7 +12,7 @@ import numpy as np
 from src.constants import *
 
 
-def make_compute_returns(config, eos_token=4):
+def make_compute_returns(config, eos_token, token_map):
     if getattr(config.dataset_kwargs, "predict_eos", True):
         def process_target(target):
             target = "".join(np.array(target[target != eos_token]).astype(str))
@@ -53,7 +53,6 @@ def make_compute_returns(config, eos_token=4):
 
             has_eos = 1.0
             return success, response_length, has_eos, mask
-
 
     # Reward shaping
     reward_type = getattr(config, "reward_type", "default")
@@ -134,6 +133,8 @@ def make_compute_returns(config, eos_token=4):
                 obs[np.where(question_mask)],
                 act[np.where(answer_mask)],
             ))
+
+            response = np.array([token_map[int(token)] for token in response])
             # print("=" * 50)
             # print(last_prompt_idx)
             # print(question_mask)

@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/addition-max_int_64-no_eos-correctness_aware",
-        "experiment_name": "ppo-scratch_1M-01_reward-no_cot_tokens-8x8",
+        "experiment_name": "ppo-scratch_1M-carry_registers-no_correctness_aware-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 500
@@ -53,8 +53,8 @@
         "num_cot_tokens": 0,
         "p_curriculum": 0,
         "reverse_curriculum": false,
-        "correctness_aware": true,
-        "carry_registers": false
+        "correctness_aware": false,
+        "carry_registers": true
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
@@ -67,7 +67,7 @@
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,
-    "reward_type": "default",
+    "reward_type": "negative_on_failure",
     "num_rollouts_per_sample": 8,
     "batch_size": 8,
     "num_epochs": 1000000,
@@ -93,8 +93,8 @@
                 "exact": false,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -118,8 +118,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -143,8 +143,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -168,8 +168,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -193,8 +193,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -218,8 +218,8 @@
                 "exact": true,
                 "predict_eos": false,
                 "num_cot_tokens": 0,
-                "correctness_aware": true,
-                "carry_registers": false
+                "correctness_aware": false,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
