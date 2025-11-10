@@ -102,13 +102,14 @@ class Addition(IterableDataset):
                 cot_token_id + 4: cot_token_id + 4 for cot_token_id in range(self.num_cot_tokens)
             },
             self._eos_token_id: self._eos_token_id,
-            self.correctness_aware_tokens_offset: self.correctness_aware_tokens_offset,
-            self.correctness_aware_tokens_offset + 1: self.correctness_aware_tokens_offset + 1,
         }
 
         if self.carry_registers:
             base_token_map[self.correctness_aware_tokens_offset] = 0
             base_token_map[self.correctness_aware_tokens_offset + 1] = 1
+        elif self.correctness_aware:
+            base_token_map[self.correctness_aware_tokens_offset] = self.correctness_aware_tokens_offset
+            base_token_map[self.correctness_aware_tokens_offset + 1] = self.correctness_aware_tokens_offset + 1
 
         return base_token_map
 
