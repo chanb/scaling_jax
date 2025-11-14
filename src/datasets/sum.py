@@ -36,6 +36,7 @@ class Addition(IterableDataset):
         reverse_curriculum: bool=False,
         correctness_aware: bool=False,
         carry_registers: bool=False,
+        match_carry: bool=False,
     ):
         assert context_len > 0
         assert max_int > 0
@@ -64,6 +65,7 @@ class Addition(IterableDataset):
         self.reverse_curriculum = reverse_curriculum
         self.correctness_aware = correctness_aware
         self.carry_registers = carry_registers
+        self.match_carry = match_carry
         self._eos_token_id = (
             4
             + self.num_cot_tokens
@@ -105,8 +107,12 @@ class Addition(IterableDataset):
         }
 
         if self.carry_registers:
-            base_token_map[self.correctness_aware_tokens_offset] = 0
-            base_token_map[self.correctness_aware_tokens_offset + 1] = 1
+            if self.match_carry:
+                base_token_map[self.correctness_aware_tokens_offset] = self.correctness_aware_tokens_offset
+                base_token_map[self.correctness_aware_tokens_offset + 1] = self.correctness_aware_tokens_offset + 1
+            else:
+                base_token_map[self.correctness_aware_tokens_offset] = 0
+                base_token_map[self.correctness_aware_tokens_offset + 1] = 1
         elif self.correctness_aware:
             base_token_map[self.correctness_aware_tokens_offset] = self.correctness_aware_tokens_offset
             base_token_map[self.correctness_aware_tokens_offset + 1] = self.correctness_aware_tokens_offset + 1
@@ -173,12 +179,9 @@ class Addition(IterableDataset):
             # Assume equal length for both integers for now
             first_int = t // self.max_int
             second_int = t % self.max_int
-            soln = first_int + second_int
 
             first_bin_repr = "{0:b}".format(first_int)
             second_bin_repr = "{0:b}".format(second_int)
-            soln_bin_repr = "{0:b}".format(soln)
-
 
             max_len = max(len(first_bin_repr), len(second_bin_repr))
             if self.exact and max_len != self.max_bit_len:
@@ -186,6 +189,25 @@ class Addition(IterableDataset):
 
             first_bin_repr = first_bin_repr.rjust(max_len, "0")
             second_bin_repr = second_bin_repr.rjust(max_len, "0")
+
+            if self.match_carry:
+                carry = False
+                soln_bin_repr = ""
+                for first_bit, second_bit in zip(
+                    first_bin_repr[::-1],
+                    second_bin_repr[::-1],
+                ):
+                    curr_res = int(first_bit) + int(second_bit) + carry
+                    carry = curr_res >= 2
+                    soln_bin_repr = str(
+                        curr_res % 2
+                        + (int(carry) * self.correctness_aware_tokens_offset)
+                    ) + soln_bin_repr
+                if carry:
+                    soln_bin_repr = "1" + soln_bin_repr
+            else:
+                soln = first_int + second_int
+                soln_bin_repr = "{0:b}".format(soln)
 
             first_list_repr = [
                 int(token_id)

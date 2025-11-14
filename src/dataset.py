@@ -105,6 +105,7 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             getattr(dataset_kwargs, "reverse_curriculum", False),
             getattr(dataset_kwargs, "correctness_aware", False),
             getattr(dataset_kwargs, "carry_registers", False),
+            getattr(dataset_kwargs, "match_carry", False),
         )
     else:
         raise NotImplementedError
