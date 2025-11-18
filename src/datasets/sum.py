@@ -94,6 +94,10 @@ class Addition(IterableDataset):
         return 4 + self.num_cot_tokens
 
     @property
+    def reset_token_id(self):
+        return 3
+
+    @property
     def token_map(self):
         base_token_map = {
             0: 0,

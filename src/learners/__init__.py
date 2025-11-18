@@ -7,6 +7,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 from src.learners.reinforce import REINFORCE
+from src.learners.metastable_reinforce import MetastableREINFORCE
 from src.learners.ppo import PPO
 from src.learners.supervised import Supervised
 

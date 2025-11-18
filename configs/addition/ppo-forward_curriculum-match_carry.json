@@ -1,6 +1,6 @@
 {
     "logging_config": {
-        "save_path": "./results/addition-max_int_64-no_eos-correctness_aware",
+        "save_path": "./results/addition-max_int_64-no_eos",
         "experiment_name": "ppo-scratch_1M-match_carry-forward_curriculum-no_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,

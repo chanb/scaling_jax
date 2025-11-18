@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/addition-max_int_64-no_eos",
-        "experiment_name": "supervised-nope-scratch-32-stop_on_empty",
+        "experiment_name": "cot-nope-match_carry-bs_32",
         "log_interval": 50,
         "checkpoint_interval": 100000,
         "validation_interval": 500
@@ -31,7 +31,7 @@
         "opt_kwargs": {
             "weight_decay": 0.0
         },
-        "max_grad_norm": false,
+        "max_grad_norm": 1.0,
         "mask_names": []
     },
     "half_precision": false,
@@ -52,10 +52,12 @@
         "right_to_left": true,
         "shuffle": true,
         "predict_eos": false,
-        "num_cot_tokens": 2,
+        "num_cot_tokens": 0,
         "p_inject_noop": 0.0,
         "max_noops": 0,
-        "noop_as_pad": false
+        "noop_as_pad": false,
+        "carry_registers": true,
+        "match_carry": true
     },
     "repeat": false,
     "shuffle_buffer_size": 100,
@@ -87,7 +89,8 @@
                 "shuffle": false,
                 "exact": false,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -110,7 +113,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -133,7 +137,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -156,7 +161,8 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
@@ -179,7 +185,32 @@
                 "shuffle": false,
                 "exact": true,
                 "predict_eos": false,
-                "num_cot_tokens": 2
+                "num_cot_tokens": 0,
+                "carry_registers": true
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_2048",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 2048,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "carry_registers": true
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
