@@ -49,12 +49,20 @@ class MetastablePPO(PPO):
     ):
         super().__init__(config=config)
 
-        def _sample_reset_idxes(obss, rngs):
+        def _sample_reset_idxes(obss, rlengths, rngs):
             reset_idxes = jnp.where(
                 obss == self._dataset.reset_token_id,
                 size=len(obss),
                 fill_value=-1,
             )[0]
+            first_reset_idx = reset_idxes[0]
+
+            reset_idxes = jax.lax.select(
+                reset_idxes >= first_reset_idx + rlengths,
+                jnp.full_like(reset_idxes, fill_value=-1),
+                reset_idxes,
+            )
+
             logits = jax.lax.select(
                 reset_idxes == -1,
                 -jnp.inf,
@@ -69,48 +77,42 @@ class MetastablePPO(PPO):
                 reset_idxes[0],
                 reset_idxes[reset_idx_i + 1],
             )
-            first_reset_idx = reset_idxes[0]
             return reset_idx, first_reset_idx
 
-        def _augment(iter_i, state):
-            obss = state["observations"][iter_i]
-            acts = state["actions"][iter_i]
-            masks = state["pred_mask"][iter_i]
-            rets = state["returns"][iter_i]
-            old_lprobs = state["old_lprobs"][iter_i]
-            first_reset_idx = state["first_reset_idx"][iter_i]
-            reset_idx = state["reset_idx"][iter_i]
-            out_obss = jnp.copy(obss)
-            out_acts = jnp.copy(acts)
-            out_masks = jnp.copy(masks)
-            out_rets = jnp.copy(rets)
-            out_old_lprobs = jnp.copy(old_lprobs)
-
+        def _augment_sample(
+            out_obss,
+            out_acts,
+            out_masks,
+            out_rets,
+            out_old_lprobs,
+            first_reset_idx,
+            reset_idx,
+        ):
             delta = reset_idx - first_reset_idx
             delta = jax.lax.select(
                 delta <= 0,
-                len(obss),
+                len(out_obss),
                 -delta,
             )
 
             # Given [X_1, ..., X_T, <EQUAL>, ...]
             # Want a mask where <EQUAL> and onward are set to 0.
-            first_reset_mask = jnp.zeros_like(obss)
+            first_reset_mask = jnp.zeros_like(out_obss)
             first_reset_mask = first_reset_mask.at[first_reset_idx].set(1)
             question_mask = 1 - jnp.cumsum(first_reset_mask)
 
             # Given [X_1, ..., X_T, <EQUAL>, ..., <EQUAL_N>, ...]
             # Want a mask where <EQUAL_N> and onward are set to 1.
-            reset_mask = jnp.zeros_like(obss)
+            reset_mask = jnp.zeros_like(out_obss)
             reset_mask = reset_mask.at[reset_idx].set(1)
             reset_mask = jnp.cumsum(reset_mask)
 
             # Let delta = position of <EQUAL_N> - position of <EQUAL>.
             # Want a mask where the last delta entries are set to 1
             # If delta = 0, then all entries are set to 0.
-            eos_mask = jnp.zeros(obss.shape[0])
+            eos_mask = jnp.zeros(out_obss.shape[0])
             eos_mask = jax.lax.select(
-                delta == len(obss),
+                delta == len(out_obss),
                 eos_mask,
                 eos_mask.at[delta].set(1),
             )
@@ -128,6 +130,64 @@ class MetastablePPO(PPO):
             out_rets = question_mask * out_rets + jnp.roll(reset_mask * out_rets, delta)
             out_rets = (1 - eos_mask) * out_rets
 
+            return (
+                out_obss.astype(int),
+                out_acts.astype(int),
+                out_masks.astype(int),
+                out_rets.astype(int),
+                out_old_lprobs.astype(int),
+            )
+        
+        def _identity(
+            out_obss,
+            out_acts,
+            out_masks,
+            out_rets,
+            out_old_lprobs,
+            first_reset_idx,
+            reset_idx,
+        ):
+            return (
+                out_obss.astype(int),
+                out_acts.astype(int),
+                out_masks.astype(int),
+                out_rets.astype(int),
+                out_old_lprobs.astype(int),
+            )
+
+        def _augment(iter_i, state):
+            obss = state["observations"][iter_i]
+            acts = state["actions"][iter_i]
+            masks = state["pred_mask"][iter_i]
+            rets = state["returns"][iter_i]
+            old_lprobs = state["old_lprobs"][iter_i]
+            first_reset_idx = state["first_reset_idx"][iter_i]
+            reset_idx = state["reset_idx"][iter_i]
+            success = state["successes"][iter_i]
+            out_obss = jnp.copy(obss)
+            out_acts = jnp.copy(acts)
+            out_masks = jnp.copy(masks)
+            out_rets = jnp.copy(rets)
+            out_old_lprobs = jnp.copy(old_lprobs)
+            (
+                out_obss,
+                out_acts,
+                out_masks,
+                out_rets,
+                out_old_lprobs,
+            ) = jax.lax.cond(
+                success,
+                _augment_sample,
+                _identity,
+                out_obss,
+                out_acts,
+                out_masks,
+                out_rets,
+                out_old_lprobs,
+                first_reset_idx,
+                reset_idx,
+            )
+
             return {
                 "observations": state["observations"].at[iter_i].set(out_obss),
                 "actions": state["actions"].at[iter_i].set(out_acts),
@@ -136,6 +196,7 @@ class MetastablePPO(PPO):
                 "old_lprobs": state["old_lprobs"].at[iter_i].set(out_old_lprobs),
                 "first_reset_idx": state["first_reset_idx"],
                 "reset_idx": state["reset_idx"],
+                "successes": state["successes"],
             }
         self._sample_reset_idxes = jax.vmap(_sample_reset_idxes)
         self._augment = jax.jit(_augment)
@@ -213,22 +274,30 @@ class MetastablePPO(PPO):
             batch["returns"] = returns
 
             # Compute log probs
-            batch["old_lprobs"] = compute_log_probs(
-                self.state.graphdef,
-                self.state.params,
-                self.state.rest,
-                batch,
+            batch["old_lprobs"] = jnp.pad(
+                compute_log_probs(
+                    self.state.graphdef,
+                    self.state.params,
+                    self.state.rest,
+                    batch,
+                ),
+                ((0, 0), (1, 0)),
             )
 
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
             # Split intermediate rollouts
-            if self._config.metastable_aug_p > 0.0 and hasattr(self._dataset, "reset_token_id"):
+            if (
+                self._config.metastable_aug_p > 0.0
+                and hasattr(self._dataset, "reset_token_id")
+                and np.any(successes)
+            ):
                 aug_rngs = jrandom.split(curr_rng, len(batch["observations"]))
                 
                 reset_idx, first_reset_idx = self._sample_reset_idxes(
                     batch["observations"],
+                    response_lengths,
                     aug_rngs,
                 )
 
@@ -244,9 +313,10 @@ class MetastablePPO(PPO):
                         "old_lprobs": batch["old_lprobs"],
                         "first_reset_idx": first_reset_idx,
                         "reset_idx": reset_idx,
+                        "successes": successes,
                     }
                 )
-                
+
                 (
                     batch["observations"],
                     batch["actions"],
@@ -260,6 +330,8 @@ class MetastablePPO(PPO):
                     aug_data["returns"],
                     aug_data["old_lprobs"],
                 )
+
+            batch["old_lprobs"] = batch["old_lprobs"][:, 1:]
 
             for update_i in range(self._config.num_ppo_steps):
                 self._state, aux = self.train_step(
