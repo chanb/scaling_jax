@@ -84,7 +84,6 @@ class MetastablePPO(PPO):
             out_acts,
             out_masks,
             out_rets,
-            out_old_lprobs,
             first_reset_idx,
             reset_idx,
         ):
@@ -122,7 +121,6 @@ class MetastablePPO(PPO):
             out_obss = (1 - eos_mask) * out_obss + eos_mask * self._dataset.eos_token_id
 
             out_acts = question_mask * out_acts + jnp.roll(reset_mask * out_acts, delta)
-            out_old_lprobs = question_mask * out_old_lprobs + jnp.roll(reset_mask * out_old_lprobs, delta)
 
             out_masks = question_mask * out_masks + jnp.roll(reset_mask * out_masks, delta)
             out_masks = (1 - eos_mask) * out_masks
@@ -135,7 +133,6 @@ class MetastablePPO(PPO):
                 out_acts.astype(int),
                 out_masks.astype(int),
                 out_rets.astype(int),
-                out_old_lprobs.astype(int),
             )
         
         def _identity(
@@ -143,7 +140,6 @@ class MetastablePPO(PPO):
             out_acts,
             out_masks,
             out_rets,
-            out_old_lprobs,
             first_reset_idx,
             reset_idx,
         ):
@@ -152,7 +148,6 @@ class MetastablePPO(PPO):
                 out_acts.astype(int),
                 out_masks.astype(int),
                 out_rets.astype(int),
-                out_old_lprobs.astype(int),
             )
 
         def _augment(iter_i, state):
@@ -160,7 +155,6 @@ class MetastablePPO(PPO):
             acts = state["actions"][iter_i]
             masks = state["pred_mask"][iter_i]
             rets = state["returns"][iter_i]
-            old_lprobs = state["old_lprobs"][iter_i]
             first_reset_idx = state["first_reset_idx"][iter_i]
             reset_idx = state["reset_idx"][iter_i]
             success = state["successes"][iter_i]
@@ -168,13 +162,11 @@ class MetastablePPO(PPO):
             out_acts = jnp.copy(acts)
             out_masks = jnp.copy(masks)
             out_rets = jnp.copy(rets)
-            out_old_lprobs = jnp.copy(old_lprobs)
             (
                 out_obss,
                 out_acts,
                 out_masks,
                 out_rets,
-                out_old_lprobs,
             ) = jax.lax.cond(
                 success,
                 _augment_sample,
@@ -183,7 +175,6 @@ class MetastablePPO(PPO):
                 out_acts,
                 out_masks,
                 out_rets,
-                out_old_lprobs,
                 first_reset_idx,
                 reset_idx,
             )
@@ -193,7 +184,6 @@ class MetastablePPO(PPO):
                 "actions": state["actions"].at[iter_i].set(out_acts),
                 "pred_mask": state["pred_mask"].at[iter_i].set(out_masks),
                 "returns": state["returns"].at[iter_i].set(out_rets),
-                "old_lprobs": state["old_lprobs"].at[iter_i].set(out_old_lprobs),
                 "first_reset_idx": state["first_reset_idx"],
                 "reset_idx": state["reset_idx"],
                 "successes": state["successes"],
@@ -273,17 +263,6 @@ class MetastablePPO(PPO):
             )
             batch["returns"] = returns
 
-            # Compute log probs
-            batch["old_lprobs"] = jnp.pad(
-                compute_log_probs(
-                    self.state.graphdef,
-                    self.state.params,
-                    self.state.rest,
-                    batch,
-                ),
-                ((0, 0), (1, 0)),
-            )
-
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
@@ -310,7 +289,6 @@ class MetastablePPO(PPO):
                         "actions": batch["actions"],
                         "pred_mask": batch["pred_mask"],
                         "returns": batch["returns"],
-                        "old_lprobs": batch["old_lprobs"],
                         "first_reset_idx": first_reset_idx,
                         "reset_idx": reset_idx,
                         "successes": successes,
@@ -322,16 +300,20 @@ class MetastablePPO(PPO):
                     batch["actions"],
                     batch["pred_mask"],
                     batch["returns"],
-                    batch["old_lprobs"],
                 ) = (
                     aug_data["observations"],
                     aug_data["actions"],
                     aug_data["pred_mask"],
                     aug_data["returns"],
-                    aug_data["old_lprobs"],
                 )
 
-            batch["old_lprobs"] = batch["old_lprobs"][:, 1:]
+            # Compute log probs
+            batch["old_lprobs"] = compute_log_probs(
+                self.state.graphdef,
+                self.state.params,
+                self.state.rest,
+                batch,
+            )
 
             for update_i in range(self._config.num_ppo_steps):
                 self._state, aux = self.train_step(
