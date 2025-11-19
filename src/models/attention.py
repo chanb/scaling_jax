@@ -8,31 +8,18 @@ sys.path.insert(0, parentdir)
 
 import jax
 import jax.numpy as jnp
-import math
 
 from flax import nnx
-from flax.nnx import rnglib
-from flax.nnx.module import Module, first_from
-from flax.nnx.nn import initializers
+from flax.nnx.module import Module
 from flax.nnx.nn.dtypes import promote_dtype
-from flax.nnx.nn.linear import (
-  LinearGeneral,
-  default_kernel_init,
-)
-from flax.nnx.nn.normalization import LayerNorm
 from flax.typing import (
-  Dtype,
-  Shape,
-  Initializer,
-  PrecisionLike,
-  DotGeneralT,
+    Dtype,
+    PrecisionLike,
 )
-from functools import partial
 
 Array = jax.Array
 
 
-@partial(jax.custom_jvp, nondiff_argnums=(1,))
 def _quiet_softmax(
     x: Array,
     axis: int | tuple[int, ...] | None = -1,

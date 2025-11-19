@@ -13,6 +13,7 @@ import jax.numpy as jnp
 import numpy as np
 
 from src.constants import *
+from src.models.attention import quiet_dot_product_attention
 
 
 class GPTBlock(nnx.Module):
@@ -41,6 +42,7 @@ class GPTBlock(nnx.Module):
                 nnx.initializers.normal(stddev=1.0),
                 ("fsdp",)
             ),
+            # attention_fn=quiet_dot_product_attention,
         )
         self.ln_1 = nnx.LayerNorm(
             embed_dim,
