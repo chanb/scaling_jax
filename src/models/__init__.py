@@ -14,6 +14,7 @@ from flax.training import train_state
 from functools import partial
 from typing import Any
 
+from src.models.attention import quiet_dot_product_attention
 from src.models.gpt import InContextGPT
 from src.models.next_token import (
     TokenEmbedders,
@@ -110,5 +111,14 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
             )
         else:
             raise NotImplementedError
+
+    attention_fn = getattr(
+        model_config.model_kwargs,
+        "attention_fn",
+        False,
+    )
+    if attention_fn:
+        if attention_fn == "quiet_dot_product":
+            dependency_cls["attention_fn"] = quiet_dot_product_attention
 
     return dependency_cls

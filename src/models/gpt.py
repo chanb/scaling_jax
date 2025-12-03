@@ -13,7 +13,6 @@ import jax.numpy as jnp
 import numpy as np
 
 from src.constants import *
-from src.models.attention import quiet_dot_product_attention
 
 
 class GPTBlock(nnx.Module):
@@ -24,6 +23,7 @@ class GPTBlock(nnx.Module):
         widening_factor,
         *,
         rngs,
+        attention_fn=nnx.dot_product_attention,
         use_causal_mask=True,
         dtype=None,
     ):
@@ -42,7 +42,7 @@ class GPTBlock(nnx.Module):
                 nnx.initializers.normal(stddev=1.0),
                 ("fsdp",)
             ),
-            # attention_fn=quiet_dot_product_attention,
+            attention_fn=attention_fn,
         )
         self.ln_1 = nnx.LayerNorm(
             embed_dim,
@@ -109,6 +109,7 @@ class GPT(nnx.Module):
         *,
         rngs,
         use_causal_mask=True,
+        attention_fn=nnx.dot_product_attention,
         dtype=None,
     ):
         layers = []
@@ -120,6 +121,7 @@ class GPT(nnx.Module):
                     widening_factor,
                     rngs=rngs,
                     use_causal_mask=use_causal_mask,
+                    attention_fn=attention_fn,
                     dtype=dtype,
                 )
             )
@@ -147,6 +149,7 @@ class InContextGPT(nnx.Module):
         decode: bool = False,
         dtype = None,
         use_sink_token: bool = True,
+        attention_fn=nnx.dot_product_attention,
         **kwargs,
     ) -> None:
         self.decode = decode
@@ -169,6 +172,7 @@ class InContextGPT(nnx.Module):
             widening_factor=widening_factor,
             rngs=rngs,
             use_causal_mask=True,
+            attention_fn=attention_fn,
             dtype=dtype,
         )
         
