@@ -482,12 +482,13 @@ class Learner:
             dtype=dtype,
         )
 
+        model_kwargs = vars(self._config.model_config.model_kwargs)
+        model_kwargs.update(dependency_cls)
         self._state, self._state_sharding = construct_sharded_model(
             self.data_mesh,
             model_cls,
             dict(
-                **vars(self._config.model_config.model_kwargs),
-                **dependency_cls,
+                **model_kwargs,
                 rngs=rngs,
                 dtype=dtype,
             ),

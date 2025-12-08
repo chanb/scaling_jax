@@ -88,7 +88,13 @@ class GPTBlock(nnx.Module):
         mask = nnx.make_causal_mask(x[..., 0]) * self.use_causal_mask
         mask = mask + jnp.ones_like(mask) * (1 - self.use_causal_mask)
         normed_x = self.ln_1(x)
-        attention_out = self.attention(normed_x, normed_x, normed_x, mask=mask)
+        attention_out = self.attention(
+            normed_x,
+            normed_x,
+            normed_x,
+            mask=mask,
+            sow_weights=True,
+        )
         x = x + attention_out
         normed_x = nnx.gelu(self.dense_1(self.ln_2(x)))
         x = x + self.dense_2(normed_x)

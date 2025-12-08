@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/addition-max_int_64-no_eos",
-        "experiment_name": "metastable_ppo-scratch_1M-01_reward-0_cot_tokens-8x8",
+        "experiment_name": "metastable_ppo-scratch_1M-quiet_attn-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 500
@@ -15,7 +15,8 @@
             "widening_factor": 4,
             "embedder_strategy": "next_token",
             "shared_decoding": true,
-            "use_sink_token": false
+            "use_sink_token": false,
+            "attention_fn": "quiet_dot_product"
         }
     },
     "optimizer_config": {
@@ -66,8 +67,8 @@
         "entropy": 0.0
     },
     "num_ppo_steps": 3,
-    "gamma": 1.0,
-    "reward_type": "default",
+    "gamma": 0.9,
+    "reward_type": "negative_on_failure",
     "metastable_aug_p": 0.5,
     "num_rollouts_per_sample": 8,
     "batch_size": 8,

@@ -26,10 +26,15 @@ def _quiet_softmax(
     where: Array | None = None,
     initial: Array | None = -jnp.inf
 ) -> Array:
-    x_max = jnp.max(x, axis, where=where, initial=initial, keepdims=True)
+    x_max = jax.lax.stop_gradient(
+        jnp.max(x, axis, where=where, initial=initial, keepdims=True)
+    )
     x_safe = x if where is None else jnp.where(where, x, initial)
     unnormalized = jnp.exp(x_safe - x_max)
-    result = unnormalized / (jnp.exp(-x_max) + jnp.sum(unnormalized, axis, where=where, keepdims=True))
+    result = unnormalized / (
+        jnp.exp(-x_max)
+        + jnp.sum(unnormalized, axis, where=where, keepdims=True)
+    )
     if where is not None:
         result = jnp.where(where, result, 0)
     return result
