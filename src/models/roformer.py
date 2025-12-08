@@ -92,6 +92,7 @@ class RoformerBlock(nnx.Module):
         widening_factor,
         *,
         rngs,
+        attention_fn=nnx.dot_product_attention,
         use_causal_mask=True,
         decode: bool = False,
         dtype=None,
@@ -117,6 +118,7 @@ class RoformerBlock(nnx.Module):
                 nnx.initializers.normal(stddev=1.0),
                 ("fsdp",)
             ),
+            attention_fn=attention_fn,
         )
         self.ln_1 = nnx.LayerNorm(
             embed_dim,
@@ -213,6 +215,7 @@ class Roformer(nnx.Module):
         widening_factor,
         *,
         rngs,
+        attention_fn=nnx.dot_product_attention,
         use_causal_mask=True,
         decode: bool = False,
         dtype=None,
@@ -228,6 +231,7 @@ class Roformer(nnx.Module):
                     use_causal_mask=use_causal_mask,
                     decode=decode,
                     dtype=dtype,
+                    attention_fn=attention_fn,
                 )
             )
         self.roformer = nnx.Sequential(*layers)
@@ -249,17 +253,16 @@ class InContextRoformer(nnx.Module):
         embed_dim: int,
         widening_factor: int,
         embedder_cls: Callable,
-        pos_enc_cls: Callable,
         rngs: nnx.Rngs,
         decode: bool = False,
         dtype = None,
         use_sink_token: bool = True,
+        attention_fn=nnx.dot_product_attention,
         **kwargs,
     ) -> None:
         self.decode = decode
         self.use_sink_token = use_sink_token
         self.embedders = embedder_cls()
-        self.pos_enc = pos_enc_cls()
 
         if use_sink_token:
             self.sink_token = nnx.Embed(
@@ -278,6 +281,7 @@ class InContextRoformer(nnx.Module):
             use_causal_mask=True,
             decode=decode,
             dtype=dtype,
+            attention_fn=attention_fn,
         )
         
         self.num_heads = num_heads
@@ -304,7 +308,6 @@ class InContextRoformer(nnx.Module):
                     (sink_token, token_seq),
                     axis=1,
                 )
-        token_seq = self.pos_enc(token_seq)
         token_seq = self.roformer(token_seq)
         outputs = self.embedders.unembed(
             token_seq[:, int(self.use_sink_token):]
