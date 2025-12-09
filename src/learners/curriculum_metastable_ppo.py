@@ -40,12 +40,12 @@ class CurriculumMetastablePPO(MetastablePPO):
         self.update_boundary(replace_ds=False)
 
     def update_boundary(self, replace_ds=False):
-        if self.boundary_i >= len(self.config.dataset_curriculum):
-            self.boundary_dataset = None
-
         if replace_ds:
             self.ds = self._boundary_ds
             self._dataset = self._boundary_dataset
+
+        if self.boundary_i >= len(self.config.dataset_curriculum):
+            return
 
         dataset_config = {
             "dataset_name": self.config.dataset_name,
@@ -68,6 +68,9 @@ class CurriculumMetastablePPO(MetastablePPO):
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         log = super().update(epoch, *args, **kwargs)
+
+        if self.ds == self._boundary_ds:
+            return log
 
         # Boundary test
         curr_rng = jrandom.fold_in(self._rng, epoch)
