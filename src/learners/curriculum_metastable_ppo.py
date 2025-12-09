@@ -112,6 +112,8 @@ class CurriculumMetastablePPO(MetastablePPO):
         mean_success = np.mean(successes)
         if mean_success >= self.config.success_threshold:
             self.num_perfect += 1
+        else:
+            self.num_perfect = 0
 
         total_boundary_test_time = timeit.default_timer() - tic
         log["time/boundary_time"] = total_boundary_test_time
