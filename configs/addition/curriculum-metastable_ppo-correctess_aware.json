@@ -42,7 +42,7 @@
     "dataset_name": "addition",
     "dataset_kwargs": {
         "context_len": 100,
-        "max_int": 2,
+        "max_int": 8,
         "train": true,
         "train_val_ratio": 1.0,
         "sequence_type": "question_only",
@@ -57,12 +57,6 @@
         "carry_registers": false
     },
     "dataset_curriculum": [
-        {
-            "max_int": 4
-        },
-        {
-            "max_int": 8
-        },
         {
             "max_int": 16
         },
