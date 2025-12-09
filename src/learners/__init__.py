@@ -6,6 +6,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
+from src.learners.curriculum_metastable_ppo import CurriculumMetastablePPO
 from src.learners.metastable_ppo import MetastablePPO
 from src.learners.metastable_reinforce import MetastableREINFORCE
 from src.learners.ppo import PPO

@@ -458,6 +458,10 @@ class Learner:
         del self.ds
 
     @property
+    def config(self):
+        return self._config
+
+    @property
     def state(self):
         """
         Model states
