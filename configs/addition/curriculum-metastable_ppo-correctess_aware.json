@@ -69,7 +69,7 @@
         }
     ],
     "num_batches_to_consider": 10,
-    "success_threshold": 1.0,
+    "success_threshold": 0.95,
     "repeat": false,
     "shuffle_buffer_size": 100,
     "num_workers": 1,

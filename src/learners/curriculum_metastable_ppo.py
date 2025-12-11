@@ -41,8 +41,24 @@ class CurriculumMetastablePPO(MetastablePPO):
 
     def update_boundary(self, replace_ds=False):
         if replace_ds:
-            self.ds = self._boundary_ds
-            self._dataset = self._boundary_dataset
+            dataset_config = {
+                "dataset_name": self.config.dataset_name,
+                "dataset_kwargs": vars(self.config.dataset_kwargs),
+                "seeds": vars(self.config.seeds),
+                "batch_size": self.config.batch_size,
+                "num_workers": self.config.num_workers,
+            }
+            dataset_config["dataset_kwargs"].update(
+                **self.config.dataset_curriculum[self.boundary_i - 1]
+            )
+            dataset_config["dataset_kwargs"]["exact"] = True
+            dataset_config = parse_dict(dataset_config)
+
+            self.ds, self._dataset = get_data_loader(
+                dataset_config,
+                self.data_sharding,
+                self.dtype,
+            )
 
         if self.boundary_i >= len(self.config.dataset_curriculum):
             return
@@ -57,6 +73,7 @@ class CurriculumMetastablePPO(MetastablePPO):
         dataset_config["dataset_kwargs"].update(
             **self.config.dataset_curriculum[self.boundary_i]
         )
+        dataset_config["dataset_kwargs"]["exact"] = True
         dataset_config = parse_dict(dataset_config)
 
         self._boundary_ds, self._boundary_dataset = get_data_loader(
@@ -79,6 +96,26 @@ class CurriculumMetastablePPO(MetastablePPO):
         batch = self.get_batch()
         batch = next(self._boundary_ds)
         batch = jax.device_put(batch, self.data_sharding)
+        batch["sequence"] = np.repeat(
+            batch["sequence"],
+            self.num_rollouts_per_sample,
+            axis=0,
+        )
+        batch["mask"] = np.repeat(
+            batch["mask"],
+            self.num_rollouts_per_sample,
+            axis=0,
+        )
+        batch["target"] = np.repeat(
+            batch["target"],
+            self.num_rollouts_per_sample,
+            axis=0,
+        )
+        batch["pointer_correct"] = np.repeat(
+            batch["pointer_correct"],
+            self.num_rollouts_per_sample,
+            axis=0,
+        )
         module = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
         _, init_cache = make_autoregressive(
             module,
@@ -109,6 +146,12 @@ class CurriculumMetastablePPO(MetastablePPO):
             last_prompt_idxes,
             is_eval=False,
         )
+        # mean_success = np.mean(np.max(
+        #     successes.reshape(
+        #         self.config.batch_size,
+        #         self.config.num_rollouts_per_sample,
+        #     )
+        # ))
         mean_success = np.mean(successes)
         if mean_success >= self.config.success_threshold:
             self.num_perfect += 1
