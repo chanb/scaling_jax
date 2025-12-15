@@ -9,6 +9,7 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 pip install chex optax dill gymnasium scikit-learn matplotlib seaborn tqdm tensorboard h5py
 pip install prefetch_generator
 pip install gymnax
+pip install jax-tqdm
 ```
 
 
