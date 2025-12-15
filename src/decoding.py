@@ -52,7 +52,7 @@ def make_autoregressive(
         return out, cache
     
     def init_cache():
-        if model.use_sink_token:
+        if getattr(model, "use_sink_token", False):
             _, cache = decode({"sink": batch_size}, nnx.state(model, nnx.Cache))
         else:
             cache = nnx.state(model, nnx.Cache)

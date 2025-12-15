@@ -71,11 +71,6 @@ def predict_step(
         jnp.arange(len(pointer_correct)), pointer_correct
     ]
 
-    # jax.debug.print(
-    #     "pointer {x}",
-    #     x=pointer_correct,
-    # )
-
     reset_pointer = jnp.where(
         step_state.answers[:, 0] == action,
         1,
@@ -107,16 +102,6 @@ def predict_step(
         step_state.observations[:, step_i + 1],
         output_tokens,
     )
-
-    # jax.debug.print(
-    #     "step {w} is_prompt {v}: pointer {x} answer {y} pred {u} transition {z}",
-    #     w=step_i,
-    #     v=is_prompt.astype(int),
-    #     x=pointer_correct,
-    #     y=curr_answers,
-    #     u=action,
-    #     z=output_tokens,
-    # )
 
     # Check if the first EOS has been generated
     eos = jnp.logical_or(
@@ -171,14 +156,6 @@ def rollout(
     ).astype(int)
     num_questions, max_step = questions.shape
 
-    # jax.debug.print(
-    #     "obs={x}",
-    #     x=questions
-    # )
-    # jax.debug.print(
-    #     "last_prompt_idx={x}",
-    #     x=last_prompt_idx,
-    # )
     step_state = StepState(
         graphdef=graphdef,
         rest=rest,

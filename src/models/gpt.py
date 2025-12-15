@@ -9,6 +9,7 @@ sys.path.insert(0, parentdir)
 from flax import nnx
 from typing import Callable, Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -211,5 +212,74 @@ class InContextGPT(nnx.Module):
         outputs = self.embedders.unembed(
             token_seq[:, int(self.use_sink_token):]
         )
+
+        return outputs
+
+
+class InContextGPTWithThoughts(nnx.Module):
+    """A GPT for in-context learning."""
+
+    def __init__(
+        self,
+        num_blocks: int,
+        num_heads: int,
+        embed_dim: int,
+        widening_factor: int,
+        embedder_cls: Callable,
+        pos_enc_cls: Callable,
+        rngs: nnx.Rngs,
+        decode: bool = False,
+        dtype = None,
+        attention_fn=nnx.dot_product_attention,
+        **kwargs,
+    ) -> None:
+        self.decode = decode
+        self.embedders = embedder_cls()
+        self.pos_enc = pos_enc_cls()
+
+        self.gpt = GPT(
+            num_blocks=num_blocks,
+            num_heads=num_heads,
+            embed_dim=embed_dim,
+            widening_factor=widening_factor,
+            rngs=rngs,
+            use_causal_mask=True,
+            attention_fn=attention_fn,
+            dtype=dtype,
+        )
+        
+        self.num_heads = num_heads
+        self.embed_dim = embed_dim
+
+    def get_embedding(self, embed):
+        return self.embedders.embed({"sequence": embed})
+
+    def latent_thought_step(self, token_seq):
+        token_seq = self.pos_enc(token_seq)
+        token_seq = self.gpt(token_seq)
+        token_seq = token_seq / jnp.linalg.norm(token_seq, axis=-1, keepdims=True)
+        return token_seq
+
+    def output_step(self, token_seq):
+        token_seq = self.pos_enc(token_seq)
+        token_seq = self.gpt(token_seq)
+        token_seq = self.embedders.unembed(token_seq)
+        return token_seq
+
+    def __call__(
+        self,
+        batch: Any,
+    ):
+        token_seq = self.embedders.embed(batch)
+
+        """
+        TODO:
+        1. Generate latent thoughts
+        2. Split sequence so structure is <question|thoughts|actions>
+        """
+
+        token_seq = self.pos_enc(token_seq)
+        token_seq = self.gpt(token_seq)
+        outputs = self.embedders.unembed(token_seq)
 
         return outputs
