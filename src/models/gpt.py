@@ -251,13 +251,20 @@ class InContextGPTWithThoughts(nnx.Module):
         self.num_heads = num_heads
         self.embed_dim = embed_dim
 
-    def get_embedding(self, embed):
-        return self.embedders.embed({"sequence": embed})
+    def get_embedding(self, token_seq):
+        return self.embedders.embed({"sequence": token_seq})
 
+    def get_next_embedding_prediction(self, embed_seq):
+        embed_seq = self.pos_enc(embed_seq)
+        return self.gpt(embed_seq)
+
+    def get_unembedding(self, embed_seq):
+        return self.embedders.unembed(embed_seq)
+    
     def latent_thought_step(self, token_seq):
         token_seq = self.pos_enc(token_seq)
         token_seq = self.gpt(token_seq)
-        token_seq = token_seq / jnp.linalg.norm(token_seq, axis=-1, keepdims=True)
+        # token_seq = token_seq / jnp.linalg.norm(token_seq, axis=-1, keepdims=True)
         return token_seq
 
     def output_step(self, token_seq):
@@ -270,7 +277,7 @@ class InContextGPTWithThoughts(nnx.Module):
         self,
         batch: Any,
     ):
-        token_seq = self.embedders.embed(batch)
+        embed_seq = self.embedders.embed(batch)
 
         """
         TODO:
@@ -278,8 +285,8 @@ class InContextGPTWithThoughts(nnx.Module):
         2. Split sequence so structure is <question|thoughts|actions>
         """
 
-        token_seq = self.pos_enc(token_seq)
-        token_seq = self.gpt(token_seq)
-        outputs = self.embedders.unembed(token_seq)
+        embed_seq = self.pos_enc(embed_seq)
+        embed_seq = self.gpt(embed_seq)
+        outputs = self.embedders.unembed(embed_seq)
 
         return outputs
