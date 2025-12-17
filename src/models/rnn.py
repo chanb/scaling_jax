@@ -172,3 +172,52 @@ class InContextGRU(nnx.Module):
         )
 
         return outputs
+
+
+class InContextGRUWithThoughts(nnx.Module):
+    """A GRU for in-context learning."""
+
+    def __init__(
+        self,
+        embed_dim: int,
+        embedder_cls: Callable,
+        rngs: nnx.Rngs,
+        decode: bool = False,
+        dtype=None,
+        **kwargs,
+    ) -> None:
+        self.decode = decode
+        self.embedders = embedder_cls()
+
+        self.gru = nnx.RNN(
+            DropoutGRUCell(
+                in_features=embed_dim,
+                hidden_features=embed_dim,
+                rngs=rngs,
+                dtype=dtype,
+            )
+        )
+        
+        self.embed_dim = embed_dim
+
+    def get_embedding(self, token_seq):
+        return self.embedders.embed({"sequence": token_seq})
+
+    def get_next_embedding_prediction(self, embed_seq):
+        embed_seq = self.pos_enc(embed_seq)
+        return self.gru(embed_seq)
+
+    def get_unembedding(self, embed_seq):
+        return self.embedders.unembed(embed_seq)
+
+    def __call__(
+        self,
+        batch: Any,
+    ):
+        token_seq = self.embedders.embed(batch)
+        token_seq = self.gru(token_seq)
+        outputs = self.embedders.unembed(
+            token_seq[:, int(self.use_sink_token):]
+        )
+
+        return outputs
