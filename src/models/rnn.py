@@ -204,7 +204,6 @@ class InContextGRUWithThoughts(nnx.Module):
         return self.embedders.embed({"sequence": token_seq})
 
     def get_next_embedding_prediction(self, embed_seq):
-        embed_seq = self.pos_enc(embed_seq)
         return self.gru(embed_seq)
 
     def get_unembedding(self, embed_seq):

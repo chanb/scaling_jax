@@ -59,3 +59,43 @@ def make_autoregressive(
         return cache
 
     return decode, init_cache
+
+
+# def decode(batch, cache):
+#     new_cache = {
+#         "state": jnp.concatenate(
+#             (cache["state"][:, 1:], batch["state"]),
+#             axis=1,
+#         ) if "state" in batch else cache["state"],
+#         "action": jnp.concatenate(
+#             (cache["action"][:, 1:], batch["action"]),
+#             axis=1,
+#         ) if "action" in batch else cache["action"],
+#         "reward": jnp.concatenate(
+#             (cache["reward"][:, 1:], batch["reward"]),
+#             axis=1,
+#         ) if "reward" in batch else cache["reward"],
+#     }
+#     out = model(new_cache)
+#     return out, new_cache
+
+# def init_cache():
+#     cache = {
+#         "state": jnp.zeros(
+#             (
+#                 1,
+#                 eval_config.max_decode_len,
+#                 *env.observation_space(
+#                     jnp.zeros((eval_config.num_arms,))
+#                 ).shape,
+#             )
+#         ),
+#         "action": jnp.zeros(
+#             (1, eval_config.max_decode_len,),
+#             dtype=int,
+#         ),
+#         "reward": jnp.zeros(
+#             (1, eval_config.max_decode_len,)
+#         ),
+#     }
+#     return cache
