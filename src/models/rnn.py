@@ -13,6 +13,7 @@ from flax.typing import (
 )
 from typing import Callable, Any
 
+import functools
 import jax
 import jax.numpy as jnp
 import numpy as np
@@ -172,6 +173,139 @@ class InContextGRU(nnx.Module):
         )
 
         return outputs
+
+
+class RecurrentMultiHeadFFN(nnx.Module):
+    def __init__(
+        self,
+        num_heads: int,
+        in_features: int,
+        out_features: int,
+        *,
+        kernel_init: Initializer = nnx.initializers.lecun_normal(),
+        bias_init: Initializer = nnx.initializers.zeros_init(),
+        attention_fn: Callable[..., jax.Array] = nnx.dot_product_attention,
+        dtype: Dtype | None = None,
+        param_dtype: Dtype = jnp.float32,
+        decode: bool | None = None,
+        rngs: nnx.rnglib.Rngs,
+    ):
+        """
+
+        Q = X W_q
+        K = H W_k
+        V = W_v
+        """
+        self.num_heads = num_heads
+        self.in_features = in_features
+        self.out_features = out_features
+        self.kernel_init = kernel_init
+        self.bias_init = bias_init
+        self.dtype = dtype
+        self.param_dtype = param_dtype
+        self.rngs = rngs
+        self.decode = decode
+        self.attention_fn = attention_fn
+
+        self.query = nnx.LinearGeneral(
+            in_features=self.in_features,
+            out_features=(self.num_heads, self.head_dim),
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            kernel_init=self.kernel_init,
+            bias_init=self.bias_init,
+            use_bias=self.use_bias,
+            precision=None,
+            dot_general=None,
+            dot_general_cls=None,
+            rngs=rngs,
+        )
+
+        self.key = nnx.LinearGeneral(
+            in_features=self.out_features,
+            out_features=(self.num_heads, self.head_dim),
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            kernel_init=self.kernel_init,
+            bias_init=self.bias_init,
+            use_bias=self.use_bias,
+            precision=None,
+            dot_general=None,
+            dot_general_cls=None,
+            rngs=rngs,
+        )
+
+        key = rngs.params()
+        self.value = nnx.Param(
+            kernel_init(
+                key,
+                (self.num_heads, self.head_dim),
+                self.param_dtype,
+            )
+        )
+
+        self.initial_carry = nnx.Param(
+            kernel_init(
+                key,
+                (self.out_features,),
+                self.param_dtype,
+            )
+        )
+        
+        self.out = nnx.LinearGeneral(
+            in_features=(self.num_heads, self.head_dim),
+            out_features=self.out_features,
+            axis=(-2, -1),
+            kernel_init=self.out_kernel_init or self.kernel_init,
+            bias_init=self.out_bias_init or self.bias_init,
+            use_bias=self.use_bias,
+            dtype=self.dtype,
+            param_dtype=self.param_dtype,
+            precision=self.precision,
+            dot_general=self.out_dot_general,
+            dot_general_cls=self.out_dot_general_cls,
+            rngs=rngs,
+        )
+
+        self.cached_carry: nnx.Cache[jax.Array] | None = None
+
+    def __call__(
+        self,
+        inputs: jax.Array,
+        *,
+        sow_weights: bool = False,
+        decode: bool | None = None,
+    ) -> jax.Array:
+        
+        if decode:
+            if (
+                self.cached_carry is None
+            ):
+                raise ValueError(
+                    'Autoregressive cache not initialized, call ``init_cache`` first.'
+                )
+            
+            carry = self.cached_carry.value
+        else:
+            carry = jnp.repeat(self.initial_carry, repeats=len(inputs), axis=0)
+
+        @nnx.scan(
+            
+        )
+        def step(input: jax.Array, carry: jax.Array):
+            query = self.query(input)
+            key = self.key(carry)
+
+            x = self.attention_fn(query, key, self.value)
+            out = self.out(x)
+            return out
+
+        out = self.step(input, carry)
+
+        if decode:
+            self.cached_carry.value = out
+
+        return out
 
 
 class InContextGRUWithThoughts(nnx.Module):
