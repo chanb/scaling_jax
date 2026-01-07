@@ -11,5 +11,6 @@ from src.learners.metastable_ppo import MetastablePPO
 from src.learners.metastable_reinforce import MetastableREINFORCE
 from src.learners.ppo import PPO
 from src.learners.reinforce import REINFORCE
+from src.learners.rollout_ppo import RolloutPPO
 from src.learners.supervised import Supervised
 

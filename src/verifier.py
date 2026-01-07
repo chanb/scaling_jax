@@ -7,12 +7,14 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
 
+import jax
+import jax.numpy as jnp
 import numpy as np
 
 from src.constants import *
 
 
-def make_compute_returns(config, eos_token, token_map):
+def make_compute_returns(config, eos_token, reset_token_id, token_map):
     if getattr(config.dataset_kwargs, "predict_eos", True):
         def process_target(target):
             target = "".join(np.array(target[target != eos_token]).astype(str))
@@ -90,6 +92,56 @@ def make_compute_returns(config, eos_token, token_map):
                 returns[sample_i][np.where(mask)[0]] = (
                     (config.gamma ** np.arange(response_length)[::-1]) * reward
                 ) - (1 - has_eos[sample_i])
+            return returns
+    elif config.train_loss_config.mdp_type.startswith("multiturn"):
+        @jax.jit
+        def scan_fn(carry, act_idx):
+            """Scan function that processes indices in reverse order."""
+            returns_row = carry["returns"]
+            
+            # Check if this is the last action (first in reversed order)
+            is_last = (act_idx == carry["last_act_idx"])
+            
+            # Calculate return for non-last actions
+            is_reset = carry["is_reset"][act_idx]
+            gamma = (1 - is_reset) * config.gamma + is_reset * config.reset_gamma
+            non_last_return = gamma * returns_row[act_idx + 1]
+            
+            # Select based on whether this is the last action
+            new_return = jnp.where(is_last, carry["terminal_reward"], non_last_return)
+            
+            # Update returns
+            returns_row = returns_row.at[act_idx].set(new_return)
+            
+            return {
+                "returns": returns_row,
+                "is_reset": carry["is_reset"],
+                "terminal_reward": carry["terminal_reward"],
+                "last_act_idx": carry["last_act_idx"],
+            }, None
+
+        def process_reward(batch, rewards, response_lengths, has_eos):
+            returns = np.zeros(batch["observations"].shape)
+            for sample_i, (reward, mask, actions, response_length) in enumerate(zip(
+                rewards, batch["pred_mask"], batch["actions"], response_lengths
+            )):
+                last_return = reward - (1 - has_eos[sample_i])
+                is_resets = (actions == reset_token_id).astype(jnp.float32)
+                act_idxes = np.where(mask)[0][::-1]
+
+                # Initialize with current returns for this sample
+                init_returns = {
+                    "returns": returns[sample_i],
+                    "is_reset": is_resets,
+                    "terminal_reward": last_return,
+                    "last_act_idx": act_idxes[0],
+                }
+
+                # Run scan over reversed indices
+                final_returns, _ = jax.lax.scan(scan_fn, init_returns, act_idxes)
+
+                # Update the returns array
+                returns[sample_i] = final_returns["returns"]
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
         def process_reward(batch, rewards, response_lengths, has_eos):

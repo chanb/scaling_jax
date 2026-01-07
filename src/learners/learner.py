@@ -248,7 +248,10 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     "is_ratio_min": is_ratio_min,
                     "is_ratio_mean": is_ratio_mean,
                 }
-        elif loss_config.mdp_type.startswith("episodic"):
+        elif (
+            loss_config.mdp_type.startswith("episodic")
+            or loss_config.mdp_type.startswith("multiturn")
+        ):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
                 returns = returns[:, :-1]
@@ -449,6 +452,7 @@ class Learner:
         self._compute_returns = make_compute_returns(
             self._config,
             self._dataset.eos_token_id,
+            self._dataset.reset_token_id,
             self._dataset.token_map,
         )
         self.train_step = nnx.jit(self.make_train_step())
