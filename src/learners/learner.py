@@ -251,6 +251,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif (
             loss_config.mdp_type.startswith("episodic")
             or loss_config.mdp_type.startswith("multiturn")
+            or loss_config.mdp_type.startswith("traj_improvement")
         ):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
