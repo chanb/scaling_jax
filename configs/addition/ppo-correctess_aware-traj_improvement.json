@@ -66,7 +66,7 @@
         "entropy": 0.0
     },
     "num_ppo_steps": 3,
-    "gamma": 1.0,
+    "gamma": 0.99,
     "reward_type": "negative_on_failure",
     "num_rollouts_per_sample": 8,
     "batch_size": 8,

@@ -263,7 +263,10 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
 
                 # Update the returns array
                 returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
-                    improvements[:int(np.sum(reset_idxes != -1)) - 1], trial_lengths
+                    config.gamma ** (
+                        np.arange(int(np.sum(reset_idxes != -1)) - 1)
+                    ) * improvements[:int(np.sum(reset_idxes != -1)) - 1],
+                    trial_lengths,
                 )
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
