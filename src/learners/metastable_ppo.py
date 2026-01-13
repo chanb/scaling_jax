@@ -74,8 +74,8 @@ class MetastablePPO(PPO):
                     reset_idxes[reset_idx_i + 1] == -1,
                     jrandom.uniform(rngs) < self._config.metastable_aug_p,
                 ),
-                reset_idxes[0],
                 reset_idxes[reset_idx_i + 1],
+                reset_idxes[0],
             )
             return reset_idx, first_reset_idx
 
@@ -120,7 +120,7 @@ class MetastablePPO(PPO):
             out_obss = question_mask * out_obss + jnp.roll(reset_mask * out_obss, delta)
             out_obss = (1 - eos_mask) * out_obss + eos_mask * self._dataset.eos_token_id
 
-            out_acts = question_mask * out_acts + jnp.roll(reset_mask * out_acts, delta)
+            out_acts = question_mask * out_acts + jnp.roll(reset_mask * out_acts, jax.lax.select(delta < 0, delta - 1, delta))
 
             out_masks = question_mask * out_masks + jnp.roll(reset_mask * out_masks, delta)
             out_masks = (1 - eos_mask) * out_masks
