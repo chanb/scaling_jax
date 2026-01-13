@@ -108,16 +108,6 @@ def predict_step(
         output_tokens,
     )
 
-    # jax.debug.print(
-    #     "step {w} is_prompt {v}: pointer {x} answer {y} pred {u} transition {z}",
-    #     w=step_i,
-    #     v=is_prompt.astype(int),
-    #     x=pointer_correct,
-    #     y=curr_answers,
-    #     u=action,
-    #     z=output_tokens,
-    # )
-
     # Check if the first EOS has been generated
     eos = jnp.logical_or(
         output_tokens == step_state.eos_token,

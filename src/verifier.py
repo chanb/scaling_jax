@@ -152,9 +152,8 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             target = carry["target"]
             pred_mask = carry["pred_mask"]
             last_reset_idx = carry["last_reset_idx"]
-            first_mistake_idx = carry["first_mistake_idx"]
             reset_idxes = carry["reset_idxes"]
-            first_mistake_idxes = carry["first_mistake_idxes"]
+            correct_lens = carry["correct_lens"]
             curr_trial = carry["curr_trial"]
 
             action_match = actions[idx] == target[pointer_correct]
@@ -168,13 +167,9 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 0,
             )
             pointer_correct = jax.lax.select(
-                pred_mask[idx],
-                jax.lax.select(
-                    action_match,
-                    pointer_correct + 1,
-                    reset_pointer,
-                ),
-                pointer_correct,
+                action_match,
+                pointer_correct + 1, # Increment pointer by 1 if current token matches
+                reset_pointer, # Reset to 0 if it's a mistake and not a reset token, to 1 otherwise
             )
 
             # Update the last reset index to current index upon new trial
@@ -191,17 +186,9 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                     reset_idxes[curr_trial + 1],
                 )
             )
-            first_mistake_idxes = first_mistake_idxes.at[curr_trial].set(first_mistake_idx)
 
-            # Identify the first mistake index within the current trial
-            first_mistake_idx = jax.lax.select(
-                jnp.logical_or(action_match, is_reset),
-                idx + 1,
-                jax.lax.select(
-                    first_mistake_idx > reset_idxes[curr_trial],
-                    first_mistake_idx,
-                    idx,
-                ),
+            correct_lens = correct_lens.at[curr_trial].set(
+                jnp.maximum(pointer_correct, correct_lens[curr_trial])
             )
 
             curr_trial = jax.lax.select(
@@ -213,12 +200,11 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             return {
                 "pointer_correct": pointer_correct,
                 "last_reset_idx": last_reset_idx,
-                "first_mistake_idx": first_mistake_idx,
                 "actions": actions,
                 "target": target,
                 "pred_mask": pred_mask,
                 "reset_idxes": reset_idxes,
-                "first_mistake_idxes": first_mistake_idxes,
+                "correct_lens": correct_lens,
                 "curr_trial": curr_trial,
             }, None
 
@@ -229,35 +215,34 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             )):
                 pointer_correct = np.array(1, dtype=int)
                 last_reset_idx = np.array(-1, dtype=int)
-                first_mistake_idx = np.array(-1, dtype=int)
                 curr_trial = np.array(0, dtype=int)
                 reset_idxes = np.full_like(actions, fill_value=-1, dtype=int)
                 reset_idxes[0] = np.where(pred_mask == 1)[0][0] - 1
-                first_mistake_idxes = np.full_like(actions, fill_value=-1, dtype=int)
-                last_idx = min(np.where(pred_mask == 1)[0][-1] + 1, actions.shape[-1])
+                correct_lens = np.full_like(actions, fill_value=-1, dtype=int)
+                last_idx = min(np.where(pred_mask == 1)[0][-1] + 2, actions.shape[-1])
 
                 res, _ = jax.lax.scan(
                     scan_fn,
                     {
                         "pointer_correct": pointer_correct,
                         "last_reset_idx": last_reset_idx,
-                        "first_mistake_idx": first_mistake_idx,
-                        "actions": actions,
+                        "actions": actions.at[:reset_idxes[0] + 1].set(reset_token_id),
                         "target": target,
                         "pred_mask": pred_mask.astype(int),
                         "reset_idxes": reset_idxes,
-                        "first_mistake_idxes": first_mistake_idxes,
+                        "correct_lens": correct_lens,
                         "curr_trial": curr_trial,
                     },
                     np.arange(last_idx),
                 )
 
                 reset_idxes = res["reset_idxes"]
-                first_mistake_idxes = res["first_mistake_idxes"]
+                correct_lens = res["correct_lens"]
+                correct_lens = np.concatenate(([0], correct_lens))
 
                 last_idx = min(np.where(pred_mask == 1)[0][-1] + 1, actions.shape[-1])
-                correct_lens = np.concatenate(([0], first_mistake_idxes - reset_idxes))
-                improvements = correct_lens[1:] - correct_lens[:-1]
+                cum_correct_lens = np.maximum.accumulate(correct_lens)
+                improvements = correct_lens[1:] - cum_correct_lens[:-1]
                 reset_idxes = reset_idxes.at[(np.where(reset_idxes == -1))[0][0]].set(last_idx)
                 trial_lengths = np.diff(reset_idxes[reset_idxes != -1])
 

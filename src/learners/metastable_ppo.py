@@ -306,6 +306,12 @@ class MetastablePPO(PPO):
                     aug_data["pred_mask"],
                     aug_data["returns"],
                 )
+                returns, successes, response_lengths = self._compute_returns(
+                    batch,
+                    last_prompt_idxes,
+                    is_eval=False,
+                )
+                batch["returns"] = returns
 
             # Compute log probs
             batch["old_lprobs"] = compute_log_probs(
