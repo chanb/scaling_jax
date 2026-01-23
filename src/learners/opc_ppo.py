@@ -143,8 +143,9 @@ class OffPolicyContextPPO(REINFORCE):
                 batch["mask"] = jnp.concatenate((
                     batch["mask"],
                     jnp.cumsum(
-                        jnp.zeros_like(batch["mask"]).at[:, random_idx - 1].set(1),
+                        jnp.zeros_like(batch["mask"], dtype=int).at[:, random_idx - 1].set(1),
                         axis=-1,
+                        dtype=int,
                     ),
                 ), axis=0)
                 batch["question_len"] = jnp.concatenate((

@@ -166,7 +166,7 @@ def rollout(
     pointer_correct = batch["pointer_correct"]
     question_len = batch["question_len"]
     solution_len = batch["solution_len"]
-    last_prompt_idx = question_len + pointer_correct - 1
+    last_prompt_idx = jnp.argmax(batch["mask"], axis=-1)
     num_questions, max_step = question.shape
 
     step_state = StepState(
