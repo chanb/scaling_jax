@@ -39,6 +39,17 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
 
         def bandit_reward(rollout_res):
             return rollout_res.success - 1
+    elif reward_type == "progress":
+        def shape_reward(batch, rollout_res):
+            reward = jnp.full_like(rollout_res.actions, fill_value=-1)
+            reward = reward.at[
+                jnp.arange(len(rollout_res.response_length)),
+                batch["question_len"] + rollout_res.response_length - 1
+            ].set(jnp.max(rollout_res.pointer_correct, axis=-1) / batch["solution_len"])
+            return reward
+
+        def bandit_reward(rollout_res):
+            return rollout_res.success - 1
     else:
         def shape_reward(batch, rollout_res):
             reward = jnp.zeros_like(rollout_res.actions)
@@ -194,7 +205,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 improvement,
                 diffs
             ).reshape((B, T + 1))
-            returns = returns[:, 1:] * rollout_res.pred_mask / batch["question_len"][:, None]
+            returns = returns[:, 1:] * rollout_res.pred_mask / batch["solution_len"][:, None]
 
             returns = scan_discounting(
                 returns[..., None],
