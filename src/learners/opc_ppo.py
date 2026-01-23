@@ -192,6 +192,9 @@ class OffPolicyContextPPO(REINFORCE):
                 batch,
                 rollout_res,
             )
+
+            # TODO: Only store new samples from dataset.
+            # TODO: Maybe only store when success rate is poor.
             self.buffer = self.buffer.extend(Minibatch(
                 context=jnp.hstack((
                     rollout_res.observations.at[jnp.where(

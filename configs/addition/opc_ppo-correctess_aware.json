@@ -67,7 +67,7 @@
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,
-    "buffer_size": 100000,
+    "buffer_size": 1000000,
     "max_seq_len": 100,
     "reward_type": "negative_on_failure",
     "num_rollouts_per_sample": 8,
@@ -80,5 +80,155 @@
         "data_seed": 42
     },
     "validation": [
+        {
+            "validation_name": "heldout",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 64,
+                "train": false,
+                "train_val_ratio": 0.9,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": false,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_128",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 128,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_256",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 256,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_512",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 512,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_1024",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 1024,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "length_generalization-max_int_2048",
+            "dataset_name": "addition",
+            "dataset_kwargs": {
+                "context_len": 100,
+                "max_int": 2048,
+                "train": true,
+                "train_val_ratio": 1.0,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "right_to_left": true,
+                "shuffle": false,
+                "exact": true,
+                "predict_eos": false,
+                "num_cot_tokens": 0,
+                "correctness_aware": true,
+                "carry_registers": false
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "batch_size": 100,
+            "seeds": {
+                "data_seed": 42
+            }
+        }
     ]
 }
