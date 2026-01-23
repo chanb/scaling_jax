@@ -145,7 +145,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             )
             return returns
     elif config.train_loss_config.mdp_type.startswith("traj_improvement"):
-        def _scan_regret(
+        def _scan_discounting(
             rews: jax.Array,
             resets: jax.Array,
         ):
@@ -154,7 +154,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             ):
                 rew, reset = transition
                 trial = prev_trial + reset
-                val = rew / jnp.clip(trial, a_min=1.0)
+                val = (config.gamma ** (trial - 1)) * rew
                 return trial, val
 
             return jax.lax.scan(
@@ -165,8 +165,8 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 reverse=False,
             )[1]
 
-        scan_regret = jax.vmap(
-            jax.jit(_scan_regret),
+        scan_discounting = jax.vmap(
+            jax.jit(_scan_discounting),
             in_axes=[0, 0],
         )
 
@@ -196,7 +196,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             ).reshape((B, T + 1))
             returns = returns[:, 1:] * rollout_res.pred_mask / batch["question_len"][:, None]
 
-            returns = scan_regret(
+            returns = scan_discounting(
                 returns[..., None],
                 jnp.concatenate((
                     (rollout_res.observations == reset_token_id)[:, 1:],
