@@ -59,7 +59,7 @@ def predict_step(
     step_i = step_state.step_i
     rng, rng_step = jax.random.split(step_state.rng, 2)
     is_prompt = step_i < step_state.last_prompt_idx
-    pointer_correct = step_state.pointer_correct
+    pointer_correct = step_state.pointer_correct[:, step_i]
     solution_found = step_state.solution_found[:, step_i]
 
     # Autoregressively decode
@@ -124,6 +124,7 @@ def predict_step(
     observations = step_state.observations.at[:, step_i + 1].set(output_tokens)
     actions = step_state.actions.at[:, step_i + 1].set(action)
     solution_found = step_state.solution_found.at[:, step_i + 1].set(solution_found)
+    pointer_correct = step_state.pointer_correct.at[:, step_i + 1].set(pointer_correct)
     eos = step_state.eos.at[:, step_i + 1].set(eos)
 
     step_state = StepState(
@@ -179,7 +180,11 @@ def rollout(
         solution=solution,
         solution_len=solution_len,
         solution_found=jnp.zeros_like(question, dtype=bool),
-        pointer_correct=pointer_correct,
+        pointer_correct=jnp.full(
+            (num_questions, max_step),
+            fill_value=-1,
+            dtype=int,
+        ).at[:, 0].set(pointer_correct),
         last_prompt_idx=last_prompt_idx,
         eos=jnp.zeros((num_questions, max_step), dtype=bool),
         correct_aware_shift=correct_aware_shift,
@@ -214,7 +219,7 @@ def rollout(
         success=success,
         response_length=response_length,
         pred_mask=pred_mask[:, :-1],
-        pointer_correct=step_state.pointer_correct,
+        pointer_correct=step_state.pointer_correct[:, 1:],
         last_prompt_idx=step_state.last_prompt_idx,
         eos=step_state.eos[:, 1:],
     )
