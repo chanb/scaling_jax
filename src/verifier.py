@@ -15,134 +15,134 @@ from src.constants import *
 
 
 def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
-    if getattr(config.dataset_kwargs, "predict_eos", True):
-        def process_target(target):
-            target = "".join(np.array(target[target != eos_token_id]).astype(str))
-            return target + str(eos_token_id)
-        
-        def get_success(response, target, mask):
-            # XXX: Currently look at the first <EOS>
-            if eos_token_id in response:
-                response = "".join(np.array(
-                    response[:np.where(response == eos_token_id)[0][0] + 1]
-                ).astype(str))
-                has_eos = 1.0
-            else:
-                response = "".join(np.array(response).astype(str))
-                has_eos = 0.0
-
-            response_length = np.sum(mask)
-            success = float(target in response)
-            return success, response_length, has_eos, mask
-    else:
-        def process_target(target):
-            target = "".join(np.array(target[target != eos_token_id]).astype(str))
-            return target
-        
-        def get_success(response, target, mask):
-            # XXX: Stop at first matching string
-            response = "".join(np.array(response).astype(str))
-            success = float(target in response)
-
-            assert str(eos_token_id) not in response
-
-            if success:
-                end_idx = response.find(target) + len(target) - 1
-                mask[end_idx:] = 0
-
-            # print(success, target, response)
-            response_length = np.sum(mask)
-
-            has_eos = 1.0
-            return success, response_length, has_eos, mask
-
     # Reward shaping
     reward_type = getattr(config, "reward_type", "default")
     if reward_type == "negative_on_failure":
-        def shape_reward(successes):
-            return (-1) ** (1 - successes)
+        def shape_reward(batch, rollout_res):
+            reward = jnp.zeros_like(rollout_res.actions)
+            reward = reward.at[
+                jnp.arange(len(rollout_res.response_length)),
+                batch["question_len"] + rollout_res.response_length - 1
+            ].set((-1) ** (1 - rollout_res.success))
+            return reward
+
+        def bandit_reward(rollout_res):
+            return (-1) ** (1 - rollout_res.success)
     elif reward_type == "negative_dense":
-        def shape_reward(successes):
-            return successes - 1
+        def shape_reward(batch, rollout_res):
+            reward = jnp.full_like(rollout_res.actions, fill_value=-1)
+            reward = reward.at[
+                jnp.arange(len(rollout_res.response_length)),
+                batch["question_len"] + rollout_res.response_length - 1
+            ].set(rollout_res.success - 1)
+            return reward
+
+        def bandit_reward(rollout_res):
+            return rollout_res.success - 1
     else:
-        def shape_reward(successes):
-            return successes
+        def shape_reward(batch, rollout_res):
+            reward = jnp.zeros_like(rollout_res.actions)
+            reward = reward.at[
+                jnp.arange(len(rollout_res.response_length)),
+                batch["question_len"] + rollout_res.response_length - 1
+            ].set(rollout_res.success)
+            return reward
+
+        def bandit_reward(rollout_res):
+            return rollout_res.success
 
     # Dr. GRPO
     dr_grpo = getattr(config, "dr_grpo", False)
+    batch_size = getattr(config, "batch_size", 1)
     num_rollouts_per_sample = getattr(config, "num_rollouts_per_sample", 1)
     if dr_grpo and num_rollouts_per_sample > 1:
-        def normalize_reward(batch, rewards):
-            group_changes = np.arange(0, len(batch["observations"]), num_rollouts_per_sample)
+        def normalize_reward(rewards):
+            group_changes = np.arange(0, batch_size, num_rollouts_per_sample)
             group_means = np.add.reduceat(rewards, group_changes) / num_rollouts_per_sample
             group_means = np.repeat(group_means, num_rollouts_per_sample, axis=0)
             rewards = rewards - group_means
             return rewards
     else:
-        def normalize_reward(batch, rewards):
+        def normalize_reward(rewards):
             return rewards
 
     # MDP vs Bandit formulation
     if config.train_loss_config.mdp_type.startswith("episodic"):
-        def process_reward(batch, rewards, response_lengths, has_eos):
-            returns = np.zeros(batch["observations"].shape)
-            for sample_i, (reward, mask, response_length) in enumerate(zip(
-                rewards, batch["pred_mask"], response_lengths
-            )):
-                returns[sample_i][np.where(mask)[0]] = (
-                    (config.gamma ** np.arange(response_length)[::-1]) * reward
-                ) - (1 - has_eos[sample_i])
+        def _scan_monte_carlo_returns(
+            rews: jax.Array,
+            dones: jax.Array,
+            gamma: float,
+        ):
+            def _returns(
+                next_val, transition
+            ):
+                rew, done = transition
+                val = (next_val * gamma) * (1 - done) + rew
+                return val, val
+
+            return jax.lax.scan(
+                _returns,
+                0,
+                jnp.concatenate((rews, dones), axis=-1),
+                len(rews),
+                reverse=True,
+            )[1]
+
+        scan_monte_carlo_returns = jax.vmap(
+            jax.jit(_scan_monte_carlo_returns),
+            in_axes=[0, 0, None],
+        )
+
+        def process_reward(batch, rollout_res, reward, has_eos):
+            returns = scan_monte_carlo_returns(
+                reward[..., None],
+                rollout_res.solution_found[..., None],
+                config.gamma,
+            )
             return returns
-    elif config.train_loss_config.mdp_type.startswith("multiturn"):
+    elif config.train_loss_config.mdp_type.startswith("meta_rl"):
         # TODO: Use in-hindsight reward fraction
-        @jax.jit
-        def scan_fn(carry, act_idx):
-            """Scan function that processes indices in reverse order."""
-            returns_row = carry["returns"]
-            
-            # Check if this is the last action (first in reversed order)
-            is_last = (act_idx == carry["last_act_idx"])
-            
-            # Calculate return for non-last actions
-            is_reset = carry["is_reset"][act_idx]
-            gamma = (1 - is_reset) * config.gamma + is_reset * config.reset_gamma
-            non_last_return = gamma * returns_row[act_idx + 1]
-            
-            # Select based on whether this is the last action
-            new_return = jnp.where(is_last, carry["terminal_reward"], non_last_return)
-            
-            # Update returns
-            returns_row = returns_row.at[act_idx].set(new_return)
-            
-            return {
-                "returns": returns_row,
-                "is_reset": carry["is_reset"],
-                "terminal_reward": carry["terminal_reward"],
-                "last_act_idx": carry["last_act_idx"],
-            }, None
+        def _scan_monte_carlo_meta_returns(
+            rews: jax.Array,
+            dones: jax.Array,
+            resets: jax.Array,
+            in_ep_gamma: float,
+            cross_ep_gamma: float,
+        ):
+            def _returns(
+                next_val, transition
+            ):
+                rew, done, reset = transition
+                val = (
+                    (1 - reset) * next_val * in_ep_gamma
+                    + reset * next_val * cross_ep_gamma
+                ) * (1 - done) + rew
+                return val, val
 
-        def process_reward(batch, rewards, response_lengths, has_eos):
-            returns = np.zeros(batch["observations"].shape)
-            for sample_i, (reward, mask, actions, response_length) in enumerate(zip(
-                rewards, batch["pred_mask"], batch["actions"], response_lengths
-            )):
-                last_return = reward - (1 - has_eos[sample_i])
-                is_resets = (actions == reset_token_id).astype(jnp.float32)
-                act_idxes = np.where(mask)[0][::-1]
+            return jax.lax.scan(
+                _returns,
+                0,
+                jnp.concatenate((rews, dones, resets), axis=-1),
+                len(rews),
+                reverse=True,
+            )[1]
 
-                # Initialize with current returns for this sample
-                init_returns = {
-                    "returns": returns[sample_i],
-                    "is_reset": is_resets,
-                    "terminal_reward": last_return,
-                    "last_act_idx": act_idxes[0],
-                }
+        scan_monte_carlo_meta_returns = jax.vmap(
+            jax.jit(_scan_monte_carlo_meta_returns),
+            in_axes=[0, 0, 0, None, None],
+        )
 
-                # Run scan over reversed indices
-                final_returns, _ = jax.lax.scan(scan_fn, init_returns, act_idxes)
-
-                # Update the returns array
-                returns[sample_i] = final_returns["returns"]
+        def process_reward(batch, rollout_res, reward, has_eos):
+            returns = scan_monte_carlo_meta_returns(
+                reward[..., None],
+                rollout_res.solution_found[..., None],
+                jnp.concatenate((
+                    (rollout_res.observations == reset_token_id)[:, 1:],
+                    jnp.full((len(reward), 1), fill_value=-1, dtype=int),
+                ), axis=-1)[..., None],
+                config.in_ep_gamma,
+                config.cross_ep_gamma,
+            )
             return returns
     elif config.train_loss_config.mdp_type.startswith("traj_improvement"):
         @jax.jit
@@ -275,14 +275,14 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                     )
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
-        def process_reward(batch, rewards, response_lengths, has_eos):
-            returns = config.gamma ** (response_lengths - 1) * (rewards - (1 - has_eos))
+        def process_reward(batch, rollout_res, reward, has_eos):
+            returns = config.gamma ** (rollout_res.response_length - 1) * (bandit_reward(rollout_res) - (1 - has_eos))
             return returns
     else:
         raise NotImplementedError
     
 
-    def compute_returns(batch, last_prompt_idxes, is_eval):
+    def compute_returns(batch, rollout_res):
         """
         Compute verifiable rewards
         Assume each token is an action, the state is the sequence up to this point
@@ -290,51 +290,17 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
 
         TODO: Entropy regularization objective
         """
+        has_eos = jnp.max(jnp.logical_or(
+            rollout_res.solution_found,
+            rollout_res.eos,
+        ), axis=-1)
+        
+        if not config.dataset_kwargs.predict_eos:
+            has_eos = jnp.ones_like(has_eos, dtype=bool)
 
-        response_lengths = np.zeros(batch["sequence"].shape[0])
-        successes = np.zeros(batch["sequence"].shape[0])
-        has_eos = np.zeros(batch["sequence"].shape[0])
+        reward = shape_reward(batch, rollout_res)
+        reward = normalize_reward(reward)
+        returns = process_reward(batch, rollout_res, reward, has_eos)
 
-        batch["pred_mask"] = np.zeros_like(batch["sequence"])
-
-        # Get whether or not target is in the response---neglects everything after first <EOS>
-        for sample_i, (obs, act, target, last_prompt_idx) in enumerate(zip(
-            batch["observations"],
-            batch["actions"],
-            batch["target"],
-            last_prompt_idxes,
-        )):
-            target = process_target(target)
-            question_mask = np.ones(batch["sequence"].shape[-1])
-            question_mask[last_prompt_idx + 1:] = 0
-
-            pred_mask = np.zeros(batch["sequence"].shape[-1])
-            pred_mask[last_prompt_idx:] = 1
-
-            response = np.array([token_map[int(token)] for token in obs])
-            # print("=" * 50)
-            # print(last_prompt_idx)
-            # print(question_mask)
-            # print(obs)
-            # print(answer_mask)
-            # print(act)
-            # print(response)
-            success, response_length, curr_has_eos, pred_mask = get_success(
-                response,
-                target,
-                pred_mask,
-            )
-            batch["pred_mask"][sample_i] = pred_mask
-            successes[sample_i] = success
-            response_lengths[sample_i] = response_length
-            has_eos[sample_i] = curr_has_eos
-
-        if is_eval:
-            return successes, response_lengths
-
-        rewards = shape_reward(successes)
-        rewards = normalize_reward(batch, rewards)
-        returns = process_reward(batch, rewards, response_lengths, has_eos)
-
-        return returns, successes, response_lengths
+        return returns
     return compute_returns

@@ -169,17 +169,16 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif loss_config.mdp_type.startswith("episodic"):
             def _compute_loss(lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
-                returns = returns[:, :-1]
                 return -_compute_mean(lprobs * returns * pred_mask, pred_mask)
         else:
             raise NotImplementedError
 
         def reinforce(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["observations"][:, :-1]
-            actions = batch["actions"][:, 1:]
+            observations = batch["observations"]
+            actions = batch["actions"]
             returns = batch["returns"]
-            pred_mask = batch["pred_mask"][:, :-1]
+            pred_mask = batch["pred_mask"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -255,7 +254,6 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         ):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
-                returns = returns[:, :-1]
                 is_ratio = jnp.exp(lprobs - old_lprobs)
                 # XXX: Deal with inf values
                 is_ratio = jax.lax.select(
@@ -287,11 +285,11 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
         def ppo(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["observations"][:, :-1]
-            actions = batch["actions"][:, 1:]
+            observations = batch["observations"]
+            actions = batch["actions"]
             old_lprobs = batch["old_lprobs"]
             returns = batch["returns"]
-            pred_mask = batch["pred_mask"][:, :-1]
+            pred_mask = batch["pred_mask"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -355,7 +353,6 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif loss_config.mdp_type.startswith("episodic"):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
-                returns = returns[:, :-1]
                 is_ratio = jnp.exp(lprobs - old_lprobs)
                 # XXX: Deal with inf values
                 is_ratio = jax.lax.select(
@@ -378,11 +375,11 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
         def ppo(params, rest, batch):
             # NOTE: Assume sequence contains both the state and action
-            observations = batch["observations"][:, :-1]
-            actions = batch["actions"][:, 1:]
+            observations = batch["observations"]
+            actions = batch["actions"]
             old_lprobs = batch["old_lprobs"]
             returns = batch["returns"]
-            pred_mask = batch["pred_mask"][:, :-1]
+            pred_mask = batch["pred_mask"]
 
             model = nnx.merge(graphdef, params, rest)
             model.set_attributes(deterministic=False, decode=False)
@@ -587,7 +584,7 @@ class Learner:
                 )
                 cache = init_cache()
                 graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-                (observations, actions, _, _, last_prompt_idxes) = rollout(
+                rollout_res = rollout(
                     graphdef,
                     cache,
                     rest,
@@ -599,20 +596,15 @@ class Learner:
                     max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
                 )
 
-                batch["observations"] = observations
-                batch["actions"] = actions
-                successes, response_lengths = self._compute_returns(
-                    batch,
-                    last_prompt_idxes,
-                    is_eval=True,
-                )
+                successes = rollout_res.success
+                response_lengths = rollout_res.response_length
 
                 validation_time = timeit.default_timer() - tic
 
                 log[f"time/validation-{validation_name}"] = validation_time
                 aux = {
-                    CONST_SUCCESS_RATE: np.mean(successes),
-                    CONST_RESPONSE_LENGTH: np.mean(response_lengths),
+                    CONST_SUCCESS_RATE: np.mean(successes).item(),
+                    CONST_RESPONSE_LENGTH: np.mean(response_lengths).item(),
                 }
                 log.update({
                     f"validation-{validation_name}/{k}": v for k, v in aux.items()

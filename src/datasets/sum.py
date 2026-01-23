@@ -233,6 +233,7 @@ class Addition(IterableDataset):
 
             sequence = first_list_repr + [2] + second_list_repr
             question_len = len(sequence)
+            solution_len = len(soln_list_repr) + int(self.predict_eos)
 
             # TODO: Write this outside so don't need to recheck if's
             if (
@@ -275,6 +276,8 @@ class Addition(IterableDataset):
                     "sequence": np.array(sequence)[:-1],
                     "target": np.array(sequence)[1:],
                     "mask": mask,
+                    "question_len": question_len,
+                    "solution_len": solution_len,
                 }
             elif self.sequence_type == "cot":
                 sequence = sequence + [3] + soln_list_repr[::-1] + [3] + soln_list_repr
@@ -286,6 +289,8 @@ class Addition(IterableDataset):
                     "sequence": np.array(sequence)[:-1],
                     "target": np.array(sequence)[1:],
                     "mask": mask,
+                    "question_len": question_len,
+                    "solution_len": solution_len,
                 }
             elif self.sequence_type == "question_only_decode":
                 sequence = sequence + [3]
@@ -294,6 +299,8 @@ class Addition(IterableDataset):
                     "sequence": np.array(sequence),
                     "target": np.array(soln_list_repr),
                     "mask": mask,
+                    "question_len": question_len,
+                    "solution_len": solution_len,
                 }
             elif self.sequence_type == "question_only":
                 question_idx = answer_idx = 0
@@ -324,4 +331,6 @@ class Addition(IterableDataset):
                     "target": np.array(soln_list_repr),
                     "mask": mask,
                     "pointer_correct": question_idx + 1,
+                    "question_len": question_len,
+                    "solution_len": solution_len + 1,
                 }

@@ -53,27 +53,10 @@ class REINFORCE(Learner):
             tic = timeit.default_timer()
             batch = self.get_batch()
 
-            batch["sequence"] = np.repeat(
-                batch["sequence"],
-                self.num_rollouts_per_sample,
-                axis=0,
-            )
-            batch["mask"] = np.repeat(
-                batch["mask"],
-                self.num_rollouts_per_sample,
-                axis=0,
-            )
-            batch["target"] = np.repeat(
-                batch["target"],
-                self.num_rollouts_per_sample,
-                axis=0,
-            )
-            batch["pointer_correct"] = np.repeat(
-                batch["pointer_correct"],
-                self.num_rollouts_per_sample,
-                axis=0,
-            )
-
+            batch = {
+                k: np.repeat(v, self.num_rollouts_per_sample, axis=0)
+                for k, v in batch.items()
+            }
             total_sample_time += timeit.default_timer() - tic
 
             # Sample rollouts
@@ -89,7 +72,7 @@ class REINFORCE(Learner):
             )
             cache = init_cache()
             graphdef, _, rest = nnx.split(module, nnx.Cache, ...)
-            (observations, actions, _, _, last_prompt_idxes) = rollout(
+            rollout_res = rollout(
                 graphdef,
                 cache,
                 rest,
@@ -101,17 +84,17 @@ class REINFORCE(Learner):
             )
 
             # Compute return
-            batch["observations"] = observations
-            batch["actions"] = actions
-            returns, successes, response_lengths = self._compute_returns(
+            returns = self._compute_returns(
                 batch,
-                last_prompt_idxes,
-                is_eval=False,
+                rollout_res,
             )
-            batch["returns"] = returns
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
+            batch["observations"] = rollout_res.observations
+            batch["actions"] = rollout_res.actions
+            batch["pred_mask"] = rollout_res.pred_mask
+            batch["returns"] = returns
             self._state, aux = self.train_step(
                 self._state,
                 batch,
@@ -119,8 +102,8 @@ class REINFORCE(Learner):
             total_update_time += timeit.default_timer() - tic
             assert np.isfinite(aux[CONST_AGG_LOSS].item()), f"Loss became NaN\naux: {aux}"
 
-            aux[CONST_TRAIN][CONST_SUCCESS_RATE] = np.mean(successes)
-            aux[CONST_TRAIN][CONST_RESPONSE_LENGTH] = np.mean(response_lengths)
+            aux[CONST_TRAIN][CONST_SUCCESS_RATE] = np.mean(rollout_res.success).item()
+            aux[CONST_TRAIN][CONST_RESPONSE_LENGTH] = np.mean(rollout_res.response_length).item()
 
             auxes.append(aux)
 
