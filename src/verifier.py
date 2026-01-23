@@ -145,134 +145,64 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             )
             return returns
     elif config.train_loss_config.mdp_type.startswith("traj_improvement"):
-        @jax.jit
-        def scan_fn(carry, idx):
-            pointer_correct = carry["pointer_correct"]
-            actions = carry["actions"]
-            target = carry["target"]
-            pred_mask = carry["pred_mask"]
-            last_reset_idx = carry["last_reset_idx"]
-            reset_idxes = carry["reset_idxes"]
-            correct_lens = carry["correct_lens"]
-            curr_trial = carry["curr_trial"]
+        def _scan_regret(
+            rews: jax.Array,
+            resets: jax.Array,
+        ):
+            def _apply_regret(
+                prev_trial, transition
+            ):
+                rew, reset = transition
+                trial = prev_trial + reset
+                val = rew / jnp.clip(trial, a_min=1.0)
+                return trial, val
 
-            action_match = actions[idx] == target[pointer_correct]
-            is_reset = actions[idx] == reset_token_id
-            is_reset_with_pred = jnp.logical_and(is_reset, pred_mask[idx])
-
-            # Shift the pointer if the action matches the target and we're within a prediction mask
-            reset_pointer = jax.lax.select(
-                is_reset,
-                1,
+            return jax.lax.scan(
+                _apply_regret,
                 0,
+                jnp.concatenate((rews, resets), axis=-1),
+                len(rews),
+                reverse=False,
+            )[1]
+
+        scan_regret = jax.vmap(
+            jax.jit(_scan_regret),
+            in_axes=[0, 0],
+        )
+
+        def process_reward(batch, rollout_res, reward, has_eos):
+            B, T = rollout_res.observations.shape
+            reset = rollout_res.observations.at[
+                rollout_res.observations == eos_token_id
+            ].set(reset_token_id) == reset_token_id
+            padded_reset = jnp.concatenate((
+                jnp.ones((B, 1), dtype=bool),
+                reset,
+                jnp.ones((B, 1), dtype=bool),
+            ), axis=-1)
+            padded_reset = jax.vmap(
+                lambda x: jnp.where(x, size=T + 2, fill_value=-1)[0]
+            )(padded_reset)
+
+            diffs = padded_reset[:, 1:] - padded_reset[:, :-1]
+            diffs = diffs.at[diffs < 0].set(0)
+            improvement = jnp.concatenate((
+                jnp.zeros((B, 1), dtype=int),
+                diffs[:, 1:] - jnp.maximum.accumulate(diffs.at[:, 0].set(0)[:, :-1], axis=-1),
+            ), axis=-1)
+            returns = jnp.repeat(
+                improvement,
+                diffs
+            ).reshape((B, T + 1))
+            returns = returns[:, 1:] * rollout_res.pred_mask / batch["question_len"][:, None]
+
+            returns = scan_regret(
+                returns[..., None],
+                jnp.concatenate((
+                    (rollout_res.observations == reset_token_id)[:, 1:],
+                    jnp.full((len(reward), 1), fill_value=-1, dtype=int),
+                ), axis=-1)[..., None],
             )
-            pointer_correct = jax.lax.select(
-                action_match,
-                pointer_correct + 1, # Increment pointer by 1 if current token matches
-                reset_pointer, # Reset to 0 if it's a mistake and not a reset token, to 1 otherwise
-            )
-
-            # Update the last reset index to current index upon new trial
-            last_reset_idx = jax.lax.select(
-                is_reset_with_pred,
-                idx,
-                last_reset_idx,
-            )
-
-            reset_idxes = reset_idxes.at[curr_trial + 1].set(
-                jax.lax.select(
-                    is_reset_with_pred,
-                    last_reset_idx,
-                    reset_idxes[curr_trial + 1],
-                )
-            )
-
-            correct_lens = correct_lens.at[curr_trial].set(
-                jnp.maximum(pointer_correct, correct_lens[curr_trial])
-            )
-
-            curr_trial = jax.lax.select(
-                is_reset_with_pred,
-                curr_trial + 1,
-                curr_trial,
-            )
-
-            return {
-                "pointer_correct": pointer_correct,
-                "last_reset_idx": last_reset_idx,
-                "actions": actions,
-                "target": target,
-                "pred_mask": pred_mask,
-                "reset_idxes": reset_idxes,
-                "correct_lens": correct_lens,
-                "curr_trial": curr_trial,
-            }, None
-
-        def process_reward(batch, rewards, response_lengths, has_eos):
-            returns = np.zeros(batch["observations"].shape)
-            for sample_i, (pred_mask, actions, target) in enumerate(zip(
-                batch["pred_mask"], batch["actions"], batch["target"]
-            )):
-                pointer_correct = np.array(1, dtype=int)
-                last_reset_idx = np.array(-1, dtype=int)
-                curr_trial = np.array(0, dtype=int)
-                reset_idxes = np.full_like(actions, fill_value=-1, dtype=int)
-                reset_idxes[0] = np.where(pred_mask == 1)[0][0] - 1
-                correct_lens = np.full_like(actions, fill_value=-1, dtype=int)
-                last_idx = min(np.where(pred_mask == 1)[0][-1] + 2, actions.shape[-1])
-
-                res, _ = jax.lax.scan(
-                    scan_fn,
-                    {
-                        "pointer_correct": pointer_correct,
-                        "last_reset_idx": last_reset_idx,
-                        "actions": actions.at[:reset_idxes[0] + 1].set(reset_token_id),
-                        "target": target,
-                        "pred_mask": pred_mask.astype(int),
-                        "reset_idxes": reset_idxes,
-                        "correct_lens": correct_lens,
-                        "curr_trial": curr_trial,
-                    },
-                    np.arange(last_idx),
-                )
-
-                reset_idxes = res["reset_idxes"]
-                correct_lens = res["correct_lens"]
-                correct_lens = np.concatenate(([0], correct_lens))
-
-                # TODO: Negative reward
-                answer_len = np.where(target == eos_token_id)[0]
-                if len(answer_len) > 0:
-                    answer_len = answer_len[0]
-                else:
-                    answer_len = len(target)
-
-                last_idx = min(np.where(pred_mask == 1)[0][-1] + 1, actions.shape[-1])
-                if getattr(config, "cumulative", True):
-                    cum_correct_lens = np.maximum.accumulate(correct_lens)
-                    improvements = (correct_lens[1:] - cum_correct_lens[:-1] - 1) / answer_len
-                else:
-                    improvements = correct_lens[1:] - correct_lens[:-1]
-                reset_idxes = reset_idxes.at[(np.where(reset_idxes == -1))[0][0]].set(last_idx)
-                trial_lengths = np.diff(reset_idxes[reset_idxes != -1])
-
-                # Update the returns array
-                num_trials = int(np.sum(reset_idxes != -1)) - 1
-                if getattr(config, "discounting", True):
-                    returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
-                        config.gamma ** (
-                            np.arange(num_trials)
-                        ) * improvements[:num_trials],
-                        trial_lengths,
-                    )
-                else:
-                    # Regret like
-                    returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
-                        improvements[:num_trials] / (
-                            np.arange(num_trials) + 1
-                        ),
-                        trial_lengths,
-                    )
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
         def process_reward(batch, rollout_res, reward, has_eos):
