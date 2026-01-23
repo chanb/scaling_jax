@@ -240,19 +240,39 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 correct_lens = res["correct_lens"]
                 correct_lens = np.concatenate(([0], correct_lens))
 
+                # TODO: Negative reward
+                answer_len = np.where(target == eos_token_id)[0]
+                if len(answer_len) > 0:
+                    answer_len = answer_len[0]
+                else:
+                    answer_len = len(target)
+
                 last_idx = min(np.where(pred_mask == 1)[0][-1] + 1, actions.shape[-1])
-                cum_correct_lens = np.maximum.accumulate(correct_lens)
-                improvements = correct_lens[1:] - cum_correct_lens[:-1]
+                if getattr(config, "cumulative", True):
+                    cum_correct_lens = np.maximum.accumulate(correct_lens)
+                    improvements = (correct_lens[1:] - cum_correct_lens[:-1] - 1) / answer_len
+                else:
+                    improvements = correct_lens[1:] - correct_lens[:-1]
                 reset_idxes = reset_idxes.at[(np.where(reset_idxes == -1))[0][0]].set(last_idx)
                 trial_lengths = np.diff(reset_idxes[reset_idxes != -1])
 
                 # Update the returns array
-                returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
-                    config.gamma ** (
-                        np.arange(int(np.sum(reset_idxes != -1)) - 1)
-                    ) * improvements[:int(np.sum(reset_idxes != -1)) - 1],
-                    trial_lengths,
-                )
+                num_trials = int(np.sum(reset_idxes != -1)) - 1
+                if getattr(config, "discounting", True):
+                    returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
+                        config.gamma ** (
+                            np.arange(num_trials)
+                        ) * improvements[:num_trials],
+                        trial_lengths,
+                    )
+                else:
+                    # Regret like
+                    returns[sample_i, reset_idxes[0]:last_idx] = np.repeat(
+                        improvements[:num_trials] / (
+                            np.arange(num_trials) + 1
+                        ),
+                        trial_lengths,
+                    )
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
         def process_reward(batch, rewards, response_lengths, has_eos):
@@ -287,17 +307,11 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             target = process_target(target)
             question_mask = np.ones(batch["sequence"].shape[-1])
             question_mask[last_prompt_idx + 1:] = 0
-            answer_mask = 1 - question_mask
 
             pred_mask = np.zeros(batch["sequence"].shape[-1])
             pred_mask[last_prompt_idx:] = 1
 
-            response = np.concatenate((
-                obs[np.where(question_mask)],
-                act[np.where(answer_mask)],
-            ))
-
-            response = np.array([token_map[int(token)] for token in response])
+            response = np.array([token_map[int(token)] for token in obs])
             # print("=" * 50)
             # print(last_prompt_idx)
             # print(question_mask)

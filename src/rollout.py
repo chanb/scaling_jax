@@ -76,30 +76,59 @@ def predict_step(
     #     x=pointer_correct,
     # )
 
-    reset_pointer = jnp.where(
-        step_state.answers[:, 0] == action,
-        1,
-        0,
-    )
+    # Continue trajectory
+    # reset_pointer = jnp.where(
+    #     step_state.answers[:, 0] == action,
+    #     1,
+    #     0,
+    # )
+    # not_prompt_pointer = jax.lax.select(
+    #     curr_answers == action,
+    #     pointer_correct + 1,
+    #     reset_pointer,
+    # )
+    # pointer_correct = jax.lax.select(
+    #     is_prompt > 0.0,
+    #     pointer_correct,
+    #     not_prompt_pointer,
+    # )
+
+    # output_tokens = jnp.where(
+    #     jnp.logical_and(
+    #         curr_answers != action,
+    #         action <= step_state.max_token_id_to_shift,
+    #     ),
+    #     action + step_state.correct_aware_shift,
+    #     action,
+    # )
+    # END Continue trajectory
+
+    # Reset trajectory immediately
+    # TODO: FIX VERIFIER WITH THIS SETTING
     not_prompt_pointer = jax.lax.select(
         curr_answers == action,
         pointer_correct + 1,
-        reset_pointer,
+        jnp.ones_like(pointer_correct, dtype=int),
     )
     pointer_correct = jax.lax.select(
         is_prompt > 0.0,
         pointer_correct,
         not_prompt_pointer,
     )
-
     output_tokens = jnp.where(
-        jnp.logical_and(
-            curr_answers != action,
-            action <= step_state.max_token_id_to_shift,
-        ),
-        action + step_state.correct_aware_shift,
+        curr_answers != action,
+        step_state.answers[:, 0],
         action,
     )
+    # jax.debug.print(
+    #     "{idx} {is_prompt}: {action} {output_tokens} {pointer_correct}",
+    #     idx=step_i,
+    #     action=action,
+    #     output_tokens=output_tokens,
+    #     pointer_correct=pointer_correct,
+    #     is_prompt=is_prompt,
+    # )
+    # END Reset trajectory immediately
 
     # Check for prompt boundary
     output_tokens = jnp.where(
