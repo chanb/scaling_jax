@@ -194,7 +194,6 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
-            # TODO: Only store new samples from dataset.
             # TODO: Maybe only store when success rate is poor.
             self.buffer = self.buffer.extend(Minibatch(
                 context=jnp.hstack((
@@ -204,31 +203,31 @@ class OffPolicyContextPPO(REINFORCE):
                             a_min=0,
                             a_max=1,
                         ) == 0
-                    )].set(self._dataset.eos_token_id),
+                    )].set(self._dataset.eos_token_id)[:self._config.batch_size * self.num_rollouts_per_sample],
                     jnp.full(
-                        (len(rollout_res.observations), 1),
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
                         fill_value=self._dataset.eos_token_id,
                         dtype=int,
                     ),
                 )),
                 pointer_correct=jnp.hstack((
-                    rollout_res.pointer_correct,
+                    rollout_res.pointer_correct[:self._config.batch_size * self.num_rollouts_per_sample],
                     jnp.full(
-                        (len(rollout_res.pointer_correct), 1),
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
                         fill_value=-1,
                         dtype=int,
                     ),
                 )),
                 target=jnp.hstack((
-                    batch["target"][:, :-1],
+                    batch["target"][:self._config.batch_size * self.num_rollouts_per_sample, :-1],
                     jnp.full(
-                        (len(rollout_res.pointer_correct), 1),
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
                         fill_value=self._dataset.eos_token_id,
                         dtype=int,
                     ),
                 )),
-                question_len=batch["question_len"],
-                solution_len=batch["solution_len"],
+                question_len=batch["question_len"][:self._config.batch_size * self.num_rollouts_per_sample],
+                solution_len=batch["solution_len"][:self._config.batch_size * self.num_rollouts_per_sample],
             ))
             total_rollout_time += timeit.default_timer() - tic
 
