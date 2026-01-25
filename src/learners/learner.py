@@ -250,6 +250,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif (
             loss_config.mdp_type.startswith("episodic")
             or loss_config.mdp_type.startswith("meta_rl")
+            or loss_config.mdp_type.startswith("progress_rl")
             or loss_config.mdp_type.startswith("traj_improvement")
         ):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
@@ -353,6 +354,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
         elif (
             loss_config.mdp_type.startswith("episodic")
             or loss_config.mdp_type.startswith("meta_rl")
+            or loss_config.mdp_type.startswith("progress_rl")
             or loss_config.mdp_type.startswith("traj_improvement")
         ):
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
