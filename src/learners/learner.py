@@ -227,6 +227,7 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
                 )
 
+                # TODO: Clip higher as DAPO
                 clipped_is_ratio = jnp.clip(
                     is_ratio,
                     a_min=1 - loss_config.clip_param,
