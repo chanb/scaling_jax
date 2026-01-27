@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/addition-max_int_64-no_eos-reset_immediately",
-        "experiment_name": "opc_ppo-scratch_1M-traj_improvement-0_cot_tokens-8x8",
+        "experiment_name": "opc_ppo-scratch_1M-clip_high-save_when_multiple_attempts-traj_improvement-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 500
@@ -62,7 +62,8 @@
     "train_loss_config": {
         "objective": "ppo",
         "mdp_type": "traj_improvement:length_bias_fix",
-        "clip_param": 0.2,
+        "clip_low": 0.2,
+        "clip_high": 0.28,
         "entropy": 0.0
     },
     "num_ppo_steps": 3,

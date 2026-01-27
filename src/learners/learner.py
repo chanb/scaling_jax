@@ -215,6 +215,17 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             def _compute_mean(values, pred_mask):
                 return jnp.sum(values) / pred_mask.shape[0]
 
+        clip_low = getattr(
+            loss_config,
+            "clip_low",
+            getattr(loss_config, "clip_param", 0.2),
+        )
+        clip_high = getattr(
+            loss_config,
+            "clip_high",
+            getattr(loss_config, "clip_param", 0.2),
+        )
+
         if loss_config.mdp_type == "bandit":
             def _compute_loss(lprobs, old_lprobs, returns, pred_mask):
                 # Objective: log pi(y|s) * R
@@ -227,11 +238,10 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     jnp.isfinite(is_ratio), is_ratio, jnp.zeros_like(is_ratio)
                 )
 
-                # TODO: Clip higher as DAPO
                 clipped_is_ratio = jnp.clip(
                     is_ratio,
-                    a_min=1 - loss_config.clip_param,
-                    a_max=1 + loss_config.clip_param,
+                    a_min=1 - clip_low,
+                    a_max=1 + clip_high,
                 )
 
                 surrogate_1 = is_ratio * returns
@@ -264,8 +274,8 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
 
                 clipped_is_ratio = jnp.clip(
                     is_ratio,
-                    a_min=1 - loss_config.clip_param,
-                    a_max=1 + loss_config.clip_param,
+                    a_min=1 - clip_low,
+                    a_max=1 + clip_high,
                 )
 
                 surrogate_1 = is_ratio * returns

@@ -231,7 +231,44 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
+            add_minibatch_idxes = np.sum(
+                (rollout_res.observations * rollout_res.pred_mask) == self._dataset.reset_token_id,
+                axis=-1
+            )[:self._config.batch_size * self.num_rollouts_per_sample] > 1
+            minibatch = Minibatch(
+                context=jnp.hstack((
+                    jax.lax.select(
+                        (rollout_res.pred_mask + (1 - batch["mask"][:, :-1])) == 0,
+                        jnp.full_like(rollout_res.observations, self._dataset.eos_token_id),
+                        rollout_res.observations,
+                    )[:self._config.batch_size * self.num_rollouts_per_sample],
+                    jnp.full(
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        fill_value=self._dataset.eos_token_id,
+                        dtype=int,
+                    ),
+                ))[add_minibatch_idxes],
+                pointer_correct=jnp.hstack((
+                    rollout_res.pointer_correct[:self._config.batch_size * self.num_rollouts_per_sample],
+                    jnp.full(
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        fill_value=-1,
+                        dtype=int,
+                    ),
+                ))[add_minibatch_idxes],
+                target=jnp.hstack((
+                    batch["target"][:self._config.batch_size * self.num_rollouts_per_sample, :-1],
+                    jnp.full(
+                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        fill_value=self._dataset.eos_token_id,
+                        dtype=int,
+                    ),
+                ))[add_minibatch_idxes],
+                question_len=batch["question_len"][:self._config.batch_size * self.num_rollouts_per_sample][add_minibatch_idxes],
+                solution_len=batch["solution_len"][:self._config.batch_size * self.num_rollouts_per_sample][add_minibatch_idxes],
+            )
             self.buffer = self.buffer.extend(self._build_minibatch(batch, rollout_res))
+
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
@@ -256,6 +293,7 @@ class OffPolicyContextPPO(REINFORCE):
 
             aux[CONST_TRAIN][CONST_SUCCESS_RATE] = np.mean(rollout_res.success).item()
             aux[CONST_TRAIN][CONST_RESPONSE_LENGTH] = np.mean(rollout_res.response_length).item()
+            aux[CONST_TRAIN]["buffer_size"] = self.buffer.num_entries.item()
 
             auxes.append(aux)
 
