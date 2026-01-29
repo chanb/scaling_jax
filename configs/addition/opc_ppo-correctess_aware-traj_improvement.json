@@ -74,6 +74,7 @@
     "reward_type": "negative_on_failure",
     "num_rollouts_per_sample": 8,
     "batch_size": 4,
+    "batch_size_buffer": 4,
     "num_epochs": 1000000,
     "num_updates_per_epoch": 1,
     "seeds": {

@@ -165,7 +165,7 @@ class OffPolicyContextPPO(REINFORCE):
             batch = self.get_batch()
 
             if epoch > 0:
-                minibatch = self.buffer.sample(self._config.batch_size, curr_rng)
+                minibatch = self.buffer.sample(self._config.batch_size_buffer, curr_rng)
                 min_idx = jnp.max(minibatch.question_len) + 1
                 max_idx = jnp.min(jnp.argmax(minibatch.context == self._dataset.eos_token_id))
                 random_idx = jrandom.randint(curr_rng, shape=(), minval=min_idx, maxval=max_idx)
