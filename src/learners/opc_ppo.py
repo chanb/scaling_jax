@@ -62,9 +62,9 @@ class ContextBuffer(struct.PyTreeNode):
     @classmethod
     def empty(cls, size: int, max_seq_len: int) -> "ContextBuffer":
         data = Minibatch(
-            context=jnp.empty((size, max_seq_len + 1), dtype=int),
-            target=jnp.empty((size, max_seq_len + 1), dtype=int),
-            pointer_correct=jnp.empty((size, max_seq_len + 1), dtype=int),
+            context=jnp.empty((size, max_seq_len), dtype=int),
+            target=jnp.empty((size, max_seq_len), dtype=int),
+            pointer_correct=jnp.empty((size, max_seq_len), dtype=int),
             question_len=jnp.empty((size,), dtype=int),
             solution_len=jnp.empty((size,), dtype=int),
         )
@@ -169,6 +169,7 @@ class OffPolicyContextPPO(REINFORCE):
                 min_idx = jnp.max(minibatch.question_len) + 1
                 max_idx = jnp.min(jnp.argmax(minibatch.context == self._dataset.eos_token_id))
                 random_idx = jrandom.randint(curr_rng, shape=(), minval=min_idx, maxval=max_idx)
+                # random_idx = 0
 
                 batch["sequence"] = jnp.concatenate((
                     batch["sequence"],

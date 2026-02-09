@@ -19,6 +19,7 @@ import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
 import optax
+import scipy
 import timeit
 
 import src.models as models
@@ -573,11 +574,14 @@ class Learner:
             return
 
         self.val_dss = {
-            validation_config["validation_name"]: get_data_loader(
-                parse_dict(validation_config),
-                self.data_sharding,
-                self.dtype,
-            )[0]
+            validation_config["validation_name"]: (
+                get_data_loader(
+                    parse_dict(validation_config),
+                    self.data_sharding,
+                    self.dtype,
+                )[0],
+                validation_config.get("num_rollouts_per_sample", 1)
+            )
             for validation_config in self._config.validation
         }
 
@@ -585,9 +589,13 @@ class Learner:
             log = dict()
             curr_rng = jrandom.fold_in(self._rng, epoch)
 
-            for validation_name, val_ds in self.val_dss.items():
+            for validation_name, (val_ds, num_rollouts_per_sample) in self.val_dss.items():
                 tic = timeit.default_timer()
                 batch = next(val_ds)
+                batch = {
+                    k: np.repeat(v, num_rollouts_per_sample, axis=0)
+                    for k, v in batch.items()
+                }
                 batch = jax.device_put(batch, self.data_sharding)
 
                 module = nnx.merge(self.state.graphdef, self.state.params, self.state.rest)
@@ -608,7 +616,7 @@ class Learner:
                     curr_rng,
                     batch,
                     eos_token=self._dataset.eos_token_id,
-                    deterministic=1,
+                    deterministic=int(num_rollouts_per_sample == 1),
                     correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                     max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
                 )
@@ -623,6 +631,16 @@ class Learner:
                     CONST_SUCCESS_RATE: np.mean(successes).item(),
                     CONST_RESPONSE_LENGTH: np.mean(response_lengths).item(),
                 }
+                if num_rollouts_per_sample > 1:
+                    success_per_sample = np.sum(successes.reshape((-1, num_rollouts_per_sample)), axis=-1)
+                    pass_k = np.mean(
+                        1 - scipy.special.comb(
+                            num_rollouts_per_sample - success_per_sample,
+                            np.full_like(success_per_sample, fill_value=num_rollouts_per_sample // 2),
+                            exact=False,
+                        ) / scipy.special.comb(num_rollouts_per_sample, num_rollouts_per_sample // 2, exact=False), axis=0
+                    )
+                    aux["pass@{}".format(num_rollouts_per_sample // 2)] = pass_k
                 log.update({
                     f"validation-{validation_name}/{k}": v for k, v in aux.items()
                 })

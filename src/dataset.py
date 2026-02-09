@@ -107,6 +107,22 @@ def get_dataset(config: SimpleNamespace, data_sharding, dtype, seed) -> Any:
             getattr(dataset_kwargs, "carry_registers", False),
             getattr(dataset_kwargs, "match_carry", False),
         )
+    elif dataset_name == "repetition":
+        from src.datasets.repetition import Repetition
+        dataset = Repetition(
+            dataset_kwargs.context_len,
+            dataset_kwargs.vocab_size,
+            dataset_kwargs.k,
+            dataset_kwargs.train,
+            seed,
+            dataset_kwargs.sequence_type,
+            dataset_kwargs.train_val_ratio,
+            getattr(dataset_kwargs, "num_repeats", None),
+            getattr(dataset_kwargs, "shuffle", True),
+            getattr(dataset_kwargs, "exact", False),
+            getattr(dataset_kwargs, "predict_eos", True),
+            getattr(dataset_kwargs, "num_cot_tokens", 0),
+        )
     else:
         raise NotImplementedError
     
