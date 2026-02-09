@@ -246,17 +246,15 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             returns = diff * rollout_res.pred_mask
 
             # Unique trajs
-            pairwise_traj_diff = jnp.tril(
-                jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
-            )
-            num_diff = jnp.repeat(
-                jnp.sum(pairwise_traj_diff > 0, axis=-1, keepdims=True),
+            pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
+            pairwise_traj_diff = jnp.tril(pairwise_traj_diff) - jnp.triu(jnp.ones_like(pairwise_traj_diff))
+            all_diff = jnp.logical_not(jnp.repeat(
+                jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True),
                 config.attempt_length,
                 axis=-1,
-            ).reshape((B, -1))
-            num_diff = jnp.concatenate((jnp.zeros((B, 1)), num_diff, jnp.zeros((B, remainder))), axis=1)
-            returns = returns + num_diff * jnp.roll(rollout_res.solution_found, 1, axis=-1)
-
+            ).reshape((B, -1)))
+            all_diff = jnp.concatenate((jnp.zeros((B, 1)), all_diff, jnp.zeros((B, remainder))), axis=1)
+            returns = returns + all_diff * jnp.roll(rollout_res.solution_found, 1, axis=-1)
             
             # returns = returns.at[
             #     jnp.logical_not(jnp.roll(rollout_res.solution_found, 1, axis=-1))
