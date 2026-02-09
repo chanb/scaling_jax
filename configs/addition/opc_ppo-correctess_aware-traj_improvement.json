@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/addition-max_int_64-no_eos-reset_immediately",
-        "experiment_name": "opc_ppo-scratch_1M-save_when_failure-traj_improvement-0_cot_tokens-8x8",
+        "experiment_name": "opc_ppo-scratch_1M-zero_on_reset_discourage_first_reset-include_all_in_len_examples-save_when_multiple_attempts-traj_improvement-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 500
@@ -44,7 +44,7 @@
         "context_len": 100,
         "max_int": 64,
         "train": true,
-        "train_val_ratio": 0.9,
+        "train_val_ratio": 1.0,
         "sequence_type": "question_only",
         "num_repeats": 1000000,
         "right_to_left": true,
@@ -82,13 +82,13 @@
     },
     "validation": [
         {
-            "validation_name": "heldout",
+            "validation_name": "greedy_success",
             "dataset_name": "addition",
             "dataset_kwargs": {
                 "context_len": 100,
                 "max_int": 64,
-                "train": false,
-                "train_val_ratio": 0.9,
+                "train": true,
+                "train_val_ratio": 1.0,
                 "sequence_type": "question_only",
                 "num_repeats": null,
                 "right_to_left": true,

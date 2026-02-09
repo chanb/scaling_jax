@@ -230,6 +230,8 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             in_axes=[0, 0],
         )
 
+        discourage_first_reset = getattr(config.train_loss_config, "discourage_first_reset", 0)
+
         def process_reward(batch, rollout_res, reward, has_eos):
             B, T = rollout_res.observations.shape
             reset = rollout_res.observations.at[
@@ -248,13 +250,13 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             diffs = diffs.at[diffs < 0].set(0)
             improvement = jnp.concatenate((
                 jnp.zeros((B, 1), dtype=int),
-                diffs[:, 1:] - jnp.maximum.accumulate(diffs.at[:, 0].set(0)[:, :-1], axis=-1),
+                diffs[:, 1:] - discourage_first_reset - jnp.maximum.accumulate((diffs - discourage_first_reset).at[:, 0].set(0)[:, :-1], axis=-1),
             ), axis=-1)
             returns = jnp.repeat(
                 improvement,
                 diffs
             ).reshape((B, T + 1))
-            returns = returns[:, 1:] * rollout_res.pred_mask / batch["solution_len"][:, None]
+            returns = returns[:, 1:] * rollout_res.pred_mask / (batch["solution_len"][:, None] - discourage_first_reset)
 
             returns = scan_discounting(
                 returns[..., None],
@@ -263,6 +265,71 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                     jnp.full((len(reward), 1), fill_value=-1, dtype=int),
                 ), axis=-1)[..., None],
             )
+
+            return returns
+    elif config.train_loss_config.mdp_type.startswith("traj_improvement-zero_on_reset"):
+        def _scan_discounting(
+            rews: jax.Array,
+            resets: jax.Array,
+        ):
+            def _apply_regret(
+                prev_trial, transition
+            ):
+                rew, reset, next_reset = transition
+                trial = prev_trial + reset
+                val = (config.gamma ** (trial - 1)) * rew * (1 - next_reset)
+                return trial, val
+
+            return jax.lax.scan(
+                _apply_regret,
+                0,
+                jnp.concatenate((rews, resets[:-1], resets[1:]), axis=-1),
+                len(rews),
+                reverse=False,
+            )[1]
+
+        scan_discounting = jax.vmap(
+            jax.jit(_scan_discounting),
+            in_axes=[0, 0],
+        )
+
+        def process_reward(batch, rollout_res, reward, has_eos):
+            B, T = rollout_res.observations.shape
+            reset = rollout_res.observations.at[
+                rollout_res.observations == eos_token_id
+            ].set(reset_token_id) == reset_token_id
+            padded_reset = jnp.concatenate((
+                jnp.ones((B, 1), dtype=bool),
+                reset,
+                jnp.ones((B, 1), dtype=bool),
+            ), axis=-1)
+            padded_reset = jax.vmap(
+                lambda x: jnp.where(x, size=T + 2, fill_value=-1)[0]
+            )(padded_reset)
+
+            diffs = padded_reset[:, 1:] - padded_reset[:, :-1]
+            diffs = diffs.at[diffs < 0].set(0)
+            improvement = jnp.concatenate((
+                jnp.zeros((B, 1), dtype=int),
+                diffs[:, 1:] - 1 - jnp.maximum.accumulate((diffs - 1).at[:, 0].set(0)[:, :-1], axis=-1),
+            ), axis=-1)
+            returns = jnp.repeat(
+                improvement,
+                diffs
+            ).reshape((B, T + 1))
+            returns = returns[:, 1:] * rollout_res.pred_mask / (batch["solution_len"][:, None] - 1)
+
+            returns = scan_discounting(
+                returns[..., None],
+                jnp.concatenate((
+                    jnp.concatenate((
+                        (rollout_res.observations == reset_token_id)[:, 1:],
+                        jnp.zeros((len(reward), 1), dtype=bool)
+                    ), axis=1),
+                    jnp.full((len(reward), 1), fill_value=-1, dtype=int),
+                ), axis=-1)[..., None],
+            )
+
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
         def process_reward(batch, rollout_res, reward, has_eos):

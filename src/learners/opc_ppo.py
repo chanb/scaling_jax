@@ -231,13 +231,13 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
-            # add_minibatch_idxes = np.sum(
-            #     (rollout_res.observations * rollout_res.pred_mask) == self._dataset.reset_token_id,
-            #     axis=-1
-            # )[:self._config.batch_size * self.num_rollouts_per_sample] > 1
-            add_minibatch_idxes = np.logical_not(
-                rollout_res.success[:self._config.batch_size * self.num_rollouts_per_sample]
-            )
+            add_minibatch_idxes = np.sum(
+                (rollout_res.observations * rollout_res.pred_mask) == self._dataset.reset_token_id,
+                axis=-1
+            )[:self._config.batch_size * self.num_rollouts_per_sample] > 1
+            # add_minibatch_idxes = np.logical_not(
+            #     rollout_res.success[:self._config.batch_size * self.num_rollouts_per_sample]
+            # )
             minibatch = Minibatch(
                 context=jnp.hstack((
                     jax.lax.select(
