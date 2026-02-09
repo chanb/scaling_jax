@@ -27,7 +27,6 @@ class Repetition(IterableDataset):
         num_repeats: int=None,
         shuffle: bool=True,
         exact: bool=False,
-        predict_eos: bool=True,
         num_cot_tokens: int=0,
     ):
         assert context_len > 0
@@ -44,7 +43,6 @@ class Repetition(IterableDataset):
         self.num_repeats = num_repeats
         self.shuffle = shuffle
         self.exact = exact
-        self.predict_eos = predict_eos
         self.num_cot_tokens = num_cot_tokens
         self._eos_token_id = (
             1 # RESET
@@ -72,7 +70,7 @@ class Repetition(IterableDataset):
 
     @property
     def reset_token_id(self):
-        return self.vocab_size
+        return self.vocab_size + self.num_cot_tokens
 
     @property
     def token_map(self):
@@ -83,8 +81,8 @@ class Repetition(IterableDataset):
             },
             self.reset_token_id: self.reset_token_id,
             **{
-                cot_token_id + self.vocab_size + 1:
-                cot_token_id + self.vocab_size + 1
+                cot_token_id + self.vocab_size:
+                cot_token_id + self.vocab_size
                 for cot_token_id in range(self.num_cot_tokens)
             },
             self.eos_token_id: self.eos_token_id,
@@ -99,8 +97,8 @@ class Repetition(IterableDataset):
 
     @property
     def output_space(self):
-        # 0, 1, 2, ..., K - 1, <RESET>, [<REG_1>, ..., <REG_K>], <EOS>
-        return spaces.Discrete(self.vocab_size + 1 + self.num_cot_tokens + int(self.predict_eos))
+        # 0, 1, 2, ..., K - 1, [<REG_1>, ..., <REG_K>]
+        return spaces.Discrete(self.vocab_size + self.num_cot_tokens)
 
     def __iter__(self):
         return iter(self.get_sequences())

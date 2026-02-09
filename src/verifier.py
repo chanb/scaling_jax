@@ -352,8 +352,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             rollout_res.eos,
         ), axis=-1)
         
-        if not config.dataset_kwargs.predict_eos:
-            has_eos = jnp.ones_like(has_eos, dtype=bool)
+        has_eos = jnp.ones_like(has_eos, dtype=bool)
 
         reward = shape_reward(batch, rollout_res)
         reward = normalize_reward(reward)

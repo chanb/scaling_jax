@@ -113,42 +113,6 @@ class OffPolicyContextPPO(REINFORCE):
         super().__init__(config=config)
         self.buffer = ContextBuffer.empty(config.buffer_size, config.max_seq_len)
 
-        # TODO: Maybe only store when success rate is poor.
-        def build_minibatch(batch, rollout_res):
-            return Minibatch(
-                context=jnp.hstack((
-                    jax.lax.select(
-                        (rollout_res.pred_mask + (1 - batch["mask"][:, :-1])) == 0,
-                        jnp.full_like(rollout_res.observations, self._dataset.eos_token_id),
-                        rollout_res.observations,
-                    )[:self._config.batch_size * self.num_rollouts_per_sample],
-                    jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
-                        fill_value=self._dataset.eos_token_id,
-                        dtype=int,
-                    ),
-                )),
-                pointer_correct=jnp.hstack((
-                    rollout_res.pointer_correct[:self._config.batch_size * self.num_rollouts_per_sample],
-                    jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
-                        fill_value=-1,
-                        dtype=int,
-                    ),
-                )),
-                target=jnp.hstack((
-                    batch["target"][:self._config.batch_size * self.num_rollouts_per_sample, :-1],
-                    jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
-                        fill_value=self._dataset.eos_token_id,
-                        dtype=int,
-                    ),
-                )),
-                question_len=batch["question_len"][:self._config.batch_size * self.num_rollouts_per_sample],
-                solution_len=batch["solution_len"][:self._config.batch_size * self.num_rollouts_per_sample],
-            )
-        self._build_minibatch = jax.jit(build_minibatch)
-
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         curr_rng = jrandom.fold_in(self._rng, epoch)
 
@@ -164,16 +128,15 @@ class OffPolicyContextPPO(REINFORCE):
             tic = timeit.default_timer()
             batch = self.get_batch()
 
+            # TODO: FIX
             if epoch > 0:
-                minibatch = self.buffer.sample(self._config.batch_size_buffer, curr_rng)
                 min_idx = jnp.max(minibatch.question_len) + 1
                 max_idx = jnp.min(jnp.argmax(minibatch.context == self._dataset.eos_token_id))
                 random_idx = jrandom.randint(curr_rng, shape=(), minval=min_idx, maxval=max_idx)
-                # random_idx = 0
 
                 batch["sequence"] = jnp.concatenate((
                     batch["sequence"],
-                    minibatch.context.at[:, random_idx:].set(self._dataset.eos_token_id),
+                    minibatch.context.at[:, random_idx + 1:].set(self._dataset.eos_token_id),
                 ), axis=0)
                 batch["target"] = jnp.concatenate((
                     batch["target"], minibatch.target,
@@ -181,7 +144,7 @@ class OffPolicyContextPPO(REINFORCE):
                 batch["mask"] = jnp.concatenate((
                     batch["mask"],
                     jnp.cumsum(
-                        jnp.zeros_like(batch["mask"], dtype=int).at[:, random_idx - 1].set(1),
+                        jnp.zeros_like(batch["mask"], dtype=int).at[:, random_idx].set(1),
                         axis=-1,
                         dtype=int,
                     ),
@@ -193,7 +156,7 @@ class OffPolicyContextPPO(REINFORCE):
                     batch["solution_len"], minibatch.solution_len,
                 ), axis=0)
                 batch["pointer_correct"] = jnp.concatenate((
-                    batch["pointer_correct"], minibatch.pointer_correct[:, random_idx - 1],
+                    batch["pointer_correct"], minibatch.pointer_correct[:, random_idx],
                 ), axis=0)
 
             batch = {
@@ -222,6 +185,7 @@ class OffPolicyContextPPO(REINFORCE):
                 curr_rng,
                 batch,
                 eos_token=self._dataset.eos_token_id,
+                attempt_length=self._config.attempt_length,
                 correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                 max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
@@ -232,46 +196,38 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
-            add_minibatch_idxes = np.sum(
-                (rollout_res.observations * rollout_res.pred_mask) == self._dataset.reset_token_id,
-                axis=-1
-            )[:self._config.batch_size * self.num_rollouts_per_sample] > 1
-            # add_minibatch_idxes = np.logical_not(
-            #     rollout_res.success[:self._config.batch_size * self.num_rollouts_per_sample]
-            # )
+            add_minibatch_idxes = rollout_res.response_length > 10
+            add_minibatch_idxes = add_minibatch_idxes.at[self._config.batch_size * self.num_rollouts_per_sample:].set(False)
+
             minibatch = Minibatch(
                 context=jnp.hstack((
-                    jax.lax.select(
-                        (rollout_res.pred_mask + (1 - batch["mask"][:, :-1])) == 0,
-                        jnp.full_like(rollout_res.observations, self._dataset.eos_token_id),
-                        rollout_res.observations,
-                    )[:self._config.batch_size * self.num_rollouts_per_sample],
+                    rollout_res.observations[add_minibatch_idxes],
                     jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        (np.sum(add_minibatch_idxes), 1),
                         fill_value=self._dataset.eos_token_id,
                         dtype=int,
                     ),
-                ))[add_minibatch_idxes],
+                )),
                 pointer_correct=jnp.hstack((
-                    rollout_res.pointer_correct[:self._config.batch_size * self.num_rollouts_per_sample],
+                    rollout_res.pointer_correct[add_minibatch_idxes],
                     jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        (np.sum(add_minibatch_idxes), 1),
                         fill_value=-1,
                         dtype=int,
                     ),
-                ))[add_minibatch_idxes],
+                )),
                 target=jnp.hstack((
-                    batch["target"][:self._config.batch_size * self.num_rollouts_per_sample, :-1],
+                    batch["target"][add_minibatch_idxes, :-1],
                     jnp.full(
-                        (self._config.batch_size * self.num_rollouts_per_sample, 1),
+                        (np.sum(add_minibatch_idxes), 1),
                         fill_value=self._dataset.eos_token_id,
                         dtype=int,
                     ),
-                ))[add_minibatch_idxes],
-                question_len=batch["question_len"][:self._config.batch_size * self.num_rollouts_per_sample][add_minibatch_idxes],
-                solution_len=batch["solution_len"][:self._config.batch_size * self.num_rollouts_per_sample][add_minibatch_idxes],
+                )),
+                question_len=batch["question_len"][add_minibatch_idxes],
+                solution_len=batch["solution_len"][add_minibatch_idxes],
             )
-            self.buffer = self.buffer.extend(self._build_minibatch(batch, rollout_res))
+            self.buffer = self.buffer.extend(minibatch)
 
             total_rollout_time += timeit.default_timer() - tic
 

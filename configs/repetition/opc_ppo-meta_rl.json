@@ -1,0 +1,147 @@
+{
+    "logging_config": {
+        "save_path": "./results/debug",
+        "experiment_name": "opc_ppo-meta_rl-scratch_1M-0_cot_tokens-8x8",
+        "log_interval": 1,
+        "checkpoint_interval": 300,
+        "validation_interval": 1
+    },
+    "model_config": {
+        "architecture": "InContextGPT",
+        "model_kwargs": {
+            "num_blocks": 2,
+            "num_heads": 8,
+            "embed_dim": 64,
+            "widening_factor": 4,
+            "embedder_strategy": "next_token",
+            "shared_decoding": true,
+            "use_sink_token": false
+        }
+    },
+    "optimizer_config": {
+        "optimizer": "adamw",
+        "lr": {
+            "scheduler": "constant_schedule",
+            "scheduler_kwargs": {
+                "value": 0.0001
+            }
+        },
+        "opt_kwargs": {
+            "weight_decay": 0.0
+        },
+        "max_grad_norm": 1.0,
+        "mask_names": []
+    },
+    "half_precision": false,
+    "mesh": {
+        "data": 1,
+        "fsdp": 1,
+        "tensor": 1
+    },
+    "learner": "OffPolicyContextPPO",
+    "dataset_name": "repetition",
+    "dataset_kwargs": {
+        "context_len": 30,
+        "vocab_size": 3,
+        "k": 3,
+        "train": true,
+        "train_val_ratio": 0.9,
+        "sequence_type": "question_only",
+        "num_repeats": null,
+        "shuffle": false,
+        "num_cot_tokens": 0
+    },
+    "repeat": false,
+    "shuffle_buffer_size": 100,
+    "num_workers": 1,
+    "train_loss_config": {
+        "objective": "ppo",
+        "mdp_type": "meta_rl:length_bias_fix",
+        "clip_param": 0.2,
+        "entropy": 0.0
+    },
+    "num_ppo_steps": 3,
+    "buffer_size": 1000000,
+    "max_seq_len": 30,
+    "in_ep_gamma": 1.0,
+    "cross_ep_gamma": 1.0,
+    "reward_type": "negative_on_failure",
+    "num_rollouts_per_sample": 25,
+    "batch_size": 2,
+    "batch_size_buffer": 2,
+    "num_epochs": 300,
+    "num_updates_per_epoch": 1,
+    "seeds": {
+        "seed": 0,
+        "learner_seed": 42,
+        "data_seed": 42
+    },
+    "validation": [
+        {
+            "validation_name": "train",
+            "dataset_name": "repetition",
+            "dataset_kwargs": {
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 3,
+                "train": true,
+                "train_val_ratio": 0.9,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "shuffle": false,
+                "num_cot_tokens": 0
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 2,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "heldout",
+            "dataset_name": "repetition",
+            "dataset_kwargs": {
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 3,
+                "train": false,
+                "train_val_ratio": 0.9,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "shuffle": false,
+                "num_cot_tokens": 0
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 1,
+            "seeds": {
+                "data_seed": 42
+            }
+        },
+        {
+            "validation_name": "train-repeat_k+1",
+            "dataset_name": "repetition",
+            "dataset_kwargs": {
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 4,
+                "train": true,
+                "train_val_ratio": 0.9,
+                "sequence_type": "question_only",
+                "num_repeats": null,
+                "shuffle": false,
+                "num_cot_tokens": 0
+            },
+            "shuffle_buffer_size": 100,
+            "num_workers": 1,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 2,
+            "seeds": {
+                "data_seed": 42
+            }
+        }
+    ]
+}

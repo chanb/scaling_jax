@@ -580,7 +580,8 @@ class Learner:
                     self.data_sharding,
                     self.dtype,
                 )[0],
-                validation_config.get("num_rollouts_per_sample", 1)
+                validation_config.get("num_rollouts_per_sample", 1),
+                validation_config["attempt_length"],
             )
             for validation_config in self._config.validation
         }
@@ -589,7 +590,7 @@ class Learner:
             log = dict()
             curr_rng = jrandom.fold_in(self._rng, epoch)
 
-            for validation_name, (val_ds, num_rollouts_per_sample) in self.val_dss.items():
+            for validation_name, (val_ds, num_rollouts_per_sample, attempt_length) in self.val_dss.items():
                 tic = timeit.default_timer()
                 batch = next(val_ds)
                 batch = {
@@ -616,6 +617,7 @@ class Learner:
                     curr_rng,
                     batch,
                     eos_token=self._dataset.eos_token_id,
+                    attempt_length=attempt_length,
                     deterministic=int(num_rollouts_per_sample == 1),
                     correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                     max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
@@ -641,6 +643,7 @@ class Learner:
                         ) / scipy.special.comb(num_rollouts_per_sample, num_rollouts_per_sample // 2, exact=False), axis=0
                     )
                     aux["pass@{}".format(num_rollouts_per_sample // 2)] = pass_k
+
                 log.update({
                     f"validation-{validation_name}/{k}": v for k, v in aux.items()
                 })

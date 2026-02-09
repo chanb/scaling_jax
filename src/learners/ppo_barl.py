@@ -90,16 +90,46 @@ class PPO(REINFORCE):
                 curr_rng,
                 batch,
                 eos_token=self._dataset.eos_token_id,
-                attempt_length=self._config.attempt_length,
+                attempt_length=4,
                 correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                 max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
 
-            # Compute return
-            returns = self._compute_returns(
-                batch,
-                rollout_res,
-            )
+            # # Compute return
+            # returns = self._compute_returns(
+            #     batch,
+            #     rollout_res,
+            # )
+
+            # import ipdb
+            # ipdb.set_trace()
+
+            # NOTE: JUST QUICK HACK TO CHECK
+            returns = np.zeros_like(rollout_res.observations)
+            for sample_i, curr_obs in enumerate(rollout_res.observations):
+                reset_mask = np.where(curr_obs == self._dataset.reset_token_id)[0]
+                if not rollout_res.success[sample_i]:
+                    reset_mask = np.concatenate((reset_mask, [len(curr_obs)]))
+                else:
+                    reset_mask = np.concatenate((reset_mask, [
+                        batch["question_len"][sample_i] + rollout_res.response_length[sample_i]
+                    ]))
+                past_trajs = dict()
+                for start_idx, end_idx in zip(reset_mask[:-1], reset_mask[1:]):
+                    curr_attempt = ",".join(map(str, curr_obs[start_idx: end_idx]))
+                    if curr_attempt == "":
+                        continue
+                    if len(curr_obs[start_idx: end_idx]) < 4:
+                        curr_attempt = curr_attempt + ",{}".format(
+                            rollout_res.actions[
+                                sample_i,
+                                batch["question_len"][sample_i] + rollout_res.response_length[sample_i] - 1
+                            ]
+                        )
+                    if curr_attempt not in past_trajs:
+                        returns[sample_i, start_idx:end_idx] = 1
+                    past_trajs[curr_attempt] = 1
+                print(past_trajs)
 
             total_rollout_time += timeit.default_timer() - tic
 
