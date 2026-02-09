@@ -58,8 +58,7 @@
         "objective": "ppo",
         "mdp_type": "traj_improvement:length_bias_fix",
         "clip_param": 0.2,
-        "entropy": 0.0,
-        "discourage_first_reset": true
+        "entropy": 0.0
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,
@@ -68,6 +67,7 @@
     "batch_size": 2,
     "num_epochs": 300,
     "num_updates_per_epoch": 1,
+    "attempt_length": 4,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
@@ -92,6 +92,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 2,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -114,6 +115,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 1,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -136,6 +138,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 2,
+            "attempt_length": 5,
             "seeds": {
                 "data_seed": 42
             }

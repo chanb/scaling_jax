@@ -23,7 +23,7 @@
         "lr": {
             "scheduler": "constant_schedule",
             "scheduler_kwargs": {
-                "value": 0.0001
+                "value": 0.0003
             }
         },
         "opt_kwargs": {
@@ -62,12 +62,13 @@
     },
     "num_ppo_steps": 3,
     "in_ep_gamma": 1.0,
-    "cross_ep_gamma": 1.0,
-    "reward_type": "negative_on_failure",
+    "cross_ep_gamma": 0.99,
+    "reward_type": "default",
     "num_rollouts_per_sample": 50,
     "batch_size": 2,
     "num_epochs": 300,
     "num_updates_per_epoch": 1,
+    "attempt_length": 4,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
@@ -92,6 +93,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 2,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -114,6 +116,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 1,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -136,6 +139,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 2,
+            "attempt_length": 5,
             "seeds": {
                 "data_seed": 42
             }

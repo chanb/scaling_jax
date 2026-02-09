@@ -42,7 +42,7 @@ def compute_log_probs(graphdef, params, rest, batch):
 
     return lprobs
 
-class PPO(REINFORCE):
+class PPOBARL(REINFORCE):
     def __init__(
         self,
         config: SimpleNamespace,
@@ -94,15 +94,6 @@ class PPO(REINFORCE):
                 correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                 max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
-
-            # # Compute return
-            # returns = self._compute_returns(
-            #     batch,
-            #     rollout_res,
-            # )
-
-            # import ipdb
-            # ipdb.set_trace()
 
             # NOTE: JUST QUICK HACK TO CHECK
             returns = np.zeros_like(rollout_res.observations)

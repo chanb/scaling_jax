@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/debug",
-        "experiment_name": "ppo-mask_some_questions-scratch_1M-0_cot_tokens-8x8",
+        "experiment_name": "ppo-scratch_1M-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 300,
         "validation_interval": 1
@@ -41,7 +41,7 @@
     "learner": "PPO",
     "dataset_name": "repetition",
     "dataset_kwargs": {
-        "context_len": 50,
+        "context_len": 30,
         "vocab_size": 3,
         "k": 3,
         "train": true,
@@ -78,7 +78,7 @@
             "validation_name": "train",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 50,
+                "context_len": 30,
                 "vocab_size": 3,
                 "k": 3,
                 "train": true,
@@ -101,7 +101,7 @@
             "validation_name": "heldout",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 50,
+                "context_len": 30,
                 "vocab_size": 3,
                 "k": 3,
                 "train": false,
@@ -124,7 +124,7 @@
             "validation_name": "train-repeat_k+1",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 50,
+                "context_len": 30,
                 "vocab_size": 3,
                 "k": 4,
                 "train": true,
@@ -138,7 +138,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 50,
             "batch_size": 2,
-            "attempt_length": 4,
+            "attempt_length": 5,
             "seeds": {
                 "data_seed": 42
             }

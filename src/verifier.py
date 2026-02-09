@@ -230,105 +230,69 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             in_axes=[0, 0],
         )
 
-        discourage_first_reset = getattr(config.train_loss_config, "discourage_first_reset", 0)
-
         def process_reward(batch, rollout_res, reward, has_eos):
             B, T = rollout_res.observations.shape
-            reset = rollout_res.observations.at[
-                rollout_res.observations == eos_token_id
-            ].set(reset_token_id) == reset_token_id
-            padded_reset = jnp.concatenate((
-                jnp.ones((B, 1), dtype=bool),
-                reset,
-                jnp.ones((B, 1), dtype=bool),
-            ), axis=-1)
-            padded_reset = jax.vmap(
-                lambda x: jnp.where(x, size=T + 2, fill_value=-1)[0]
-            )(padded_reset)
 
-            diffs = padded_reset[:, 1:] - padded_reset[:, :-1]
-            diffs = diffs.at[diffs < 0].set(0)
-            improvement = jnp.concatenate((
-                jnp.zeros((B, 1), dtype=int),
-                diffs[:, 1:] - discourage_first_reset - jnp.maximum.accumulate((diffs - discourage_first_reset).at[:, 0].set(0)[:, :-1], axis=-1),
-            ), axis=-1)
-            returns = jnp.repeat(
-                improvement,
-                diffs
-            ).reshape((B, T + 1))
-            returns = returns[:, 1:] * rollout_res.pred_mask / (batch["solution_len"][:, None] - discourage_first_reset)
+            remainder = (T - 1) % config.attempt_length
+            end_idx = T - remainder
 
-            returns = scan_discounting(
-                returns[..., None],
-                jnp.concatenate((
-                    (rollout_res.observations == reset_token_id)[:, 1:],
-                    jnp.full((len(reward), 1), fill_value=-1, dtype=int),
-                ), axis=-1)[..., None],
+            obss = rollout_res.observations[:, 1:end_idx].reshape((B, -1, config.attempt_length))
+            match_soln = (obss == batch["target"][:, :config.attempt_length][:, None])
+            match_len = jnp.sum(jnp.minimum.accumulate(match_soln, axis=-1), axis=-1, keepdims=True) - 1
+            match_len = jnp.concatenate((jnp.zeros((B, 1, 1)), match_len), axis=1)
+            diff = match_len[:, 1:] - match_len[:, :-1]
+            diff = jnp.repeat(diff, config.attempt_length, axis=-1).reshape((B, -1))
+            diff = jnp.concatenate((jnp.zeros((B, 1)), diff, jnp.zeros((B, remainder))), axis=1)
+            returns = diff * rollout_res.pred_mask
+
+            # Unique trajs
+            pairwise_traj_diff = jnp.tril(
+                jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
             )
+            num_diff = jnp.repeat(
+                jnp.sum(pairwise_traj_diff > 0, axis=-1, keepdims=True),
+                config.attempt_length,
+                axis=-1,
+            ).reshape((B, -1))
+            num_diff = jnp.concatenate((jnp.zeros((B, 1)), num_diff, jnp.zeros((B, remainder))), axis=1)
+            returns = returns + num_diff * jnp.roll(rollout_res.solution_found, 1, axis=-1)
 
-            return returns
-    elif config.train_loss_config.mdp_type.startswith("traj_improvement-zero_on_reset"):
-        def _scan_discounting(
-            rews: jax.Array,
-            resets: jax.Array,
-        ):
-            def _apply_regret(
-                prev_trial, transition
-            ):
-                rew, reset, next_reset = transition
-                trial = prev_trial + reset
-                val = (config.gamma ** (trial - 1)) * rew * (1 - next_reset)
-                return trial, val
+            
+            # returns = returns.at[
+            #     jnp.logical_not(jnp.roll(rollout_res.solution_found, 1, axis=-1))
+            # ].set()
 
-            return jax.lax.scan(
-                _apply_regret,
-                0,
-                jnp.concatenate((rews, resets[:-1], resets[1:]), axis=-1),
-                len(rews),
-                reverse=False,
-            )[1]
+            # reset = rollout_res.observations.at[
+            #     rollout_res.observations == eos_token_id
+            # ].set(reset_token_id) == reset_token_id
+            # padded_reset = jnp.concatenate((
+            #     jnp.ones((B, 1), dtype=bool),
+            #     reset,
+            #     jnp.ones((B, 1), dtype=bool),
+            # ), axis=-1)
+            # padded_reset = jax.vmap(
+            #     lambda x: jnp.where(x, size=T + 2, fill_value=-1)[0]
+            # )(padded_reset)
 
-        scan_discounting = jax.vmap(
-            jax.jit(_scan_discounting),
-            in_axes=[0, 0],
-        )
+            # diffs = padded_reset[:, 1:] - padded_reset[:, :-1]
+            # diffs = diffs.at[diffs < 0].set(0)
+            # improvement = jnp.concatenate((
+            #     jnp.zeros((B, 1), dtype=int),
+            #     diffs[:, 1:] - discourage_first_reset - jnp.maximum.accumulate((diffs - discourage_first_reset).at[:, 0].set(0)[:, :-1], axis=-1),
+            # ), axis=-1)
+            # returns = jnp.repeat(
+            #     improvement,
+            #     diffs
+            # ).reshape((B, T + 1))
+            # returns = returns[:, 1:] * rollout_res.pred_mask / (batch["solution_len"][:, None] - discourage_first_reset)
 
-        def process_reward(batch, rollout_res, reward, has_eos):
-            B, T = rollout_res.observations.shape
-            reset = rollout_res.observations.at[
-                rollout_res.observations == eos_token_id
-            ].set(reset_token_id) == reset_token_id
-            padded_reset = jnp.concatenate((
-                jnp.ones((B, 1), dtype=bool),
-                reset,
-                jnp.ones((B, 1), dtype=bool),
-            ), axis=-1)
-            padded_reset = jax.vmap(
-                lambda x: jnp.where(x, size=T + 2, fill_value=-1)[0]
-            )(padded_reset)
-
-            diffs = padded_reset[:, 1:] - padded_reset[:, :-1]
-            diffs = diffs.at[diffs < 0].set(0)
-            improvement = jnp.concatenate((
-                jnp.zeros((B, 1), dtype=int),
-                diffs[:, 1:] - 1 - jnp.maximum.accumulate((diffs - 1).at[:, 0].set(0)[:, :-1], axis=-1),
-            ), axis=-1)
-            returns = jnp.repeat(
-                improvement,
-                diffs
-            ).reshape((B, T + 1))
-            returns = returns[:, 1:] * rollout_res.pred_mask / (batch["solution_len"][:, None] - 1)
-
-            returns = scan_discounting(
-                returns[..., None],
-                jnp.concatenate((
-                    jnp.concatenate((
-                        (rollout_res.observations == reset_token_id)[:, 1:],
-                        jnp.zeros((len(reward), 1), dtype=bool)
-                    ), axis=1),
-                    jnp.full((len(reward), 1), fill_value=-1, dtype=int),
-                ), axis=-1)[..., None],
-            )
+            # returns = scan_discounting(
+            #     returns[..., None],
+            #     jnp.concatenate((
+            #         (rollout_res.observations == reset_token_id)[:, 1:],
+            #         jnp.full((len(reward), 1), fill_value=-1, dtype=int),
+            #     ), axis=-1)[..., None],
+            # )
 
             return returns
     elif config.train_loss_config.mdp_type == "bandit":
