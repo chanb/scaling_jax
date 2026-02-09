@@ -92,10 +92,12 @@ def predict_step(
     ]
 
     attempt_step_i = jnp.where(
-        step_state.observations[:, step_i] == step_state.solution[:, 0],
-        attempt_step_i,
+        step_state.observations[:, step_i + 1] == step_state.solution[:, 0],
+        0,
         (attempt_step_i + 1) % step_state.attempt_length,
     )
+
+    # jax.debug.print("{x}, {y}", x=attempt_step_i, y=step_state.observations[:, step_i])
 
     pred_mask = step_state.pred_mask.at[:, step_i].set(
         jnp.where(

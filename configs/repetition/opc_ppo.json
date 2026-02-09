@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/debug",
-        "experiment_name": "opc_ppo-traj_improve-scratch_1M-0_cot_tokens-8x8",
+        "experiment_name": "opc_ppo-scratch_1M-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 300,
         "validation_interval": 1
@@ -65,6 +65,7 @@
     "reward_type": "default",
     "buffer_size": 1000000,
     "max_seq_len": 100,
+    "attempt_length": 4,
     "num_rollouts_per_sample": 10,
     "batch_size": 4,
     "batch_size_buffer": 4,
@@ -94,6 +95,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 10,
             "batch_size": 8,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -116,6 +118,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 10,
             "batch_size": 2,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -138,6 +141,7 @@
             "num_workers": 1,
             "num_rollouts_per_sample": 10,
             "batch_size": 8,
+            "attempt_length": 5,
             "seeds": {
                 "data_seed": 42
             }

@@ -130,6 +130,7 @@ class OffPolicyContextPPO(REINFORCE):
 
             # TODO: FIX
             if epoch > 0:
+                minibatch = self.buffer.sample(self._config.batch_size_buffer, curr_rng)
                 min_idx = jnp.max(minibatch.question_len) + 1
                 max_idx = jnp.min(jnp.argmax(minibatch.context == self._dataset.eos_token_id))
                 random_idx = jrandom.randint(curr_rng, shape=(), minval=min_idx, maxval=max_idx)
@@ -196,8 +197,10 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
-            add_minibatch_idxes = rollout_res.response_length > 10
-            add_minibatch_idxes = add_minibatch_idxes.at[self._config.batch_size * self.num_rollouts_per_sample:].set(False)
+            add_minibatch_idxes = rollout_res.response_length > self._config.attempt_length
+            add_minibatch_idxes = add_minibatch_idxes.at[
+                self._config.batch_size * self.num_rollouts_per_sample:
+            ].set(False)
 
             minibatch = Minibatch(
                 context=jnp.hstack((
