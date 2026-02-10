@@ -107,6 +107,8 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 rollout_res.pred_mask,
                 jnp.logical_not(explore_mask),
             )
+            end_idx = T - remainder
+            obss = rollout_res.observations[:, 1:end_idx].reshape((B, -1, config.attempt_length))
             if config.train_loss_config.in_rollout_traj:
                 # # Unique trajs in single rollout
                 pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
@@ -168,6 +170,11 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
         )
 
         def process_reward(batch, rollout_res, reward, has_eos):
+            B, T = rollout_res.observations.shape
+
+            remainder = (T - 1) % config.attempt_length
+            explore_mask = jnp.roll(rollout_res.solution_found, 1, axis=-1)
+
             returns = scan_monte_carlo_meta_returns(
                 reward[..., None],
                 rollout_res.solution_found[..., None],
@@ -177,7 +184,40 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 ), axis=-1)[..., None],
                 config.in_ep_gamma,
                 config.cross_ep_gamma,
+            ) * jnp.logical_and(
+                rollout_res.pred_mask,
+                jnp.logical_not(explore_mask),
             )
+
+            end_idx = T - remainder
+            obss = rollout_res.observations[:, 1:end_idx].reshape((B, -1, config.attempt_length))
+            if config.train_loss_config.in_rollout_traj:
+                # # Unique trajs in single rollout
+                pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
+                pairwise_traj_diff = jnp.tril(pairwise_traj_diff) - jnp.triu(jnp.ones_like(pairwise_traj_diff))
+                all_diff = jnp.logical_not(jnp.repeat(
+                    jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True),
+                    config.attempt_length,
+                    axis=-1,
+                ).reshape((B, -1)))
+                all_diff = jnp.concatenate((jnp.zeros((B, 1)), all_diff, jnp.zeros((B, remainder))), axis=1)
+                returns = returns + all_diff * explore_mask
+
+            if config.train_loss_config.cross_rollout_traj:
+                # Unique trajs across parallel rollouts
+                num_trials = obss.shape[1]
+                obss = obss.reshape(-1, config.num_rollouts_per_sample, num_trials, config.attempt_length)
+                obss = jnp.transpose(obss, (0, 2, 1, 3))
+                pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, :, :, None]) ** 2, axis=-1)
+                pairwise_traj_diff = pairwise_traj_diff - np.eye(config.num_rollouts_per_sample)[None, None]
+                parallel_all_diff = jnp.logical_not(jnp.repeat(
+                    jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True),
+                    config.attempt_length,
+                    axis=-1,
+                ))
+                parallel_all_diff = jnp.transpose(parallel_all_diff, (0, 2, 1, 3)).reshape((B, -1))
+                parallel_all_diff = jnp.concatenate((jnp.zeros((B, 1)), parallel_all_diff, jnp.zeros((B, remainder))), axis=1)
+                returns = returns + parallel_all_diff * explore_mask
             return returns
     elif config.train_loss_config.mdp_type.startswith("traj_improvement"):
         def process_reward(batch, rollout_res, reward, has_eos):
