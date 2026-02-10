@@ -226,10 +226,7 @@ def rollout(
     )
 
     step_state = jax.lax.while_loop(
-        lambda state: jnp.logical_and(
-            jnp.logical_not(jnp.all(state.solution_found[:, state.step_i])),
-            state.step_i < max_step - 1,
-        ),
+        lambda state: state.step_i < max_step - 1,
         predict_step,
         step_state,
     )

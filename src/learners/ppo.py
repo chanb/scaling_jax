@@ -115,6 +115,9 @@ class PPO(REINFORCE):
                 self.state.rest,
                 batch,
             )
+            # if epoch == 20:
+            #     import ipdb
+            #     ipdb.set_trace()
             for update_i in range(self._config.num_ppo_steps):
                 self._state, aux = self.train_step(
                     self._state,

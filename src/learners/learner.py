@@ -582,6 +582,7 @@ class Learner:
                 )[0],
                 validation_config.get("num_rollouts_per_sample", 1),
                 validation_config["attempt_length"],
+                validation_config["batch_size"],
             )
             for validation_config in self._config.validation
         }
@@ -590,7 +591,7 @@ class Learner:
             log = dict()
             curr_rng = jrandom.fold_in(self._rng, epoch)
 
-            for validation_name, (val_ds, num_rollouts_per_sample, attempt_length) in self.val_dss.items():
+            for validation_name, (val_ds, num_rollouts_per_sample, attempt_length, batch_size) in self.val_dss.items():
                 tic = timeit.default_timer()
                 batch = next(val_ds)
                 batch = {
