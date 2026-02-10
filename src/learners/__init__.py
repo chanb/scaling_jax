@@ -8,6 +8,7 @@ sys.path.insert(0, parentdir)
 
 from src.learners.opc_ppo import OffPolicyContextPPO
 from src.learners.ppo import PPO
+from src.learners.ppo_barl import PPOBARL
 from src.learners.reinforce import REINFORCE
 from src.learners.supervised import Supervised
 

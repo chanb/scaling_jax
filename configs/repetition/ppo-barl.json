@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/debug",
-        "experiment_name": "ppo-01_reward-both_traj-scratch_1M-0_cot_tokens-8x8",
+        "experiment_name": "ppo-barl-scratch_1M-0_cot_tokens-8x8",
         "log_interval": 1,
         "checkpoint_interval": 100000,
         "validation_interval": 1
@@ -38,7 +38,7 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "PPO",
+    "learner": "PPOBARL",
     "dataset_name": "repetition",
     "dataset_kwargs": {
         "context_len": 30,
@@ -58,9 +58,7 @@
         "objective": "ppo",
         "mdp_type": "episodic:length_bias_fix",
         "clip_param": 0.2,
-        "entropy": 0.0,
-        "cross_rollout_traj": true,
-        "in_rollout_traj": true
+        "entropy": 0.0
     },
     "num_ppo_steps": 3,
     "gamma": 0.99,

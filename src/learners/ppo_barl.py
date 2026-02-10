@@ -14,6 +14,7 @@ import jax
 import jax.nn as nn
 import jax.numpy as jnp
 import jax.random as jrandom
+import math
 import numpy as np
 import timeit
 
@@ -90,37 +91,25 @@ class PPOBARL(REINFORCE):
                 curr_rng,
                 batch,
                 eos_token=self._dataset.eos_token_id,
-                attempt_length=4,
+                attempt_length=self._config.attempt_length,
                 correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                 max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
 
             # NOTE: JUST QUICK HACK TO CHECK
             returns = np.zeros_like(rollout_res.observations)
+            _, T = rollout_res.observations.shape
+            num_attempts = math.ceil((T - 1) / self._config.attempt_length)
             for sample_i, curr_obs in enumerate(rollout_res.observations):
-                reset_mask = np.where(curr_obs == self._dataset.reset_token_id)[0]
-                if not rollout_res.success[sample_i]:
-                    reset_mask = np.concatenate((reset_mask, [len(curr_obs)]))
-                else:
-                    reset_mask = np.concatenate((reset_mask, [
-                        batch["question_len"][sample_i] + rollout_res.response_length[sample_i]
-                    ]))
+                curr_obs = curr_obs[1:]
                 past_trajs = dict()
-                for start_idx, end_idx in zip(reset_mask[:-1], reset_mask[1:]):
+                for attempt_i in range(num_attempts):
+                    start_idx = attempt_i * self._config.attempt_length
+                    end_idx = (attempt_i + 1) * self._config.attempt_length
                     curr_attempt = ",".join(map(str, curr_obs[start_idx: end_idx]))
-                    if curr_attempt == "":
-                        continue
-                    if len(curr_obs[start_idx: end_idx]) < 4:
-                        curr_attempt = curr_attempt + ",{}".format(
-                            rollout_res.actions[
-                                sample_i,
-                                batch["question_len"][sample_i] + rollout_res.response_length[sample_i] - 1
-                            ]
-                        )
                     if curr_attempt not in past_trajs:
                         returns[sample_i, start_idx:end_idx] = 1
                     past_trajs[curr_attempt] = 1
-                print(past_trajs)
 
             total_rollout_time += timeit.default_timer() - tic
 
