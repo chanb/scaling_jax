@@ -79,6 +79,7 @@ class REINFORCE(Learner):
                 curr_rng,
                 batch,
                 eos_token=self._dataset.eos_token_id,
+                attempt_length=self._config.attempt_length,
                 correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
                 max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
@@ -104,6 +105,7 @@ class REINFORCE(Learner):
 
             aux[CONST_TRAIN][CONST_SUCCESS_RATE] = np.mean(rollout_res.success).item()
             aux[CONST_TRAIN][CONST_RESPONSE_LENGTH] = np.mean(rollout_res.response_length).item()
+            aux[CONST_TRAIN]["average_return"] = np.mean(returns, where=rollout_res.pred_mask).item()
 
             auxes.append(aux)
 

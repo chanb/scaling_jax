@@ -1,7 +1,7 @@
 {
     "logging_config": {
         "save_path": "./results/debug",
-        "experiment_name": "ppo-meta_rl-quiet_softmax-in_traj-scratch_1M-0_cot_tokens-8x8",
+        "experiment_name": "ntp-quiet_softmax-scratch_1M",
         "log_interval": 1,
         "checkpoint_interval": 50000,
         "validation_interval": 1
@@ -39,15 +39,15 @@
         "fsdp": 1,
         "tensor": 1
     },
-    "learner": "PPO",
+    "learner": "Supervised",
     "dataset_name": "repetition",
     "dataset_kwargs": {
-        "context_len": 30,
+        "context_len": 150,
         "vocab_size": 3,
         "k": 3,
         "train": true,
         "train_val_ratio": 0.9,
-        "sequence_type": "question_only",
+        "sequence_type": "ntp",
         "num_repeats": null,
         "shuffle": false,
         "num_cot_tokens": 0
@@ -55,23 +55,13 @@
     "repeat": false,
     "shuffle_buffer_size": 100,
     "num_workers": 1,
-    "train_loss_config": {
-        "objective": "ppo",
-        "mdp_type": "meta_rl:length_bias_fix",
-        "clip_param": 0.2,
-        "entropy": 0.0,
-        "cross_rollout_traj": false,
-        "in_rollout_traj": true
-    },
-    "num_ppo_steps": 3,
-    "in_ep_gamma": 1.0,
-    "cross_ep_gamma": 0.0,
-    "reward_type": "default",
-    "num_rollouts_per_sample": 50,
     "batch_size": 2,
+    "train_loss_config": {
+        "objective": "ce",
+        "mdp_type": "episodic:length_bias_fix"
+    },
     "num_epochs": 50000,
     "num_updates_per_epoch": 1,
-    "attempt_length": 4,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
@@ -82,7 +72,7 @@
             "validation_name": "train",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
+                "context_len": 150,
                 "vocab_size": 3,
                 "k": 3,
                 "train": true,
@@ -105,7 +95,7 @@
             "validation_name": "heldout",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
+                "context_len": 150,
                 "vocab_size": 3,
                 "k": 3,
                 "train": false,
@@ -128,7 +118,7 @@
             "validation_name": "train-repeat_k+1",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
+                "context_len": 150,
                 "vocab_size": 3,
                 "k": 4,
                 "train": true,

@@ -11,8 +11,6 @@ from types import SimpleNamespace
 from typing import Any, Dict
 
 import jax
-import jax.nn as nn
-import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
 import timeit
@@ -20,34 +18,25 @@ import timeit
 from src.constants import *
 from src.decoding import make_autoregressive
 from src.learners.learner import (
+    Learner,
     l2_norm,
     gather_learning_rate,
 )
-from src.learners.reinforce import REINFORCE
 from src.rollout import rollout
 
 
-@nnx.jit
-def compute_log_probs(graphdef, params, rest, batch):
-    observations = batch["observations"]
-    actions = batch["actions"]
-
-    model = nnx.merge(graphdef, params, rest)
-    model.set_attributes(deterministic=False, decode=False)
-    logits = model({"sequence": observations})
-
-    lprobs = jnp.sum(
-        nn.one_hot(actions, num_classes=logits.shape[-1]) * logits, axis=-1
-    ) - nn.logsumexp(logits, axis=-1)
-
-    return lprobs
-
-class PPO(REINFORCE):
+class RewardLearner(Learner):
     def __init__(
         self,
         config: SimpleNamespace,
     ):
         super().__init__(config=config)
+
+        self.num_rollouts_per_sample = getattr(
+            self._config,
+            "num_rollouts_per_sample",
+            1,
+        )
 
     def update(self, epoch: int, *args, **kwargs) -> Dict[str, Any]:
         curr_rng = jrandom.fold_in(self._rng, epoch)
@@ -91,8 +80,6 @@ class PPO(REINFORCE):
                 batch,
                 eos_token=self._dataset.eos_token_id,
                 attempt_length=self._config.attempt_length,
-                correct_aware_shift=getattr(self._dataset, "correctness_aware_tokens_offset", 0),
-                max_token_id_to_shift=getattr(self._dataset, "max_token_id_to_shift", 0),
             )
 
             # Compute return
@@ -100,29 +87,18 @@ class PPO(REINFORCE):
                 batch,
                 rollout_res,
             )
-
             total_rollout_time += timeit.default_timer() - tic
 
             tic = timeit.default_timer()
-            # Compute log probs
             batch["observations"] = rollout_res.observations
             batch["actions"] = rollout_res.actions
             batch["pred_mask"] = rollout_res.pred_mask
             batch["returns"] = returns
-            batch["old_lprobs"] = compute_log_probs(
-                self.state.graphdef,
-                self.state.params,
-                self.state.rest,
+
+            self._state, aux = self.train_step(
+                self._state,
                 batch,
             )
-            # if epoch == 20:
-            #     import ipdb
-            #     ipdb.set_trace()
-            for update_i in range(self._config.num_ppo_steps):
-                self._state, aux = self.train_step(
-                    self._state,
-                    batch,
-                )
             total_update_time += timeit.default_timer() - tic
             assert np.isfinite(aux[CONST_AGG_LOSS].item()), f"Loss became NaN\naux: {aux}"
 

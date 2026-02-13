@@ -197,10 +197,14 @@ class OffPolicyContextPPO(REINFORCE):
                 rollout_res,
             )
 
-            add_minibatch_idxes = rollout_res.response_length > self._config.attempt_length
-            add_minibatch_idxes = add_minibatch_idxes.at[
+            # add_minibatch_idxes = rollout_res.response_length > self._config.attempt_length
+            # add_minibatch_idxes = add_minibatch_idxes.at[
+            #     self._config.batch_size * self.num_rollouts_per_sample:
+            # ].set(False)
+            add_minibatch_idxes = rollout_res.success.at[
                 self._config.batch_size * self.num_rollouts_per_sample:
             ].set(False)
+            # add_minibatch_idxes = np.arange(self._config.batch_size * self.num_rollouts_per_sample)
 
             minibatch = Minibatch(
                 context=jnp.hstack((

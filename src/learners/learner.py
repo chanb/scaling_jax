@@ -167,7 +167,12 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                     lprobs
                     * returns
                 )
-        elif loss_config.mdp_type.startswith("episodic"):
+        elif (
+            loss_config.mdp_type.startswith("episodic")
+            or loss_config.mdp_type.startswith("meta_rl")
+            or loss_config.mdp_type.startswith("progress_rl")
+            or loss_config.mdp_type.startswith("traj_improvement")
+        ):
             def _compute_loss(lprobs, returns, pred_mask):
                 # Objective: log pi(a_t|s_t) * G_t
                 return -_compute_mean(lprobs * returns * pred_mask, pred_mask)
@@ -431,6 +436,29 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
                 CONST_HIST: {},
             }
         return ppo
+    elif objective == "reward_learning":
+        def reward_est(params, rest, batch):
+            # NOTE: Assume sequence contains both the state and action
+            observations = batch["observations"]
+            actions = batch["actions"]
+            returns = batch["returns"]
+            pred_mask = batch["pred_mask"]
+
+            model = nnx.merge(graphdef, params, rest)
+            model.set_attributes(deterministic=False, decode=False)
+            rewards = model({"sequence": observations})
+
+            actions = nn.one_hot(actions, num_classes=rewards.shape[-1])
+            loss = (jnp.sum(rewards * actions, axis=-1) - returns) ** 2
+            loss = jnp.mean(loss, where=pred_mask)
+
+            return loss, {
+                CONST_TRAIN: {
+                    "pi_loss": loss,
+                },
+                CONST_HIST: {},
+            }
+        return reward_est
     else:
         raise NotImplementedError
 
@@ -534,7 +562,13 @@ class Learner:
                 step = all_steps[step]
 
             print("Loading checkpoint {} at step {}".format(load_path, step))
-            self._state = dill.load(open(os.path.join(load_path, "models", step), "rb"))
+            loaded_state = dill.load(open(os.path.join(load_path, "models", step), "rb"))
+
+            if getattr(self._config, "load_param_only", False):
+                print("Load params only")
+                self._state = self._state.replace(params=loaded_state.params)
+            else:
+                self._state = loaded_state
 
     def get_batch(self):
         batch = next(self.ds)

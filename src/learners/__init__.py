@@ -10,5 +10,6 @@ from src.learners.opc_ppo import OffPolicyContextPPO
 from src.learners.ppo import PPO
 from src.learners.ppo_barl import PPOBARL
 from src.learners.reinforce import REINFORCE
+from src.learners.reward_learner import RewardLearner
 from src.learners.supervised import Supervised
 

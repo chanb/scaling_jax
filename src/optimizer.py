@@ -56,6 +56,22 @@ def constant_warmup(
     return schedule
 
 
+def get_param_mask_by_name(p: optax.Params, mask_names: list) -> Any:
+    """
+    Mask parameters based on the layer name.
+
+    :param p: the parameters
+    :param mask_names: the list of layer names to mask
+    :type p: optax.Params
+    :type mask_names: list
+    :return: a mask indicating which layer to filter
+    :rtype: Any
+    """
+    return jax.tree_util.tree_map_with_path(
+        lambda key_path, _: key_path[0].key in mask_names, p
+    )
+
+
 def get_scheduler(
     scheduler_config: SimpleNamespace,
 ) -> optax.Schedule:
@@ -84,6 +100,7 @@ def get_scheduler(
 
 def get_optimizer(
     opt_config: SimpleNamespace,
+    params: optax.Params,
 ) -> Union[
     Tuple[Dict[str, Any], Dict[str, Any]],
     Tuple[optax.GradientTransformation, optax.OptState],
@@ -92,7 +109,9 @@ def get_optimizer(
     Gets an optimizer and its optimizer state.
 
     :param opt_config: the optimizer configuration
+    :param params: the model parameters
     :type opt_config: SimpleNamespace
+    :type params: optax.Params
     :return: an optimizer and its optimizer state
     :rtype: Union[
         Tuple[Dict[str, Any], Dict[str, Any]],
@@ -114,6 +133,11 @@ def get_optimizer(
             )
         )
 
+    mask_names = getattr(opt_config, CONST_MASK_NAMES, [])
+    if len(mask_names):
+        mask = get_param_mask_by_name(params, mask_names)
+        set_to_zero = optax.masked(optax.set_to_zero(), mask)
+        opt_transforms.insert(0, set_to_zero)
     opt = optax.chain(*opt_transforms)
 
     return opt

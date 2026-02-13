@@ -70,9 +70,9 @@ def construct_sharded_model(
             **model_kwargs,
         )
 
-        opt = get_optimizer(opt_config)
-
         graphdef, params, rest = nnx.split(model, nnx.Param, ...)
+
+        opt = get_optimizer(opt_config, params)
 
         state = TrainState.create(
             apply_fn=graphdef.apply,

@@ -32,7 +32,7 @@ class Repetition(IterableDataset):
         assert context_len > 0
         assert vocab_size > 1
         assert 0 < train_val_ratio <= 1
-        assert k >= 1
+        assert k >= 0
         self.context_len = context_len
         self.vocab_size = vocab_size
         self.k = k
@@ -122,6 +122,22 @@ class Repetition(IterableDataset):
         curr_idx = 0
         repeated = 0
         original_vocabs = self.vocabs[:]
+
+        if self.sequence_type == "ntp":
+            total_attempts = math.ceil(self.context_len / self.k)
+            pre_gen_tokens = []
+            for attempt_i in range(total_attempts):
+                curr = attempt_i
+                str_repr = ""
+                for bit_i in range(self.k):
+                    curr_bit = curr % self.vocab_size
+                    curr = math.floor(curr / self.vocab_size)
+                    str_repr = str_repr + "{},".format(curr_bit)
+                str_repr = str_repr[:-1]
+                pre_gen_tokens.append(
+                    list(map(int, str_repr.split(",")))
+                )
+            print(pre_gen_tokens)
         while True:
             if (
                 self.num_repeats is not None
@@ -151,8 +167,8 @@ class Repetition(IterableDataset):
             if self.sequence_type == "question_only":
                 soln_list_repr = [self.reset_token_id] + [t] * self.k + [self.eos_token_id] * (self.context_len - self.k - 1)
 
-                mask = np.zeros(len(sequence))
-                mask[question_len:] = 1
+                mask = np.zeros(len(sequence), dtype=bool)
+                mask[question_len:] = True
                 
                 yield {
                     "sequence": np.array(sequence),
@@ -162,3 +178,27 @@ class Repetition(IterableDataset):
                     "question_len": question_len,
                     "solution_len": solution_len,
                 }
+            elif self.sequence_type == "ntp":
+                soln_list_repr = [self.reset_token_id] + [t] * self.k
+
+                attempt_i = 0
+                for step_i in range(self.context_len - self.k):
+                    attempt_step = step_i % (self.k + 1)
+                    if attempt_step == 0:
+                        attempt_i += 1
+                        next_k_tokens = [self.reset_token_id, *pre_gen_tokens[attempt_i]]
+                    soln_list_repr = soln_list_repr + [next_k_tokens[attempt_step]]
+
+                mask = np.ones(len(soln_list_repr), dtype=bool)
+                mask[:question_len] = False
+                mask[::(self.k + 1)] = False
+                
+                yield {
+                    "sequence": np.array(soln_list_repr)[:-1],
+                    "target": np.array(soln_list_repr)[1:],
+                    "mask": mask[1:],
+                    "pointer_correct": 1,
+                    "question_len": question_len,
+                    "solution_len": solution_len,
+                }
+

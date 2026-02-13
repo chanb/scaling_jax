@@ -109,21 +109,24 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             )
             end_idx = T - remainder
             obss = rollout_res.observations[:, 1:end_idx].reshape((B, -1, config.attempt_length))
+            num_trials = obss.shape[1]
             if config.train_loss_config.in_rollout_traj:
                 # # Unique trajs in single rollout
                 pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
                 pairwise_traj_diff = jnp.tril(pairwise_traj_diff) - jnp.triu(jnp.ones_like(pairwise_traj_diff))
-                all_diff = jnp.logical_not(jnp.repeat(
-                    jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True),
+                all_diff = jnp.repeat(
+                    (
+                        jnp.logical_not(jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True))
+                        # / (jnp.arange(num_trials) + 1)[:, None]
+                    ),
                     config.attempt_length,
                     axis=-1,
-                ).reshape((B, -1)))
+                ).reshape((B, -1))
                 all_diff = jnp.concatenate((jnp.zeros((B, 1)), all_diff, jnp.zeros((B, remainder))), axis=1)
                 returns = returns + all_diff * explore_mask
 
             if config.train_loss_config.cross_rollout_traj:
                 # Unique trajs across parallel rollouts
-                num_trials = obss.shape[1]
                 obss = obss.reshape(-1, config.num_rollouts_per_sample, num_trials, config.attempt_length)
                 obss = jnp.transpose(obss, (0, 2, 1, 3))
                 pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, :, :, None]) ** 2, axis=-1)
@@ -191,21 +194,34 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
 
             end_idx = T - remainder
             obss = rollout_res.observations[:, 1:end_idx].reshape((B, -1, config.attempt_length))
+            num_trials = obss.shape[1]
             if config.train_loss_config.in_rollout_traj:
                 # # Unique trajs in single rollout
                 pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, None]) ** 2, axis=-1)
                 pairwise_traj_diff = jnp.tril(pairwise_traj_diff) - jnp.triu(jnp.ones_like(pairwise_traj_diff))
-                all_diff = jnp.logical_not(jnp.repeat(
-                    jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True),
+                all_diff = jnp.repeat(
+                    (
+                        jnp.logical_not(jnp.max(pairwise_traj_diff == 0, axis=-1, keepdims=True))
+                        # / (jnp.arange(num_trials) + 1)[:, None]
+                    ),
                     config.attempt_length,
                     axis=-1,
-                ).reshape((B, -1)))
+                ).reshape((B, -1))
                 all_diff = jnp.concatenate((jnp.zeros((B, 1)), all_diff, jnp.zeros((B, remainder))), axis=1)
                 returns = returns + all_diff * explore_mask
 
+            if config.train_loss_config.ordered_traj and config.attempt_length == 2:
+                expected_order = np.vstack((
+                    np.full(config.dataset_kwargs.vocab_size, fill_value=config.dataset_kwargs.vocab_size),
+                    np.arange(config.dataset_kwargs.vocab_size)
+                )).T
+                match_order = ((obss == expected_order[None])[..., ::-1]).reshape((B, -1))
+                match_order = jnp.concatenate((jnp.zeros((B, 1)), match_order, jnp.zeros((B, remainder))), axis=1)
+                returns = returns + match_order * explore_mask
+
+
             if config.train_loss_config.cross_rollout_traj:
                 # Unique trajs across parallel rollouts
-                num_trials = obss.shape[1]
                 obss = obss.reshape(-1, config.num_rollouts_per_sample, num_trials, config.attempt_length)
                 obss = jnp.transpose(obss, (0, 2, 1, 3))
                 pairwise_traj_diff = jnp.sum((obss[:, :, None] - obss[:, :, :, None]) ** 2, axis=-1)
@@ -232,7 +248,7 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
             match_soln = (obss == batch["target"][:, :config.attempt_length][:, None])
             match_len = jnp.sum(jnp.minimum.accumulate(match_soln, axis=-1), axis=-1, keepdims=True) - 1
             match_len = jnp.concatenate((jnp.zeros((B, 1, 1)), match_len), axis=1)
-            diff = match_len[:, 1:] - match_len[:, :-1]
+            diff = (match_len[:, 1:] - match_len[:, :-1]) / (config.attempt_length - 1)
             diff = jnp.repeat(diff, config.attempt_length, axis=-1).reshape((B, -1))
             diff = jnp.concatenate((jnp.zeros((B, 1)), diff, jnp.zeros((B, remainder))), axis=1)
             returns = diff * jnp.logical_and(

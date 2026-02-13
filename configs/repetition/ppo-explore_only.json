@@ -1,24 +1,25 @@
 {
     "logging_config": {
         "save_path": "./results/debug",
-        "experiment_name": "ppo-meta_rl-quiet_softmax-in_traj-scratch_1M-0_cot_tokens-8x8",
+        "experiment_name": "ppo-finetuning-load_params_only-explore_only-large_act_space-smaller_model-in_traj-scratch_1M-0_cot_tokens-8x8",
         "log_interval": 1,
-        "checkpoint_interval": 50000,
-        "validation_interval": 1
+        "checkpoint_interval": 100000,
+        "validation_interval": 100
     },
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
             "num_blocks": 2,
-            "num_heads": 8,
-            "embed_dim": 64,
+            "num_heads": 1,
+            "embed_dim": 16,
             "widening_factor": 4,
             "embedder_strategy": "next_token",
             "shared_decoding": true,
-            "use_sink_token": false,
-            "attention_fn": "quiet_dot_product"
+            "use_sink_token": false
         }
     },
+    "load_checkpoint": "/home/bryanpu1/projects/parallel_vs_serial/scaling_jax/results/debug/ppo-explore_only-large_act_space-smaller_model-in_traj-scratch_1M-0_cot_tokens-8x8-02-13-26_05_21_19-ab8a0e9c-b276-46f7-8860-ebb1275bb463:latest",
+    "load_param_only": true,
     "optimizer_config": {
         "optimizer": "adamw",
         "lr": {
@@ -31,7 +32,9 @@
             "weight_decay": 0.0
         },
         "max_grad_norm": 1.0,
-        "mask_names": []
+        "mask_names": [
+            "gpt"
+        ]
     },
     "half_precision": false,
     "mesh": {
@@ -42,10 +45,10 @@
     "learner": "PPO",
     "dataset_name": "repetition",
     "dataset_kwargs": {
-        "context_len": 30,
-        "vocab_size": 3,
-        "k": 3,
-        "train": true,
+        "context_len": 22,
+        "vocab_size": 10,
+        "k": 0,
+        "train": false,
         "train_val_ratio": 0.9,
         "sequence_type": "question_only",
         "num_repeats": null,
@@ -61,17 +64,18 @@
         "clip_param": 0.2,
         "entropy": 0.0,
         "cross_rollout_traj": false,
-        "in_rollout_traj": true
+        "in_rollout_traj": true,
+        "ordered_traj": false
     },
     "num_ppo_steps": 3,
     "in_ep_gamma": 1.0,
     "cross_ep_gamma": 0.0,
     "reward_type": "default",
-    "num_rollouts_per_sample": 50,
-    "batch_size": 2,
-    "num_epochs": 50000,
+    "num_rollouts_per_sample": 10,
+    "batch_size": 1,
+    "num_epochs": 100000,
     "num_updates_per_epoch": 1,
-    "attempt_length": 4,
+    "attempt_length": 2,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
@@ -82,9 +86,9 @@
             "validation_name": "train",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
-                "vocab_size": 3,
-                "k": 3,
+                "context_len": 22,
+                "vocab_size": 10,
+                "k": 1,
                 "train": true,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -94,9 +98,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 50,
-            "batch_size": 2,
-            "attempt_length": 4,
+            "num_rollouts_per_sample": 10,
+            "batch_size": 9,
+            "attempt_length": 2,
             "seeds": {
                 "data_seed": 42
             }
@@ -105,9 +109,9 @@
             "validation_name": "heldout",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
-                "vocab_size": 3,
-                "k": 3,
+                "context_len": 22,
+                "vocab_size": 10,
+                "k": 1,
                 "train": false,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -117,9 +121,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 50,
+            "num_rollouts_per_sample": 10,
             "batch_size": 1,
-            "attempt_length": 4,
+            "attempt_length": 2,
             "seeds": {
                 "data_seed": 42
             }
@@ -128,9 +132,9 @@
             "validation_name": "train-repeat_k+1",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 30,
-                "vocab_size": 3,
-                "k": 4,
+                "context_len": 22,
+                "vocab_size": 10,
+                "k": 2,
                 "train": true,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -140,9 +144,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 50,
-            "batch_size": 2,
-            "attempt_length": 5,
+            "num_rollouts_per_sample": 10,
+            "batch_size": 9,
+            "attempt_length": 3,
             "seeds": {
                 "data_seed": 42
             }
