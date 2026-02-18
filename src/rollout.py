@@ -72,7 +72,7 @@ def predict_step(
     module = nnx.merge(step_state.graphdef, step_state.rest, step_state.cache)
     module.eval()
     module.set_attributes(deterministic=True, decode=True)
-    logits = module({"sequence": step_state.observations[:, [step_i]],},)
+    logits = module.act({"sequence": step_state.observations[:, [step_i]],},)
     cache = nnx.state(module, nnx.Cache)
 
     logits = logits[:, 0]

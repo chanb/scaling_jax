@@ -9,6 +9,7 @@ sys.path.insert(0, parentdir)
 from flax import nnx
 from typing import Callable, Any
 
+import jax
 import jax.numpy as jnp
 import numpy as np
 
@@ -155,7 +156,8 @@ class InContextGPT(nnx.Module):
         decode: bool = False,
         dtype = None,
         use_sink_token: bool = True,
-        attention_fn=nnx.dot_product_attention,
+        attention_fn: Callable=nnx.dot_product_attention,
+        transfer: str=None,
         **kwargs,
     ) -> None:
         self.decode = decode
@@ -170,6 +172,11 @@ class InContextGPT(nnx.Module):
                 rngs=rngs,
                 dtype=dtype,
             )
+
+        if transfer is not None:
+            self.transfer = getattr(jax.nn, transfer)
+        else:
+            self.transfer = Identity
 
         self.gpt = GPT(
             num_blocks=num_blocks,
@@ -213,3 +220,10 @@ class InContextGPT(nnx.Module):
         )
 
         return outputs
+
+    def act(
+        self,
+        batch: Any,
+    ):
+        outputs = self(batch)
+        return self.transfer(outputs)

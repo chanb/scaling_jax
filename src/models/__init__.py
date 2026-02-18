@@ -14,7 +14,6 @@ from flax.training import train_state
 from functools import partial
 from typing import Any
 
-from src.models.attention import quiet_dot_product_attention
 from src.models.gpt import InContextGPT
 from src.models.next_token import (
     TokenEmbedders,
@@ -27,6 +26,8 @@ from src.models.supervised import (
 )
 from src.models.nope import NoPE
 from src.models.sinusoidal_pe import SinusoidalPE
+
+import src.models.attention as attention_fns
 
 class TrainState(train_state.TrainState):
     """
@@ -118,7 +119,6 @@ def build_cls(dataset, model_config, rngs, dtype=jnp.float32):
         False,
     )
     if attention_fn:
-        if attention_fn == "quiet_dot_product":
-            dependency_cls["attention_fn"] = quiet_dot_product_attention
+        dependency_cls["attention_fn"] = getattr(attention_fns, attention_fn)
 
     return dependency_cls

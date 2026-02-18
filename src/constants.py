@@ -58,3 +58,7 @@ CONST_REWARD = "reward"
 CONST_TERMINAL = "terminal"
 CONST_SUCCESS_RATE = "success_rate"
 CONST_RESPONSE_LENGTH = "response_length"
+
+
+def Identity(x):
+    return x

@@ -449,7 +449,15 @@ def initialize_loss_fn(loss_config, graphdef, one_hot=False):
             rewards = model({"sequence": observations})
 
             actions = nn.one_hot(actions, num_classes=rewards.shape[-1])
-            loss = (jnp.sum(rewards * actions, axis=-1) - returns) ** 2
+
+            # MSE
+            # loss = (jnp.sum(rewards * actions, axis=-1) - returns) ** 2
+
+            # BCE
+            loss = optax.sigmoid_binary_cross_entropy(
+                jnp.sum(rewards * actions, axis=-1),
+                returns,
+            )
             loss = jnp.mean(loss, where=pred_mask)
 
             return loss, {

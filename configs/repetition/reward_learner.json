@@ -1,23 +1,22 @@
 {
     "logging_config": {
-        "save_path": "./results/debug",
-        "experiment_name": "reward_learner-explore_only-linear_tf-bce-act_50-embed_dim_64-num_blocks_1-in_traj",
-        "log_interval": 100,
-        "checkpoint_interval": 1000000,
-        "validation_interval": 100
+        "save_path": "./results/debug-s_3-k_3",
+        "experiment_name": "reward_learner-sigmoid-bce-in_traj-scratch_1M",
+        "log_interval": 1,
+        "checkpoint_interval": 100000,
+        "validation_interval": 1
     },
     "model_config": {
         "architecture": "InContextGPT",
         "model_kwargs": {
-            "num_blocks": 1,
-            "num_heads": 1,
+            "num_blocks": 2,
+            "num_heads": 8,
             "embed_dim": 64,
             "widening_factor": 4,
             "embedder_strategy": "next_token",
             "shared_decoding": true,
             "use_sink_token": false,
-            "transfer": "sigmoid",
-            "attention_fn": "linear_dot_product_attention"
+            "transfer": "sigmoid"
         }
     },
     "optimizer_config": {
@@ -43,9 +42,9 @@
     "learner": "RewardLearner",
     "dataset_name": "repetition",
     "dataset_kwargs": {
-        "context_len": 102,
-        "vocab_size": 50,
-        "k": 0,
+        "context_len": 30,
+        "vocab_size": 3,
+        "k": 3,
         "train": true,
         "train_val_ratio": 0.9,
         "sequence_type": "question_only",
@@ -59,19 +58,19 @@
     "train_loss_config": {
         "objective": "reward_learning",
         "mdp_type": "meta_rl:length_bias_fix",
+        "clip_param": 0.2,
         "entropy": 0.0,
         "cross_rollout_traj": false,
-        "in_rollout_traj": true,
-        "ordered_traj": false
+        "in_rollout_traj": true
     },
     "in_ep_gamma": 1.0,
     "cross_ep_gamma": 0.0,
     "reward_type": "default",
-    "num_rollouts_per_sample": 4,
-    "batch_size": 45,
-    "num_epochs": 1000000,
+    "num_rollouts_per_sample": 50,
+    "batch_size": 2,
+    "num_epochs": 100000,
     "num_updates_per_epoch": 1,
-    "attempt_length": 2,
+    "attempt_length": 4,
     "seeds": {
         "seed": 0,
         "learner_seed": 42,
@@ -82,9 +81,9 @@
             "validation_name": "train",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 102,
-                "vocab_size": 50,
-                "k": 1,
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 3,
                 "train": true,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -94,9 +93,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 8,
-            "batch_size": 45,
-            "attempt_length": 2,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 2,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -105,9 +104,9 @@
             "validation_name": "heldout",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 102,
-                "vocab_size": 50,
-                "k": 1,
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 3,
                 "train": false,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -117,9 +116,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 10,
-            "batch_size": 5,
-            "attempt_length": 2,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 1,
+            "attempt_length": 4,
             "seeds": {
                 "data_seed": 42
             }
@@ -128,9 +127,9 @@
             "validation_name": "train-repeat_k+1",
             "dataset_name": "repetition",
             "dataset_kwargs": {
-                "context_len": 102,
-                "vocab_size": 50,
-                "k": 2,
+                "context_len": 30,
+                "vocab_size": 3,
+                "k": 4,
                 "train": true,
                 "train_val_ratio": 0.9,
                 "sequence_type": "question_only",
@@ -140,9 +139,9 @@
             },
             "shuffle_buffer_size": 100,
             "num_workers": 1,
-            "num_rollouts_per_sample": 8,
-            "batch_size": 45,
-            "attempt_length": 3,
+            "num_rollouts_per_sample": 50,
+            "batch_size": 2,
+            "attempt_length": 5,
             "seeds": {
                 "data_seed": 42
             }

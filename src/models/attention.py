@@ -16,6 +16,7 @@ from flax.typing import (
     Dtype,
     PrecisionLike,
 )
+from typing import Callable
 
 Array = jax.Array
 
@@ -39,7 +40,7 @@ def _quiet_softmax(
         result = jnp.where(where, result, 0)
     return result
 
-def quiet_dot_product_attention_weights(
+def general_dot_product_attention_weights(
     query: Array,
     key: Array,
     bias: Array | None = None,
@@ -51,9 +52,10 @@ def quiet_dot_product_attention_weights(
     dtype: Dtype | None = None,
     precision: PrecisionLike = None,
     module: Module | None = None,
+    attention_fn: Callable | None = None,
 ):
     """
-    Computes quiet dot-product attention weights given query and key.
+    Computes general dot-product attention weights given query and key.
     """
     query, key = promote_dtype((query, key), dtype=dtype)  # type: ignore[bad-unpacking]
     dtype = query.dtype
@@ -76,11 +78,12 @@ def quiet_dot_product_attention_weights(
         attn_weights = attn_weights + bias
     # apply attention mask
     if mask is not None:
-        big_neg = jnp.finfo(dtype).min
+        big_neg = 0.0 if attention_fn is None else jnp.finfo(dtype).min
         attn_weights = jnp.where(mask, attn_weights, big_neg)
 
     # normalize the attention weights
-    attn_weights = _quiet_softmax(attn_weights).astype(dtype)
+    if attention_fn is not None:
+        attn_weights = attention_fn(attn_weights).astype(dtype)
 
     if module:
         module.sow(nnx.Intermediate, 'attention_weights', attn_weights)
@@ -129,7 +132,56 @@ def quiet_dot_product_attention(
     assert key.shape[-3] == value.shape[-3], 'k, v lengths must match.'
 
     # compute attention weights
-    attn_weights = quiet_dot_product_attention_weights(
+    attn_weights = general_dot_product_attention_weights(
+        query,
+        key,
+        bias,
+        mask,
+        broadcast_dropout,
+        dropout_rng,
+        dropout_rate,
+        deterministic,
+        dtype,
+        precision,
+        module,
+        _quiet_softmax,
+    )
+
+    # return weighted sum over values for each query position
+    return jnp.einsum(
+        '...hqk,...khd->...qhd', attn_weights, value, precision=precision
+    )
+
+def linear_dot_product_attention(
+    query: Array,
+    key: Array,
+    value: Array,
+    bias: Array | None = None,
+    mask: Array | None = None,
+    broadcast_dropout: bool = True,
+    dropout_rng: Array | None = None,
+    dropout_rate: float = 0.0,
+    deterministic: bool = False,
+    dtype: Dtype | None = None,
+    precision: PrecisionLike = None,
+    module: Module | None = None,
+):
+    """
+    Computes linear dot-product attention given query, key, and value.
+    """
+    query, key, value = promote_dtype((query, key, value), dtype=dtype)  # type: ignore[bad-unpacking]
+    dtype = query.dtype
+    assert key.ndim == query.ndim == value.ndim, 'q, k, v must have same rank.'
+    assert (
+        query.shape[:-3] == key.shape[:-3] == value.shape[:-3]
+    ), 'q, k, v batch dims must match.'
+    assert (
+        query.shape[-2] == key.shape[-2] == value.shape[-2]
+    ), 'q, k, v num_heads must match.'
+    assert key.shape[-3] == value.shape[-3], 'k, v lengths must match.'
+
+    # compute attention weights
+    attn_weights = general_dot_product_attention_weights(
         query,
         key,
         bias,

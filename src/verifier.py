@@ -210,14 +210,14 @@ def make_compute_returns(config, eos_token_id, reset_token_id, token_map):
                 all_diff = jnp.concatenate((jnp.zeros((B, 1)), all_diff, jnp.zeros((B, remainder))), axis=1)
                 returns = returns + all_diff * explore_mask
 
-            if config.train_loss_config.ordered_traj and config.attempt_length == 2:
-                expected_order = np.vstack((
-                    np.full(config.dataset_kwargs.vocab_size, fill_value=config.dataset_kwargs.vocab_size),
-                    np.arange(config.dataset_kwargs.vocab_size)
-                )).T
-                match_order = ((obss == expected_order[None])[..., ::-1]).reshape((B, -1))
-                match_order = jnp.concatenate((jnp.zeros((B, 1)), match_order, jnp.zeros((B, remainder))), axis=1)
-                returns = returns + match_order * explore_mask
+            # if config.train_loss_config.ordered_traj and config.attempt_length == 2:
+            #     expected_order = np.vstack((
+            #         np.full(config.dataset_kwargs.vocab_size, fill_value=config.dataset_kwargs.vocab_size),
+            #         np.arange(config.dataset_kwargs.vocab_size)
+            #     )).T
+            #     match_order = ((obss == expected_order[None])[..., ::-1]).reshape((B, -1))
+            #     match_order = jnp.concatenate((jnp.zeros((B, 1)), match_order, jnp.zeros((B, remainder))), axis=1)
+            #     returns = returns + match_order * explore_mask
 
 
             if config.train_loss_config.cross_rollout_traj:
